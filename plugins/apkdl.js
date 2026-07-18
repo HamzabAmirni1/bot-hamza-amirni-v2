@@ -2,15 +2,9 @@ import axios from 'axios';
 import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ============================================================
-// APK Downloader Plugin — Uses appteka.store API
-// Commands: .apk <app> / .apkdl <id>
+// APK Downloader Plugin — Uses ws75.aptoide.com API (Aptoide)
+// Commands: .apk <app> / .apkdl <package_or_query>
 // ============================================================
-
-const BASE = 'https://appteka.store';
-const HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-	'Accept': 'application/json, text/plain, */*'
-};
 
 // ── Daily limit tracker (in-memory, resets every 24h) ──────
 const downloadCount = new Map(); // jid → { count, resetAt }
@@ -42,76 +36,65 @@ function isOwner(jid) {
   return owners.some(o => String(o[0]) === String(num));
 }
 
-// ── Search apps on appteka ──────────────────────────────────
-async function searchApps(query) {
-	const r = await axios.get(`${BASE}/api/1/app/search`, {
-		params: { query, offset: 0, locale: 'en', count: 8 },
-		headers: HEADERS,
-		timeout: 15000,
-		validateStatus: false
-	});
-	if (r.status !== 200 || !r.data?.result?.entries) return [];
-	return r.data.result.entries.map(a => ({
-		appId: a.app_id,
-		name: a.label,
-		package: a.package,
-		version: a.ver_name || '—',
-		size: a.size ? (a.size / (1024 * 1024)).toFixed(1) + ' MB' : '—',
-		downloads: a.downloads || 0,
-		icon: `https://appteka.store/static/app/${a.app_id}/icon.png`,
-		link: `${BASE}/app/${a.app_id}`
-	}));
-}
-
-// ── Get direct download link for an app by appId ───────────
-async function getDownloadInfo(appId) {
-	const r = await axios.get(`${BASE}/api/1/app/info`, {
-		params: { app_id: appId },
-		headers: HEADERS,
-		timeout: 20000,
-		validateStatus: false
-	});
-	if (r.status !== 200 || !r.data?.result) throw new Error('App info not found');
-	const d = r.data.result;
-	return {
-		name: d.info?.label || 'App',
-		package: d.info?.package || '',
-		version: d.info?.ver_name || '—',
-		size: d.info?.size ? (d.info.size / (1024 * 1024)).toFixed(1) + ' MB' : '—',
-		rawSize: d.info?.size || 0,
-		downloadUrl: d.link,
-		android: d.info?.android || '—',
-		description: d?.meta?.description?.slice(0, 200) || ''
-	};
-}
-
-// ── Fallback: search on APKPure via scraping ────────────────
-async function fallbackSearch(query) {
+// ── Aptoide Search Provider (combines Aptoide & Siputzx) ────
+async function searchAptoide(query, limit = 6) {
 	try {
-		const r = await axios.get(
-			`https://apkpure.com/search?q=${encodeURIComponent(query)}`,
-			{ headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 12000 }
-		);
-		const matches = [...r.data.matchAll(/<div class="first-info">\s*<a[^>]+href="([^"]+)"[^>]*>\s*<p[^>]*>([^<]+)<\/p>/g)];
-		return matches.slice(0, 5).map(m => ({
-			appId: null,
-			name: m[2].trim(),
-			package: m[1].replace(/^\//, '').split('/')[0],
-			version: '—',
-			size: '—',
-			downloads: 0,
-			icon: '',
-			link: `https://apkpure.com${m[1]}`
+		const res = await axios.get(`https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(query)}&limit=${limit}`, { timeout: 8000 });
+		return (res.data?.datalist?.list || []).map(app => ({
+			name: app.name,
+			package: app.package,
+			sizeMB: (app.size / (1024 * 1024)).toFixed(1),
+			sizeBytes: app.size,
+			version: app.file?.vername || 'N/A',
+			icon: app.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.name)}&background=25D366&color=FFFFFF`,
+			downloadUrl: app.file?.path_alt || app.file?.path
 		}));
-	} catch (_) { return []; }
+	} catch (e) {
+		console.log('[apk] Aptoide official API failed, trying fallback...');
+		// Fallback to Siputzx API
+		try {
+			const res = await axios.get(`https://api.siputzx.my.id/api/apk/search?q=${encodeURIComponent(query)}`, { timeout: 8000 });
+			return (res.data?.data || []).map(app => ({
+				name: app.name,
+				package: app.id || app.package || query,
+				sizeMB: 'N/A',
+				sizeBytes: 0,
+				version: 'Latest',
+				icon: app.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.name)}&background=25D366&color=FFFFFF`,
+				downloadUrl: app.url
+			}));
+		} catch (_) {
+			return [];
+		}
+	}
+}
+
+// ── Get Download details for a specific package ────────────
+async function getDownloadDetails(pkgName) {
+	try {
+		// Fetch info via searching package specifically
+		const res = await axios.get(`https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(pkgName)}&limit=1`, { timeout: 8000 });
+		const app = res.data?.datalist?.list?.[0];
+		if (app) {
+			return {
+				name: app.name,
+				package: app.package,
+				sizeBytes: app.size,
+				sizeMB: (app.size / (1024 * 1024)).toFixed(1),
+				version: app.file?.vername || 'N/A',
+				downloadUrl: app.file?.path_alt || app.file?.path
+			};
+		}
+	} catch (_) {}
+	return null;
 }
 
 // ============================================================
-// MAIN HANDLER (default export accepts both commands)
+// HANDLER
 // ============================================================
 const handler = async (m, { conn, text, command }) => {
 
-	// ── 1. Search and send Carousel (.apk) ──────────────────────
+	// ── 1. Search Aptoide apps and send Carousel (.apk) ────────
 	if (/^apk$/i.test(command)) {
 		if (!text) return m.reply(
 			`📦 *APK Downloader*\n\n` +
@@ -124,30 +107,19 @@ const handler = async (m, { conn, text, command }) => {
 
 		await m.react('🔍');
 
-		let apps = [];
-		try {
-			apps = await searchApps(text);
-		} catch (e) {
-			console.log('[apk] appteka search failed:', e.message);
-		}
-
-		if (!apps.length) {
-			apps = await fallbackSearch(text);
-		}
-
+		const apps = await searchAptoide(text, 6);
 		if (!apps.length) {
 			await m.react('❌');
 			return m.reply(`❌ لم يتم العثور على نتائج لـ *"${text}"*`);
 		}
 
-		// Helper to download icon image and pass it as Buffer (100% reliable)
+		// Helper to download icon and pass it as Buffer
 		async function createHeaderImage(url) {
 			try {
-				const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000, headers: HEADERS });
+				const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
 				const { imageMessage } = await generateWAMessageContent({ image: Buffer.from(res.data) }, { upload: conn.waUploadToServer });
 				return imageMessage;
 			} catch (_) {
-				// Fallback to placeholder avatar
 				try {
 					const fallbackUrl = `https://ui-avatars.com/api/?name=APK&background=25D366&color=FFFFFF&size=200`;
 					const fallbackRes = await axios.get(fallbackUrl, { responseType: 'arraybuffer', timeout: 3000 });
@@ -160,26 +132,11 @@ const handler = async (m, { conn, text, command }) => {
 		}
 
 		let cards = [];
-		for (const a of apps.slice(0, 6)) {
-			const iconUrl = a.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=25D366&color=FFFFFF&size=300`;
-			const imageMessage = await createHeaderImage(iconUrl);
-
-			const buttons = [];
-			if (a.appId) {
-				buttons.push({
-					"name": "quick_reply",
-					"buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل التطبيق", id: `.apkdl ${a.appId}` })
-				});
-			} else {
-				buttons.push({
-					"name": "cta_url",
-					"buttonParamsJson": JSON.stringify({ display_text: "🔗 صفحة التحميل", url: a.link })
-				});
-			}
-
+		for (const a of apps) {
+			const imageMessage = await createHeaderImage(a.icon);
 			cards.push({
 				body: proto.Message.InteractiveMessage.Body.fromObject({
-					text: `📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`
+					text: `📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.sizeMB} MB`
 				}),
 				header: proto.Message.InteractiveMessage.Header.fromObject({
 					title: a.name,
@@ -187,7 +144,12 @@ const handler = async (m, { conn, text, command }) => {
 					...(imageMessage ? { imageMessage } : {})
 				}),
 				nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-					buttons
+					buttons: [
+						{
+							"name": "quick_reply",
+							"buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل التطبيق", id: `.apkdl ${a.package}` })
+						}
+					]
 				})
 			});
 		}
@@ -209,13 +171,13 @@ const handler = async (m, { conn, text, command }) => {
 		await m.react('✅');
 	}
 
-	// ── 2. Direct download command (.apkdl) ───────────────────
+	// ── 2. Download Aptoide app (.apkdl) ──────────────────────
 	if (/^apkdl$/i.test(command)) {
-		if (!text) return m.reply('أرسل رقم التطبيق للتحميل:\n.apkdl 12345678');
+		if (!text) return m.reply('أرسل اسم الحزمة للتحميل:\n.apkdl com.whatsapp');
 
 		const sender = m.sender || m.key.participant || m.key.remoteJid;
 		
-		// Check user limits (owners have bypass)
+		// Check limits
 		if (!isOwner(sender) && !canDownload(sender)) {
 			await m.react('❌');
 			return m.reply(`❌ لقد تجاوزت الحد اليومي الأقصى المسموح به لك اليوم وهو (${getLimit()} تطبيقات).`);
@@ -224,41 +186,45 @@ const handler = async (m, { conn, text, command }) => {
 		await m.react('⏳');
 
 		try {
-			const info = await getDownloadInfo(text.trim());
-
-			if (info.rawSize > 300 * 1024 * 1024) {
-				await m.react('⚠️');
-				return m.reply(`⚠️ *${info.name}* كبير جداً (${info.size}) للإرسال عبر واتساب (الحد الأقصى 300MB).\n\nحمله من:\nhttps://appteka.store/app/${text.trim()}`);
+			const info = await getDownloadDetails(text.trim());
+			if (!info || !info.downloadUrl) {
+				await m.react('❌');
+				return m.reply('❌ لم يتم العثور على ملف APK للتطبيق المطلوب.');
 			}
 
-			if (!info.downloadUrl) { await m.react('❌'); return m.reply('❌ لم يتم العثور على رابط التحميل.'); }
+			// Size check (max 300MB)
+			if (info.sizeBytes > 300 * 1024 * 1024) {
+				await m.react('⚠️');
+				return m.reply(`⚠️ *${info.name}* كبير جداً (${info.sizeMB} MB) للإرسال عبر واتساب (الحد الأقصى 300MB).\n\nيمكنك تحميله يدوياً.`);
+			}
 
 			await conn.sendMessage(m.chat, {
-				text: `📦 *${info.name}*\n🔢 v${info.version}  |  ⚖️ ${info.size}\n📱 Android ${info.android}+\n\n⏳ *جاري إرسال APK...*`
+				text: `📦 *${info.name}*\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⏳ *جاري إرسال ملف APK...*`
 			}, { quoted: m });
 
+			// Stream directly from Aptoide CDN via Baileys (0% local RAM overhead)
 			await conn.sendMessage(m.chat, {
 				document: { url: info.downloadUrl },
-				fileName: `${info.name}_${info.version}.apk`,
+				fileName: `${info.name}_v${info.version}.apk`,
 				mimetype: 'application/vnd.android.package-archive',
-				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.size}\n\n⚡ *bot amirini hamza*`
+				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirini hamza*`
 			}, { quoted: m });
 
 			if (!isOwner(sender)) {
 				incrementDownload(sender);
 			}
-			
+
 			await m.react('✅');
 
 		} catch (e) {
 			await m.react('❌');
 			console.error('[apkdl] error:', e.message);
-			m.reply('❌ فشل التحميل: ' + e.message);
+			m.reply('❌ فشل تحميل التطبيق: ' + e.message);
 		}
 	}
 };
 
-handler.help = ['apk <اسم التطبيق>', 'apkdl <رقم التطبيق>'];
+handler.help = ['apk <اسم التطبيق>', 'apkdl <الحزمة>'];
 handler.tags = ['downloader'];
 handler.command = /^(apk|apkdl)$/i;
 
