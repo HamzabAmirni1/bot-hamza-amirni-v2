@@ -8,7 +8,44 @@ import axios from 'axios';
 const BASE = 'https://appteka.store';
 const HEADERS = { 'content-type': 'application/json', 'user-agent': 'Postify/1.0.0' };
 
-// ── Search apps on appteka ──────────────────────────────────
+// ── Daily limit tracker (in-memory, resets every 24h) ──────
+const downloadCount = new Map(); // jid → { count, resetAt }
+
+function getLimit() {
+  // Read from global (set by /api/settings endpoint) or default 5
+  return (global.APK_DAILY_LIMIT && !isNaN(global.APK_DAILY_LIMIT))
+    ? parseInt(global.APK_DAILY_LIMIT) : 5;
+}
+
+function canDownload(jid) {
+  const now = Date.now();
+  const entry = downloadCount.get(jid);
+  if (!entry || now >= entry.resetAt) {
+    // First time or reset period passed → reset counter
+    downloadCount.set(jid, { count: 0, resetAt: now + 24 * 60 * 60 * 1000 });
+    return true;
+  }
+  return entry.count < getLimit();
+}
+
+function incrementDownload(jid) {
+  const entry = downloadCount.get(jid) || { count: 0, resetAt: Date.now() + 24 * 60 * 60 * 1000 };
+  entry.count++;
+  downloadCount.set(jid, entry);
+}
+
+function getRemainingDownloads(jid) {
+  const entry = downloadCount.get(jid);
+  if (!entry || Date.now() >= entry.resetAt) return getLimit();
+  return Math.max(0, getLimit() - entry.count);
+}
+
+function isOwner(jid) {
+  const num = jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+  const owners = global.owner || [];
+  return owners.some(o => String(o[0]) === String(num));
+}
+
 async function searchApps(query) {
 	const r = await axios.get(`${BASE}/api/1/app/search`, {
 		params: { query, offset: 0, locale: 'en', count: 8 },

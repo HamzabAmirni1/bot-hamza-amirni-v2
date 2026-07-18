@@ -172,6 +172,52 @@ http.createServer(async (req, res) => {
         return;
       }
       
+      // ── GET /api/settings — read bot config ──────────────
+      if (endpoint === 'settings' && req.method === 'GET') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_config?select=key,value', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const rows = await fetchRes.json();
+        // Convert [{key,value}] array to {key:value} object
+        const cfg = {};
+        if (Array.isArray(rows)) rows.forEach(r => { cfg[r.key] = r.value; });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(cfg));
+        return;
+      }
+
+      // ── POST /api/settings — save bot config ──────────────
+      if (endpoint === 'settings' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const settings = JSON.parse(body); // { key: value, ... }
+            // Upsert each key-value pair
+            const rows = Object.entries(settings).map(([key, value]) => ({ key, value: String(value) }));
+            const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_config', {
+              method: 'POST',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify(rows)
+            });
+            // Update global vars if bot is running
+            if (settings.apk_daily_limit) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
+            if (settings.bot_name) global.namebot = settings.bot_name;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, saved: Object.keys(settings) }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Endpoint not found' }));
       return;
