@@ -1,7 +1,10 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  📌 Pinterest Search Plugin — Silana Bot
-//  Searches Pinterest for pins (images) by keyword
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import axios from 'axios';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
+
+// ============================================================
+// Pinterest Search & Downloader Plugin
+// Commands: .pinterest <query> / .pindl <url>
+// ============================================================
 
 async function getSession() {
     const res = await fetch("https://id.pinterest.com/", {
@@ -17,7 +20,7 @@ async function getSession() {
 }
 
 async function pinterestSearch(query, options = {}) {
-    const { limit = 5, scope = "pins", bookmark = null } = options
+    const { limit = 6, scope = "pins", bookmark = null } = options
     const session = await getSession()
 
     const data = {
@@ -78,98 +81,129 @@ async function pinterestSearch(query, options = {}) {
     }
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Handler
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
+// ============================================================
+// HANDLER
+// ============================================================
 let handler = async (m, { conn, text, usedPrefix, command }) => {
 
-    // ── Guide (no args) ──────────────────────────────────────
-    if (!text) {
-        const guide = `
-╔══════════════════════════════╗
-║   📌  *Pinterest Search*     ║
-╚══════════════════════════════╝
+    // ── 1. Search and send Carousel (.pinterest) ────────────────
+    if (/^pinterest$/i.test(command)) {
+        if (!text) return m.reply(
+            `📌 *Pinterest Search*\n\n` +
+            `ابحث في Pinterest واحصل على كروت للصور والتحميل المباشر!\n\n` +
+            `*مثال:*\n` +
+            `▸ \`${usedPrefix}pinterest anime wallpaper\`\n` +
+            `▸ \`${usedPrefix}pinterest minimalist tattoo\`\n\n` +
+            `⚡ *bot amirini hamza*`
+        );
 
-*What is this?*
-Search Pinterest directly from WhatsApp and get images or videos sent right here in the chat — no app needed!
+        const query = text.trim()
+        await m.react('🔍');
 
-*How to use:*
-➤ ${usedPrefix}${command} <keyword>
+        let data;
+        try {
+            data = await pinterestSearch(query, { limit: 6 })
+        } catch (err) {
+            await m.react('❌');
+            return m.reply(`❌ فشل الاتصال بـ Pinterest: ${err.message}`)
+        }
 
-*Examples:*
-• ${usedPrefix}${command} logo design
-• ${usedPrefix}${command} aesthetic room
-• ${usedPrefix}${command} anime wallpaper
-• ${usedPrefix}${command} minimalist tattoo
+        if (data.error || !data.results?.length) {
+            await m.react('❌');
+            return m.reply(`😕 لم يتم العثور على نتائج لـ *"${query}"*`)
+        }
 
-*What you get:*
-🖼️ Up to 5 Pinterest images per search
-📎 Direct link to each pin
-👤 Creator username & name
-
-*Notes:*
-- Only images are sent (videos are linked)
-- Results come from Pinterest's public search
-- Each search may give different results`.trim()
-
-        return conn.sendMessage(m.chat, { text: guide }, { quoted: m })
-    }
-
-    // ── Processing ───────────────────────────────────────────
-    const query = text.trim()
-    await conn.sendMessage(m.chat, {
-        text: `🔍 Searching Pinterest for *"${query}"*...`
-    }, { quoted: m })
-
-    let data
-    try {
-        data = await pinterestSearch(query, { limit: 5 })
-    } catch (err) {
-        return conn.sendMessage(m.chat, {
-            text: `❌ Failed to reach Pinterest.\n\nError: ${err.message}`
-        }, { quoted: m })
-    }
-
-    if (data.error || !data.results?.length) {
-        return conn.sendMessage(m.chat, {
-            text: `😕 No results found for *"${query}"*.\n\nTry a different keyword.`
-        }, { quoted: m })
-    }
-
-    // ── Send results ─────────────────────────────────────────
-    await conn.sendMessage(m.chat, {
-        text: `📌 Found *${data.count}* pins for *"${query}"*:`
-    }, { quoted: m })
-
-    for (let i = 0; i < data.results.length; i++) {
-        const pin = data.results[i]
-
-        const caption =
-            `*📌 Pin ${i + 1}/${data.results.length}*\n` +
-            (pin.title ? `📝 ${pin.title}\n` : "") +
-            (pin.fullName ? `👤 ${pin.fullName}` + (pin.username ? ` (@${pin.username})` : "") + "\n" : "") +
-            `🔗 ${pin.pinUrl}` +
-            (pin.video ? `\n🎬 Video: ${pin.video}` : "")
-
-        if (pin.image) {
+        // Helper to download image as Buffer to display inside carousel header
+        async function createHeaderImage(url) {
             try {
-                await conn.sendMessage(m.chat, {
-                    image: { url: pin.image },
-                    caption
-                }, { quoted: m })
-            } catch {
-                // fallback to text if image fails to download
-                await conn.sendMessage(m.chat, { text: caption }, { quoted: m })
+                const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
+                const { imageMessage } = await generateWAMessageContent({ image: Buffer.from(res.data) }, { upload: conn.waUploadToServer });
+                return imageMessage;
+            } catch (_) {
+                try {
+                    const fallbackUrl = `https://ui-avatars.com/api/?name=Pinterest&background=E60023&color=FFFFFF&size=200`;
+                    const fallbackRes = await axios.get(fallbackUrl, { responseType: 'arraybuffer', timeout: 3000 });
+                    const { imageMessage } = await generateWAMessageContent({ image: Buffer.from(fallbackRes.data) }, { upload: conn.waUploadToServer });
+                    return imageMessage;
+                } catch (__) {
+                    return null;
+                }
             }
-        } else {
-            await conn.sendMessage(m.chat, { text: caption }, { quoted: m })
+        }
+
+        let cards = [];
+        for (let i = 0; i < data.results.length; i++) {
+            const pin = data.results[i];
+            if (!pin.image) continue;
+
+            const imageMessage = await createHeaderImage(pin.image);
+
+            const buttons = [
+                {
+                    "name": "quick_reply",
+                    "buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل الصورة", id: `.pindl ${pin.image}` })
+                },
+                {
+                    "name": "cta_url",
+                    "buttonParamsJson": JSON.stringify({ display_text: "🔗 فتح على Pinterest", url: pin.pinUrl })
+                }
+            ];
+
+            cards.push({
+                body: proto.Message.InteractiveMessage.Body.fromObject({
+                    text: `📝 ${pin.title || 'تصميم مميز'}\n👤 الناشر: ${pin.fullName || 'Pinterest'}`
+                }),
+                header: proto.Message.InteractiveMessage.Header.fromObject({
+                    title: `صورة ${i + 1}/${data.results.length}`,
+                    hasMediaAttachment: !!imageMessage,
+                    ...(imageMessage ? { imageMessage } : {})
+                }),
+                nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+                    buttons
+                })
+            });
+        }
+
+        const botMsg = generateWAMessageFromContent(m.chat, {
+            viewOnceMessage: {
+                message: {
+                    messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+                    interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: `📌 نتائج البحث في Pinterest عن: *${query}*` }),
+                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+                        carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+                    })
+                }
+            }
+        }, { quoted: m });
+
+        await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
+        await m.react('✅');
+    }
+
+    // ── 2. Direct download image (.pindl) ─────────────────────
+    if (/^pindl$/i.test(command)) {
+        if (!text) return m.reply('أرسل رابط الصورة للتحميل:\n.pindl https://...');
+
+        await m.react('⏳');
+
+        try {
+            await conn.sendMessage(m.chat, {
+                image: { url: text.trim() },
+                caption: `✅ *تم تحميل الصورة بنجاح*\n\n⚡ *bot amirini hamza*`
+            }, { quoted: m });
+            await m.react('✅');
+        } catch (e) {
+            await m.react('❌');
+            console.error('[pindl] failed to send image:', e.message);
+            m.reply('❌ فشل تحميل الصورة: ' + e.message);
         }
     }
 }
 
-handler.help = handler.command = ['pinterest']
+handler.help = ['pinterest <البحث>', 'pindl <الرابط>']
 handler.tags = ['downloader']
+handler.command = /^(pinterest|pindl)$/i
 handler.limit = true
 
 export default handler

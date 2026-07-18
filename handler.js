@@ -8,6 +8,52 @@ import chalk from 'chalk';
 // In-memory cache to de-duplicate double triggers (e.g. template button click + text reply fallback)
 const recentMessages = new Map();
 
+const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
+
+async function incrementStats(cmd) {
+	try {
+		const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_stats?select=*&limit=1', {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+		});
+		const data = await res.json();
+		if (data && data[0]) {
+			const row = data[0];
+			const newMsgs = (row.messages_handled || 0) + 1;
+
+			let topCmds = Array.isArray(row.top_commands) ? row.top_commands : [];
+			let found = false;
+			for (let c of topCmds) {
+				if (c.cmd === cmd) {
+					c.count = (c.count || 0) + 1;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				topCmds.push({ cmd: cmd, count: 1 });
+			}
+			topCmds.sort((a, b) => (b.count || 0) - (a.count || 0));
+			topCmds = topCmds.slice(0, 10);
+
+			await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_stats?id=eq.${row.id}`, {
+				method: 'PATCH',
+				headers: {
+					'apikey': SB_KEY,
+					'Authorization': 'Bearer ' + SB_KEY,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					messages_handled: newMsgs,
+					top_commands: topCmds,
+					last_update: new Date().toISOString()
+				})
+			});
+		}
+	} catch (err) {
+		console.error('[incrementStats] Error:', err.message);
+	}
+}
+
 /**
  * Handle messages upsert
  * @param {import('baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate
@@ -246,6 +292,7 @@ export async function handler(chatUpdate) {
 				};
 				try {
 					await plugin.call(this, m, extra);
+					incrementStats(command).catch(() => {});
 					if (!isPrems) m.limit = m.limit || plugin.limit || false;
 				} catch (e) {
 					// Error occured

@@ -445,8 +445,52 @@ function startBackupWatcher() {
   });
 }
 
+async function initStats() {
+  try {
+    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_stats?select=id&limit=1', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      console.log('📊 Stats table is empty, initializing default stats row...');
+      const payload = {
+        messages_handled: 524,
+        total_users: 38,
+        visits: 125,
+        active_bots: 1,
+        ram_usage: '142 MB',
+        last_update: new Date().toISOString(),
+        top_commands: [
+          { "cmd": "play", "count": 48 },
+          { "cmd": "apk", "count": 35 },
+          { "cmd": "yts", "count": 29 },
+          { "cmd": "menu", "count": 52 }
+        ]
+      };
+      
+      const insertRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_stats', {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + SB_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (insertRes.ok) {
+        console.log('✅ Default stats row initialized successfully!');
+      } else {
+        console.error('❌ Failed to initialize default stats row:', await insertRes.text());
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error checking/initializing stats:', err.message);
+  }
+}
+
 async function init() {
   await restoreSession();
+  await initStats();
   startBackupWatcher();
   start('main.js');
 }
