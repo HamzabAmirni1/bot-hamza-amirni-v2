@@ -172,33 +172,37 @@
       padding: 0 8px 8px;
     }
 
-    .nav-item {
+    .nv {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 12px 16px;
       border-radius: 12px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 13px;
+      font-weight: 600;
       text-decoration: none;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      border: 1px solid transparent;
     }
 
-    .nav-item:hover, .nav-item.active {
-      background: var(--glass);
+    .nv:hover {
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text);
+      transform: translateX(-4px);
     }
 
-    .nav-item.active {
-      background: linear-gradient(135deg, rgba(37,211,102,0.2), rgba(18,140,126,0.1));
-      color: var(--accent);
-      border: 1px solid rgba(37,211,102,0.2);
+    .nv.active {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(184, 134, 11, 0.05));
+      color: #ffd700;
+      border: 1px solid #ffd700;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+      font-weight: 700;
     }
 
-    .nav-item i { width: 18px; text-align: center; font-size: 16px; }
+    .nv i { width: 18px; text-align: center; font-size: 16px; }
 
     /* Status badge in sidebar */
     .status-container {
@@ -1184,9 +1188,17 @@ function closeSB() {
 function goPage(id, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nv').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  if (el) el.classList.add('active');
+  
+  const pageEl = document.getElementById('page-' + id);
+  if (pageEl) pageEl.classList.add('active');
+  
+  const targetEl = el || Array.from(document.querySelectorAll('.nv')).find(n => n.getAttribute('onclick')?.includes(`'${id}'`));
+  if (targetEl) targetEl.classList.add('active');
+  
   closeSB();
+  
+  // Save page state to localStorage
+  localStorage.setItem('active_page', id);
 
   // Lazy loading pages on click
   if (id === 'aichat')   loadAI();
@@ -1759,6 +1771,11 @@ function animN(id, target) {
 window.addEventListener('DOMContentLoaded', async () => {
   loadCfgForm();
   initSB();
+
+  // Restore page state on refresh
+  const activePage = localStorage.getItem('active_page') || 'dashboard';
+  goPage(activePage);
+
   await loadStats();
 
   // Load dashboard dev messages in background
