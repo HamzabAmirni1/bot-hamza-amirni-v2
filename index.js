@@ -1,4 +1,5 @@
 console.log('🐾 Starting bot-amirni-hamza by Hamza Amirni...');
+process.setMaxListeners(50); // prevent MaxListenersExceededWarning during reconnects
 
 import { Worker } from 'worker_threads';
 import { join, dirname } from 'path';
@@ -257,6 +258,8 @@ const rl = readline.createInterface(process.stdin, process.stdout);
 let worker = null;
 let running = false;
 let restartTimer = null;
+let restartCount = 0;          // exponential back-off counter
+let lastRestartTime = 0;
 
 function start(file) {
 	if (running) return;
@@ -317,15 +320,24 @@ function start(file) {
 	worker.on('exit', (code) => {
 		console.log('❗ Worker exited with code', code);
 		running = false;
-		if (code !== 0) {
-			restartTimer = setTimeout(
-				() => {
-					console.log('⏳ Auto restart...');
-					restart();
-				},
-				30 * 60 * 1000
-			);
+
+		// Exponential back-off: 5s → 10s → 20s → 40s … capped at 5 min
+		const now = Date.now();
+		if (now - lastRestartTime < 60_000) {
+			restartCount++;
+		} else {
+			restartCount = 0; // reset if last restart was >1 min ago
 		}
+		lastRestartTime = now;
+		const backoffMs = Math.min(5000 * Math.pow(2, restartCount), 5 * 60 * 1000);
+
+		if (code !== 0) {
+			console.log(`⏳ Restarting in ${Math.round(backoffMs / 1000)}s (attempt #${restartCount + 1})...`);
+			restartTimer = setTimeout(() => restart(), backoffMs);
+		}
+
+		// Always unwatchFile before adding a new one to prevent listener leak
+		try { unwatchFile(full); } catch {}
 		watchFile(full, () => {
 			unwatchFile(full);
 			console.log('♻️ File updated → Restarting...');
@@ -359,8 +371,8 @@ function restart() {
 			worker.terminate();
 		} catch {}
 	}
+	worker = null;
 	running = false;
-
 	start('main.js');
 }
 
@@ -394,7 +406,11 @@ async function restoreSession() {
 let uploadTimeout = null;
 const dbPath = join(__dirname, 'sessions', 'auth.db');
 
+let backupWatcherStarted = false; // guard: only ever register ONE watcher
+
 function startBackupWatcher() {
+  if (backupWatcherStarted) return; // prevent duplicate listeners
+  backupWatcherStarted = true;
   console.log('📡 Starting Supabase session backup watcher...');
   
   // Ensure the directory exists
