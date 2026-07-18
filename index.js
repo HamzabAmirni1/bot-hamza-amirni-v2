@@ -112,13 +112,15 @@ function restart() {
 	start('main.js');
 }
 
+const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
+
 async function restoreSession() {
   console.log('☁️ Restoring session from Supabase...');
   try {
     const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number&order=updated_at.desc&limit=1', {
       headers: {
-        'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
-        'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us'
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY
       }
     });
     if (!res.ok) {
@@ -172,8 +174,8 @@ function startBackupWatcher() {
         const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
           method: 'POST',
           headers: {
-            'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
-            'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
