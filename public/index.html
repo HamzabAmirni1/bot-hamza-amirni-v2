@@ -560,6 +560,7 @@
     <div class="nav-label">القائمة الرئيسية</div>
     <div class="nv active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> لوحة التحكم</div>
     <div class="nv" onclick="goPage('sessions',this)"><i class="fas fa-network-wired"></i> الجلسات المتصلة</div>
+    <div class="nv" onclick="goPage('pairing',this)"><i class="fas fa-link"></i> ربط رقم جديد</div>
     <div class="nv" onclick="goPage('aichat',this)"><i class="fas fa-brain"></i> محادثات AI</div>
     <div class="nv" onclick="goPage('devmsg',this)"><i class="fas fa-envelope"></i> رسائل المطور</div>
     <div class="nv" onclick="goPage('errors',this)"><i class="fas fa-exclamation-triangle"></i> سجل الأخطاء</div>
@@ -674,6 +675,19 @@
         </button>
       </div>
       <div id="auth-wrap"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ==================== PAIRING PAGE ==================== -->
+  <div class="page" id="page-pairing">
+    <div class="page-header">
+      <h1>🔗 ربط رقم جديد</h1>
+      <p>اربط البوت برقم الواتساب الخاص بك باستخدام رمز الإقران</p>
+    </div>
+    <div class="card" style="text-align:center;padding:40px 20px;">
+      <div id="pairing-status-wrap">
+        <div class="sw"><div class="sp"></div></div>
+      </div>
     </div>
   </div>
 
@@ -853,6 +867,17 @@ function goPage(id, el) {
   if (id === 'errors')   loadErrors();
   if (id === 'commands') renderCmds();
   if (id === 'settings') loadCfgForm();
+
+  if (id === 'pairing') {
+    loadPairing();
+    if (window.pairingInterval) clearInterval(window.pairingInterval);
+    window.pairingInterval = setInterval(loadPairing, 5000);
+  } else {
+    if (window.pairingInterval) {
+      clearInterval(window.pairingInterval);
+      window.pairingInterval = null;
+    }
+  }
 }
 
 // =============================================
@@ -1049,6 +1074,63 @@ async function sendReply() {
   toast('✅ تم إرسال الرد للمستخدم بنجاح', 'ok');
   closeM('modal-reply');
   loadDevMsg();
+}
+
+async function loadPairing() {
+  const wrap = document.getElementById('pairing-status-wrap');
+  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال بقاعدة البيانات'); return; }
+  
+  try {
+    const { data, error } = await sb.from('whatsapp_auth').select('*').order('updated_at', { ascending:false }).limit(1);
+    if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', error.message); return; }
+    
+    const session = data && data[0];
+    if (!session) {
+      wrap.innerHTML = `
+        <div style="font-size:48px;color:var(--accent);margin-bottom:20px;">⏳</div>
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">في انتظار تشغيل البوت</h2>
+        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">يرجى الانتظار حتى يبدأ البوت في توليد رمز إقران جديد على Koyeb.</p>
+      `;
+      return;
+    }
+    
+    if (session.status === 'connected') {
+      wrap.innerHTML = `
+        <div style="font-size:54px;color:var(--accent);margin-bottom:20px;">🟢</div>
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">البوت متصل بنجاح!</h2>
+        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">الجلسة نشطة حالياً للرقم: ${session.phone_number}</p>
+        <span class="badge b-green">الحالة: متصل</span>
+      `;
+    } else if (session.pairing_code) {
+      wrap.innerHTML = `
+        <div style="font-size:20px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">رمز إقران واتساب</div>
+        <div style="font-size:42px;font-weight:800;letter-spacing:4px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;margin-bottom:24px;">
+          ${session.pairing_code}
+        </div>
+        <div style="max-width:400px;margin:0 auto;text-align:right;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:20px;">
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">📌 طريقة الربط بالهاتف:</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            <div>1. افتح تطبيق <b>واتساب</b> على هاتفك المحمول.</div>
+            <div>2. اضغط على القائمة (ثلاث نقاط أعلى اليسار) ثم اختر <b>الأجهزة المرتبطة</b>.</div>
+            <div>3. اضغط على زر <b>ربط جهاز</b>.</div>
+            <div>4. اختر <b>الربط برقم الهاتف بدلاً من ذلك</b> في الجزء السفلي.</div>
+            <div>5. أدخل الرمز المكون من 8 أحرف الموضح أعلاه.</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:20px;">
+          <i class="fas fa-sync fa-spin"></i> يتم تحديث الصفحة تلقائياً كل 5 ثوانٍ...
+        </div>
+      `;
+    } else {
+      wrap.innerHTML = `
+        <div style="font-size:48px;color:var(--yellow);margin-bottom:20px;">⏳</div>
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">جاري توليد الرمز...</h2>
+        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">يرجى الانتظار لحظة، البوت يستعد لإصدار رمز إقران جديد على رقم: ${session.phone_number}</p>
+      `;
+    }
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', e.message);
+  }
 }
 
 async function loadAuth() {
