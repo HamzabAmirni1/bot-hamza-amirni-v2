@@ -206,26 +206,9 @@ const handler = async (m, { conn, text, command }) => {
 
 		const audioTitle = audioData.title || videoTitle || 'audio';
 
-		// Fetch buffer
-		let buf;
-		try {
-			const resp = await axios.get(audioData.download, {
-				responseType: 'arraybuffer',
-				timeout: 120000,
-				headers: {
-					'User-Agent': HEADERS['User-Agent'],
-					'Accept': '*/*',
-					'Accept-Encoding': 'identity'
-				}
-			});
-			buf = Buffer.from(resp.data);
-		} catch (e) {
-			await m.react('❌');
-			return m.reply('❌ فشل جلب الملف: ' + e.message);
-		}
-
+		// Send the audio by passing the download URL directly to Baileys (streams directly, 0% RAM usage)
 		await conn.sendMessage(m.chat, {
-			audio: buf,
+			audio: { url: audioData.download },
 			mimetype: 'audio/mpeg',
 			fileName: `${audioTitle}.mp3`,
 			ptt: false,

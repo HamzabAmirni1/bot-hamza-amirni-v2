@@ -183,9 +183,9 @@ const handlerDl = async (m, { conn, text }) => {
 	try {
 		const info = await getDownloadInfo(text.trim());
 
-		if (info.rawSize > 95 * 1024 * 1024) {
+		if (info.rawSize > 300 * 1024 * 1024) {
 			await m.react('⚠️');
-			return m.reply(`⚠️ *${info.name}* كبير جداً (${info.size}) للإرسال عبر واتساب.\n\nحمله من:\nhttps://appteka.store/app/${text.trim()}`);
+			return m.reply(`⚠️ *${info.name}* كبير جداً (${info.size}) للإرسال عبر واتساب (الحد الأقصى 300MB).\n\nحمله من:\nhttps://appteka.store/app/${text.trim()}`);
 		}
 
 		if (!info.downloadUrl) { await m.react('❌'); return m.reply('❌ لم يتم العثور على رابط التحميل.'); }
