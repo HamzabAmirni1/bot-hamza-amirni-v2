@@ -5,6 +5,9 @@ import path from 'path';
 import { unwatchFile, watchFile } from 'fs';
 import chalk from 'chalk';
 
+// In-memory cache to de-duplicate double triggers (e.g. template button click + text reply fallback)
+const recentMessages = new Map();
+
 /**
  * Handle messages upsert
  * @param {import('baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate
@@ -18,6 +21,27 @@ export async function handler(chatUpdate) {
 	try {
 		m = smsg(this, m) || m;
 		if (!m) return;
+
+		// De-duplicate fast identical commands within 2.5 seconds window
+		if (m.text && m.text.startsWith('.')) {
+			const msgKey = `${m.chat}_${m.sender}_${m.text.trim()}`;
+			const now = Date.now();
+			if (recentMessages.has(msgKey)) {
+				const lastTime = recentMessages.get(msgKey);
+				if (now - lastTime < 2500) {
+					console.log(`[Handler] Ignored duplicate command: "${m.text.trim()}"`);
+					return;
+				}
+			}
+			recentMessages.set(msgKey, now);
+			// Keep cache size small
+			if (recentMessages.size > 200) {
+				for (const [k, t] of recentMessages.entries()) {
+					if (now - t > 10000) recentMessages.delete(k);
+				}
+			}
+		}
+
 		m.exp = 0;
 		m.limit = false;
 
