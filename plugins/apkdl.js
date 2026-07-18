@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Button, Carousel } from '../lib/MessageBuilder.js';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ============================================================
 // APK Download Plugin — Uses appteka.store API
@@ -140,58 +140,77 @@ const handler = async (m, { conn, text }) => {
 		return m.reply(`❌ لم يتم العثور على نتائج لـ *"${text}"*`);
 	}
 
-	// Send Carousel cards instead of listing text
-	const carousel = new Carousel(conn);
-	carousel.setBody(`🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*`);
-	carousel.setFooter('اضغط على الزر أسفل الكارت لتحميل التطبيق مباشرة');
-
-	for (const a of apps.slice(0, 6)) {
+	// Dynamic WAMessage content generator for APK icons
+	async function createHeaderImage(url) {
 		try {
-			const btn = new Button(conn);
-			
-			// Validate if icon exists on AppTeka, otherwise fallback to UI Avatar
-			let iconUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=25D366&color=FFFFFF&size=300`;
-			if (a.icon) {
-				try {
-					const headCheck = await axios.head(a.icon, { timeout: 3000, headers: HEADERS });
-					if (headCheck.status === 200) {
-						iconUrl = a.icon;
-					}
-				} catch (_) {
-					// Fallback to GET check (some CDNs block HEAD)
-					try {
-						const getCheck = await axios.get(a.icon, { timeout: 2000, headers: HEADERS });
-						if (getCheck.status === 200) {
-							iconUrl = a.icon;
-						}
-					} catch (__) {}
+			// First verify image exists to prevent Baileys fetch crash
+			const headCheck = await axios.head(url, { timeout: 3000, headers: HEADERS });
+			if (headCheck.status === 200) {
+				const { imageMessage } = await generateWAMessageContent({ image: { url } }, { upload: conn.waUploadToServer });
+				return imageMessage;
+			}
+		} catch (_) {
+			try {
+				const getCheck = await axios.get(url, { timeout: 2000, headers: HEADERS });
+				if (getCheck.status === 200) {
+					const { imageMessage } = await generateWAMessageContent({ image: { url } }, { upload: conn.waUploadToServer });
+					return imageMessage;
 				}
-			}
-
-			btn.setTitle(a.name)
-			   .setBody(`📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`)
-			   .setImage(iconUrl);
-
-			if (a.appId) {
-				btn.addReply('📥 تحميل التطبيق الآن', `.apkdl ${a.appId}`);
-			} else {
-				btn.addUrl('🔗 صفحة التحميل خارجية', a.link);
-			}
-
-			const card = await btn.toCard();
-			carousel.addCard(card);
-		} catch (cardErr) {
-			console.log('[apk] failed to build card for app:', a.name, cardErr.message);
+			} catch (__) {}
 		}
+		const fallback = `https://ui-avatars.com/api/?name=APK&background=25D366&color=FFFFFF&size=512`;
+		const { imageMessage } = await generateWAMessageContent({ image: { url: fallback } }, { upload: conn.waUploadToServer });
+		return imageMessage;
 	}
 
-	if (carousel._cards.length > 0) {
-		await carousel.send(m.chat, { quoted: m });
-		await m.react('✅');
-	} else {
-		await m.react('❌');
-		await m.reply('❌ فشل إنشاء بطاقات البحث لهذا التطبيق.');
+	let cards = [];
+	for (const a of apps.slice(0, 6)) {
+		const iconUrl = a.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=25D366&color=FFFFFF&size=300`;
+		const imageMessage = await createHeaderImage(iconUrl);
+
+		const buttons = [];
+		if (a.appId) {
+			buttons.push({
+				"name": "quick_reply",
+				"buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل التطبيق", id: `.apkdl ${a.appId}` })
+			});
+		} else {
+			buttons.push({
+				"name": "cta_url",
+				"buttonParamsJson": JSON.stringify({ display_text: "🔗 صفحة التحميل", url: a.link })
+			});
+		}
+
+		cards.push({
+			body: proto.Message.InteractiveMessage.Body.fromObject({
+				text: `📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`
+			}),
+			header: proto.Message.InteractiveMessage.Header.fromObject({
+				title: a.name,
+				hasMediaAttachment: true,
+				imageMessage
+			}),
+			nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+				buttons
+			})
+		});
 	}
+
+	const botMsg = generateWAMessageFromContent(m.chat, {
+		viewOnceMessage: {
+			message: {
+				messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+				interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+					body: proto.Message.InteractiveMessage.Body.create({ text: `🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*` }),
+					footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+					carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+				})
+			}
+		}
+	}, { quoted: m });
+
+	await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
+	await m.react('✅');
 };
 
 // ── .apkdl <appId> — Direct download by appteka app ID ──────

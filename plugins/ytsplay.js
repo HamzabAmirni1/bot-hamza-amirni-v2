@@ -1,7 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import yts from 'yt-search';
-import { Button, Carousel } from '../lib/MessageBuilder.js';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ============================================================
 // AUDIO DOWNLOADERS — Fallback chain
@@ -142,31 +142,68 @@ const handler = async (m, { conn, text, command }) => {
 			`🎵 *YouTube Downloader*\n\nأرسل اسم الأغنية أو رابط يوتيوب:\n\n*مثال:*\n.play سيف عامر\n.play https://youtu.be/xxxx`
 		);
 
-		// If it's a search term, send Carousel search results instead of auto-downloading directly
+		// If it's a search term, send Carousel search results using direct Baileys protobufs
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
 			const videos = search.videos || [];
 			if (!videos.length) { await m.react('❌'); return m.reply('❌ لم يتم العثور على نتائج.'); }
 
-			const carousel = new Carousel(conn);
-			carousel.setBody(`📺 نتائج البحث عن: *${text}*`);
-			carousel.setFooter('اختر وسيلة التحميل المفضلة أدناه');
-
-			for (const v of videos.slice(0, 6)) {
-				const btn = new Button(conn);
-				btn.setTitle(v.title)
-				   .setBody(`⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *تاريخ النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`)
-				   .setImage(v.thumbnail)
-				   .addReply('🎵 تحميل صوت (MP3)', `.play ${v.url}`)
-				   .addReply('🎥 تحميل فيديو (MP4)', `.video ${v.url}`);
-				
-				const card = await btn.toCard();
-				carousel.addCard(card);
+			// Fallback helper for headers
+			async function createHeaderImage(url) {
+				try {
+					const { imageMessage } = await generateWAMessageContent({ image: { url } }, { upload: conn.waUploadToServer });
+					return imageMessage;
+				} catch (e) {
+					const fallback = 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF&size=512';
+					const { imageMessage } = await generateWAMessageContent({ image: { url: fallback } }, { upload: conn.waUploadToServer });
+					return imageMessage;
+				}
 			}
 
-			await carousel.send(m.chat, { quoted: m });
-			return m.react('✅');
+			let cards = [];
+			for (const v of videos.slice(0, 6)) {
+				const imageMessage = await createHeaderImage(v.thumbnail);
+				cards.push({
+					body: proto.Message.InteractiveMessage.Body.fromObject({
+						text: `⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`
+					}),
+					header: proto.Message.InteractiveMessage.Header.fromObject({
+						title: v.title,
+						hasMediaAttachment: true,
+						imageMessage
+					}),
+					nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+						buttons: [
+							{
+								"name": "quick_reply",
+								"buttonParamsJson": JSON.stringify({ display_text: "🎵 تحميل صوت", id: `.play ${v.url}` })
+							},
+							{
+								"name": "quick_reply",
+								"buttonParamsJson": JSON.stringify({ display_text: "🎥 تحميل فيديو", id: `.video ${v.url}` })
+							}
+						]
+					})
+				});
+			}
+
+			const botMsg = generateWAMessageFromContent(m.chat, {
+				viewOnceMessage: {
+					message: {
+						messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+						interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+							body: proto.Message.InteractiveMessage.Body.create({ text: `📺 نتائج البحث عن: *${text}*` }),
+							footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+							carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+						})
+					}
+				}
+			}, { quoted: m });
+
+			await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
+			await m.react('✅');
+			return;
 		}
 
 		await m.react('🎧');
@@ -232,31 +269,68 @@ const handler = async (m, { conn, text, command }) => {
 			`🎬 *YouTube Downloader*\n\nأرسل اسم الفيديو أو رابط يوتيوب:\n\n*مثال:*\n.video سيف عامر\n.video https://youtu.be/xxxx`
 		);
 
-		// If it's a search term, send Carousel search results instead of auto-downloading directly
+		// If it's a search term, send Carousel search results using direct Baileys protobufs
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
 			const videos = search.videos || [];
 			if (!videos.length) { await m.react('❌'); return m.reply('❌ لم يتم العثور على نتائج.'); }
 
-			const carousel = new Carousel(conn);
-			carousel.setBody(`📺 نتائج البحث عن: *${text}*`);
-			carousel.setFooter('اختر وسيلة التحميل المفضلة أدناه');
-
-			for (const v of videos.slice(0, 6)) {
-				const btn = new Button(conn);
-				btn.setTitle(v.title)
-				   .setBody(`⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *تاريخ النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`)
-				   .setImage(v.thumbnail)
-				   .addReply('🎵 تحميل صوت (MP3)', `.play ${v.url}`)
-				   .addReply('🎥 تحميل فيديو (MP4)', `.video ${v.url}`);
-				
-				const card = await btn.toCard();
-				carousel.addCard(card);
+			// Fallback helper for headers
+			async function createHeaderImage(url) {
+				try {
+					const { imageMessage } = await generateWAMessageContent({ image: { url } }, { upload: conn.waUploadToServer });
+					return imageMessage;
+				} catch (e) {
+					const fallback = 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF&size=512';
+					const { imageMessage } = await generateWAMessageContent({ image: { url: fallback } }, { upload: conn.waUploadToServer });
+					return imageMessage;
+				}
 			}
 
-			await carousel.send(m.chat, { quoted: m });
-			return m.react('✅');
+			let cards = [];
+			for (const v of videos.slice(0, 6)) {
+				const imageMessage = await createHeaderImage(v.thumbnail);
+				cards.push({
+					body: proto.Message.InteractiveMessage.Body.fromObject({
+						text: `⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`
+					}),
+					header: proto.Message.InteractiveMessage.Header.fromObject({
+						title: v.title,
+						hasMediaAttachment: true,
+						imageMessage
+					}),
+					nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+						buttons: [
+							{
+								"name": "quick_reply",
+								"buttonParamsJson": JSON.stringify({ display_text: "🎵 تحميل صوت", id: `.play ${v.url}` })
+							},
+							{
+								"name": "quick_reply",
+								"buttonParamsJson": JSON.stringify({ display_text: "🎥 تحميل فيديو", id: `.video ${v.url}` })
+							}
+						]
+					})
+				});
+			}
+
+			const botMsg = generateWAMessageFromContent(m.chat, {
+				viewOnceMessage: {
+					message: {
+						messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+						interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+							body: proto.Message.InteractiveMessage.Body.create({ text: `📺 نتائج البحث عن: *${text}*` }),
+							footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+							carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+						})
+					}
+				}
+			}, { quoted: m });
+
+			await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
+			await m.react('✅');
+			return;
 		}
 
 		await m.react('🎬');
