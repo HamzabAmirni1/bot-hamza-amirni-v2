@@ -30,8 +30,9 @@ export async function handler(chatUpdate) {
 		const isOwner = isROwner || m.fromMe;
 		const isPrems = isROwner || db.data.users[m.sender]?.premiumTime > 0;
 
-		if (global.db.data.settings[this.user.jid].gconly && !m.isGroup && !isOwner && !isPrems) return;
-		if (!global.db.data.settings[this.user.jid].public && !isOwner && !m.fromMe) return;
+		// Allow bot to work for everyone in private chats and groups
+		// if (global.db.data.settings[this.user.jid].gconly && !m.isGroup && !isOwner && !isPrems) return;
+		// if (!global.db.data.settings[this.user.jid].public && !isOwner && !m.fromMe) return;
 
 		if (m.isBaileys) return;
 		m.exp += Math.ceil(Math.random() * 10);
