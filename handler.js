@@ -324,6 +324,17 @@ export async function handler(chatUpdate) {
 				break;
 			}
 		}
+
+		// ── Unknown command reply ─────────────────────────────────────────
+		if (!m.isCommand && usedPrefix && command) {
+			await m.reply(
+				`❌ *الأمر غير موجود!*\n\n` +
+				`الأمر *${usedPrefix}${command}* غير متاح في البوت.\n\n` +
+				`📋 اكتب *${usedPrefix}menu* لعرض جميع الأوامر المتاحة.\n\n` +
+				`⚡ *bot amirini hamza*`
+			);
+		}
+
 	} catch (e) {
 		console.error(e);
 	} finally {
