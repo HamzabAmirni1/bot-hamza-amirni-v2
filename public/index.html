@@ -678,18 +678,127 @@
     </div>
   </div>
 
+
   <!-- ==================== PAIRING PAGE ==================== -->
   <div class="page" id="page-pairing">
     <div class="page-header">
       <h1>🔗 ربط رقم جديد</h1>
-      <p>اربط البوت برقم الواتساب الخاص بك باستخدام رمز الإقران</p>
+      <p>اربط البوت برقم الواتساب الخاص بك باستخدام رمز الإقران أو QR</p>
     </div>
-    <div class="card" style="text-align:center;padding:40px 20px;">
-      <div id="pairing-status-wrap">
-        <div class="sw"><div class="sp"></div></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:20px;align-items:start;">
+
+      <!-- LEFT: Instructions -->
+      <div class="card" style="padding:24px;">
+        <div class="ch" style="margin-bottom:18px;">
+          <div class="ci blue"><i class="fas fa-info-circle"></i></div>
+          <div class="ct">كيفية الإقران (واتساب)</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:28px;height:28px;border-radius:50%;background:var(--accent);color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">1</div>
+            <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">أدخل رقم هاتفك الكامل مع كود الدولة <b style="color:var(--text);">بدون +</b> (مثال: 212612345678)</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:28px;height:28px;border-radius:50%;background:var(--blue);color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">2</div>
+            <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">اضغط على <b style="color:var(--text);">"طلب كود الإقران"</b></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">3</div>
+            <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">افتح واتساب على هاتفك — <b style="color:var(--text);">الأجهزة المرتبطة</b></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:28px;height:28px;border-radius:50%;background:var(--yellow);color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">4</div>
+            <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">اضغط <b style="color:var(--text);">"ربط جهاز"</b> ثم اختر <b style="color:var(--text);">"ربط برقم هاتف"</b></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">5</div>
+            <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">أدخل <b style="color:var(--accent);">كود الإقران</b> الذي يظهر هنا لتأكيد التوصيل</div>
+          </div>
+        </div>
       </div>
+
+      <!-- CENTER: Pairing Panel -->
+      <div class="card" style="padding:28px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط واتساب جديد</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">أدخل الرقم الدولي بدون + لتلقي كود الإقران على هاتفك</div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:8px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:24px;">
+          <button id="tab-code" onclick="switchPairTab('code')" style="flex:1;padding:8px 12px;border-radius:9px;border:none;background:var(--accent);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
+            🔑 كود الإقران
+          </button>
+          <button id="tab-qr" onclick="switchPairTab('qr')" style="flex:1;padding:8px 12px;border-radius:9px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
+            📷 رمز QR مباشرة
+          </button>
+        </div>
+
+        <!-- Code Tab -->
+        <div id="panel-code">
+          <div id="pair-code-display" style="min-height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
+            <div style="font-size:12px;color:var(--text-muted);">الكود سيظهر هنا بعد الطلب</div>
+          </div>
+          <div style="text-align:right;margin-bottom:8px;">
+            <label style="font-size:12px;color:var(--text-muted);">رقم الهاتف (مثال: 212612345678)</label>
+          </div>
+          <input id="pair-phone-input" type="tel" class="fi" placeholder="رقم الهاتف (مثال: 212612345678)" style="direction:ltr;text-align:left;margin-bottom:16px;" />
+          <button onclick="requestPairCode()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:14px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            🔑 طلب كود الإقران
+          </button>
+        </div>
+
+        <!-- QR Tab -->
+        <div id="panel-qr" style="display:none;">
+          <div id="pair-qr-display" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+            <div class="sw"><div class="sp"></div></div>
+            <div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">
+            <i class="fas fa-sync fa-spin"></i> يتجدد تلقائياً كل 5 ثوانٍ
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Bot Status Panel -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <!-- Bot Info Card -->
+        <div class="card" style="padding:20px;text-align:center;">
+          <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#1a2a1a,#0d1f0d);border:2px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:30px;">🤖</div>
+          <div style="font-weight:800;font-size:16px;margin-bottom:4px;">حمزة اعمرني</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">⚡ لوحة تحكم البوت</div>
+          <div id="right-status-dot" style="display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;color:var(--accent);">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite;"></span>
+            <span id="right-status-text">يتم التحقق...</span>
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="card" style="padding:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;" id="pair-quick-stats">
+            <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px;">
+              <div style="font-size:20px;font-weight:800;color:var(--accent)" id="pqs-msg">—</div>
+              <div style="font-size:10px;color:var(--text-muted)">رسائل</div>
+            </div>
+            <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px;">
+              <div style="font-size:20px;font-weight:800;color:var(--blue)" id="pqs-users">—</div>
+              <div style="font-size:10px;color:var(--text-muted)">مستخدمين</div>
+            </div>
+          </div>
+          <button onclick="goPage('settings',null)" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:'Cairo',sans-serif;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;transition:all 0.2s;" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background='transparent'">
+            ⚙️ الإعدادات
+          </button>
+          <button onclick="loadStats();toast('✅ تم تحديث البيانات','ok')" style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            🔄 تحديث البيانات
+          </button>
+          <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:4px;" id="pair-last-update">
+            ⏰ آخر تحديث: —
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
+
 
   <!-- ==================== AI MEMORY PAGE ==================== -->
   <div class="page" id="page-aichat">
@@ -1076,61 +1185,133 @@ async function sendReply() {
   loadDevMsg();
 }
 
-async function loadPairing() {
-  const wrap = document.getElementById('pairing-status-wrap');
-  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال بقاعدة البيانات'); return; }
+function switchPairTab(tab) {
+  const isCode = tab === 'code';
+  document.getElementById('panel-code').style.display = isCode ? 'block' : 'none';
+  document.getElementById('panel-qr').style.display = isCode ? 'none' : 'block';
+  document.getElementById('tab-code').style.background = isCode ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-code').style.color = isCode ? '#000' : 'var(--text-muted)';
+  document.getElementById('tab-qr').style.background = !isCode ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-qr').style.color = !isCode ? '#000' : 'var(--text-muted)';
+  if (!isCode) loadQRCode();
+}
+
+async function requestPairCode() {
+  const phone = document.getElementById('pair-phone-input').value.trim().replace(/\D/g,'');
+  if (!phone || phone.length < 10) {
+    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة', 'err');
+    return;
+  }
+  const display = document.getElementById('pair-code-display');
+  display.innerHTML = `<div class="sw"><div class="sp"></div></div>`;
   
   try {
-    const { data, error } = await sb.from('whatsapp_auth').select('*').order('updated_at', { ascending:false }).limit(1);
-    if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', error.message); return; }
+    // Store the request in Supabase so the bot can generate the code for this number
+    const payload = {
+      phone_number: phone,
+      pairing_code: null,
+      status: 'requesting',
+      updated_at: new Date().toISOString()
+    };
+    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+      method: 'POST',
+      headers: {
+        'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+        'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    toast('📡 تم إرسال الطلب — انتظر ظهور الكود...', 'inf');
     
+    // Poll for the code
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      if (attempts > 24) { // 2 min max
+        clearInterval(poll);
+        display.innerHTML = `<div style="color:var(--red);font-size:13px;">⏱️ انتهت المهلة. أعد المحاولة.</div>`;
+        return;
+      }
+      const { data } = await sb.from('whatsapp_auth').select('pairing_code,status').eq('phone_number', phone).limit(1);
+      if (data && data[0] && data[0].pairing_code && data[0].status === 'pending') {
+        clearInterval(poll);
+        const code = data[0].pairing_code;
+        display.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="font-size:11px;color:var(--text-muted);">رمز إقران واتساب</div>
+            <div style="font-size:38px;font-weight:900;letter-spacing:5px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;">${code}</div>
+            <div style="font-size:11px;color:var(--yellow);"><i class="fas fa-clock"></i> ادخله في واتساب خلال دقيقتين</div>
+          </div>
+        `;
+        toast('✅ ظهر كود الإقران! أدخله في واتساب الآن', 'ok');
+      }
+    }, 5000);
+  } catch(e) {
+    display.innerHTML = `<div style="color:var(--red);font-size:13px;">❌ ${e.message}</div>`;
+    toast('❌ فشل طلب الكود: ' + e.message, 'err');
+  }
+}
+
+async function loadQRCode() {
+  const display = document.getElementById('pair-qr-display');
+  display.innerHTML = `<div class="sw"><div class="sp"></div></div><div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>`;
+  try {
+    const { data } = await sb.from('whatsapp_auth').select('qr_code,status').order('updated_at',{ascending:false}).limit(1);
     const session = data && data[0];
-    if (!session) {
-      wrap.innerHTML = `
-        <div style="font-size:48px;color:var(--accent);margin-bottom:20px;">⏳</div>
-        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">في انتظار تشغيل البوت</h2>
-        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">يرجى الانتظار حتى يبدأ البوت في توليد رمز إقران جديد على Koyeb.</p>
-      `;
+    if (session && session.status === 'connected') {
+      display.innerHTML = `<div style="font-size:50px;">🟢</div><div style="font-size:14px;font-weight:700;color:var(--accent);">البوت متصل بنجاح!</div>`;
       return;
     }
-    
-    if (session.status === 'connected') {
-      wrap.innerHTML = `
-        <div style="font-size:54px;color:var(--accent);margin-bottom:20px;">🟢</div>
-        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">البوت متصل بنجاح!</h2>
-        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">الجلسة نشطة حالياً للرقم: ${session.phone_number}</p>
-        <span class="badge b-green">الحالة: متصل</span>
-      `;
-    } else if (session.pairing_code) {
-      wrap.innerHTML = `
-        <div style="font-size:20px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">رمز إقران واتساب</div>
-        <div style="font-size:42px;font-weight:800;letter-spacing:4px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;margin-bottom:24px;">
-          ${session.pairing_code}
-        </div>
-        <div style="max-width:400px;margin:0 auto;text-align:right;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:20px;">
-          <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">📌 طريقة الربط بالهاتف:</h3>
-          <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:var(--text-muted);line-height:1.6;">
-            <div>1. افتح تطبيق <b>واتساب</b> على هاتفك المحمول.</div>
-            <div>2. اضغط على القائمة (ثلاث نقاط أعلى اليسار) ثم اختر <b>الأجهزة المرتبطة</b>.</div>
-            <div>3. اضغط على زر <b>ربط جهاز</b>.</div>
-            <div>4. اختر <b>الربط برقم الهاتف بدلاً من ذلك</b> في الجزء السفلي.</div>
-            <div>5. أدخل الرمز المكون من 8 أحرف الموضح أعلاه.</div>
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:20px;">
-          <i class="fas fa-sync fa-spin"></i> يتم تحديث الصفحة تلقائياً كل 5 ثوانٍ...
-        </div>
-      `;
+    if (session && session.qr_code) {
+      display.innerHTML = `<img src="${session.qr_code}" style="width:200px;height:200px;border-radius:12px;border:2px solid var(--accent);" />`;
     } else {
-      wrap.innerHTML = `
-        <div style="font-size:48px;color:var(--yellow);margin-bottom:20px;">⏳</div>
-        <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;">جاري توليد الرمز...</h2>
-        <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:0 auto 20px;">يرجى الانتظار لحظة، البوت يستعد لإصدار رمز إقران جديد على رقم: ${session.phone_number}</p>
-      `;
+      display.innerHTML = `<div style="font-size:40px;">📵</div><div style="font-size:12px;color:var(--text-muted);">رمز QR غير متاح حالياً.<br>استخدم كود الإقران بدلاً.</div>`;
     }
   } catch(e) {
-    wrap.innerHTML = empty('fas fa-exclamation-circle', e.message);
+    display.innerHTML = `<div style="color:var(--red);font-size:12px;">❌ ${e.message}</div>`;
   }
+}
+
+async function loadPairing() {
+  // Update right panel status and stats
+  try {
+    if (!sb) return;
+    const { data } = await sb.from('whatsapp_auth').select('status,phone_number,updated_at').order('updated_at',{ascending:false}).limit(1);
+    const s = data && data[0];
+    const statusEl = document.getElementById('right-status-text');
+    const statusDot = document.getElementById('right-status-dot');
+    if (s) {
+      if (s.status === 'connected') {
+        statusEl.textContent = '● متصل بنجاح ✓';
+        statusDot.style.background = 'rgba(37,211,102,0.1)';
+        statusDot.style.borderColor = 'rgba(37,211,102,0.3)';
+        statusDot.style.color = 'var(--accent)';
+      } else if (s.status === 'pending') {
+        statusEl.textContent = '⏳ في انتظار الربط';
+        statusDot.style.background = 'rgba(246,224,94,0.1)';
+        statusDot.style.borderColor = 'rgba(246,224,94,0.3)';
+        statusDot.style.color = 'var(--yellow)';
+      } else {
+        statusEl.textContent = '🔴 غير متصل';
+        statusDot.style.background = 'rgba(252,129,129,0.1)';
+        statusDot.style.borderColor = 'rgba(252,129,129,0.3)';
+        statusDot.style.color = 'var(--red)';
+      }
+      if (s.updated_at) {
+        document.getElementById('pair-last-update').textContent = '⏰ ' + new Date(s.updated_at).toLocaleString('ar');
+      }
+    }
+    // Stats
+    const { data: statsData } = await sb.from('bot_stats').select('messages_count,users_count').limit(1);
+    if (statsData && statsData[0]) {
+      const el = statsData[0];
+      document.getElementById('pqs-msg').textContent = el.messages_count ?? '—';
+      document.getElementById('pqs-users').textContent = el.users_count ?? '—';
+    }
+  } catch(e) {}
 }
 
 async function loadAuth() {
