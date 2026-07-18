@@ -3,17 +3,39 @@ console.log('🐾 Starting bot-amirni-hamza by Hamza Amirni...');
 import { Worker } from 'worker_threads';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { watchFile, unwatchFile } from 'fs';
+import { watchFile, unwatchFile, readFileSync, existsSync } from 'fs';
 import readline from 'readline';
 import http from 'http';
 
-// Health check server for Koyeb
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Health check & static dashboard server for Koyeb
 const PORT = process.env.PORT || 8000;
-http.createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT, () => {
-  console.log(`📡 Health check server listening on port ${PORT}`);
+http.createServer((req, res) => {
+  let filePath = join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
+  if (!existsSync(filePath) || req.url.includes('..')) {
+    filePath = join(__dirname, 'public', 'index.html');
+  }
+  try {
+    const data = readFileSync(filePath);
+    let contentType = 'text/html';
+    if (filePath.endsWith('.js')) contentType = 'application/javascript';
+    else if (filePath.endsWith('.css')) contentType = 'text/css';
+    else if (filePath.endsWith('.json')) contentType = 'application/json';
+    else if (filePath.endsWith('.png')) contentType = 'image/png';
+    else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
+    else if (filePath.endsWith('.ico')) contentType = 'image/x-icon';
+
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(data);
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end('Internal Server Error');
+  }
+}).listen(PORT, () => {
+  console.log(`📡 Health check & dashboard server listening on port ${PORT}`);
 });
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const rl = readline.createInterface(process.stdin, process.stdout);
 
 let worker = null;
