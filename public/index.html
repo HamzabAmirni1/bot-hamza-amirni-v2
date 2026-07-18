@@ -510,7 +510,28 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Owner Command Row */
+    .ocmd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      gap: 8px;
+    }
+    .ocmd:hover {
+      border-color: rgba(37,211,102,0.4);
+      background: rgba(37,211,102,0.06);
+      transform: translateX(-3px);
+    }
+    .ocmd:active { transform: scale(0.97); }
+
     /* Empty view */
+
     .empty { text-align: center; padding: 50px 20px; color: var(--text-muted); }
     .empty i { font-size: 48px; margin-bottom: 12px; opacity: 0.3; display: block; }
     .empty p { font-size: 14px; }
@@ -873,25 +894,197 @@
   <div class="page" id="page-settings">
     <div class="page-header">
       <h1>⚙️ الإعدادات</h1>
-      <p>إعدادات لوحة التحكم والاتصال بـ Supabase</p>
+      <p>إدارة جميع إعدادات البوت وأوامر المالك</p>
     </div>
-    <div class="card">
-      <div class="ch">
-        <div class="ci blue"><i class="fas fa-database"></i></div>
-        <div class="ct">إعدادات قاعدة بيانات Supabase</div>
-      </div>
-      <div class="fg">
-        <label class="fl">رابط Supabase URL</label>
-        <input type="text" id="cfg-url" class="fi" />
-      </div>
-      <div class="fg">
-        <label class="fl">المفتاح العام (Anon/Publishable Key)</label>
-        <input type="text" id="cfg-key" class="fi" />
-      </div>
-      <button class="btn bp" onclick="saveConfig()"><i class="fas fa-plug"></i> حفظ والاتصال</button>
-      <div id="cfg-status" style="margin-top:14px;font-size:13px"></div>
+
+    <!-- Settings Tabs -->
+    <div style="display:flex;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:6px;margin-bottom:24px;">
+      <button id="stab-bot" onclick="switchSettingsTab('bot')" style="flex:1;padding:10px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.3s;">
+        🤖 إعدادات البوت
+      </button>
+      <button id="stab-owner" onclick="switchSettingsTab('owner')" style="flex:1;padding:10px 16px;border-radius:10px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.3s;">
+        👑 أوامر المالك
+      </button>
+      <button id="stab-db" onclick="switchSettingsTab('db')" style="flex:1;padding:10px 16px;border-radius:10px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.3s;">
+        🗄️ قاعدة البيانات
+      </button>
     </div>
+
+    <!-- BOT SETTINGS TAB -->
+    <div id="spanel-bot">
+      <div class="grid grid-2" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="ch" style="margin-bottom:18px;">
+            <div class="ci green"><i class="fas fa-robot"></i></div>
+            <div class="ct">هوية البوت</div>
+          </div>
+          <div class="fg">
+            <label class="fl">اسم البوت</label>
+            <input type="text" id="s-botname" class="fi" value="bot amirini hamza" />
+          </div>
+          <div class="fg">
+            <label class="fl">المطور / المالك</label>
+            <input type="text" id="s-author" class="fi" value="Hamza Amirni" />
+          </div>
+          <div class="fg">
+            <label class="fl">رابط المصدر / القناة</label>
+            <input type="text" id="s-source" class="fi" value="https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" />
+          </div>
+        </div>
+        <div class="card">
+          <div class="ch" style="margin-bottom:18px;">
+            <div class="ci purple"><i class="fas fa-crown"></i></div>
+            <div class="ct">أرقام المالكين</div>
+          </div>
+          <div class="fg">
+            <label class="fl">المالك الأول</label>
+            <div style="display:flex;gap:8px;">
+              <input type="tel" id="s-owner1" class="fi" value="212624855939" style="direction:ltr;" />
+              <span style="display:inline-flex;align-items:center;background:rgba(37,211,102,0.12);border:1px solid rgba(37,211,102,0.3);border-radius:8px;padding:0 10px;font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap;">Admin</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">المالك الثاني</label>
+            <div style="display:flex;gap:8px;">
+              <input type="tel" id="s-owner2" class="fi" value="212612030829" style="direction:ltr;" />
+              <span style="display:inline-flex;align-items:center;background:rgba(99,179,237,0.12);border:1px solid rgba(99,179,237,0.3);border-radius:8px;padding:0 10px;font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;">Owner</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">رقم الإقران الافتراضي</label>
+            <input type="tel" id="s-pairing" class="fi" value="212612030829" style="direction:ltr;" />
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="ch" style="margin-bottom:18px;">
+          <div class="ci yellow"><i class="fas fa-comment-alt"></i></div>
+          <div class="ct">رسائل النظام</div>
+        </div>
+        <div class="grid grid-2">
+          <div class="fg">
+            <label class="fl">رسالة الانتظار</label>
+            <input type="text" id="s-wait" class="fi" value="Loading... | جاري الانتظار" />
+          </div>
+          <div class="fg">
+            <label class="fl">رسالة الخطأ</label>
+            <input type="text" id="s-error" class="fi" value="There is an error... | وقع خطأ" />
+          </div>
+        </div>
+      </div>
+      <button onclick="saveBotSettings()" style="width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:15px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.3s;box-shadow:0 4px 20px rgba(37,211,102,0.25);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(37,211,102,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(37,211,102,0.25)'">
+        <i class="fas fa-save"></i> حفظ الإعدادات
+      </button>
+    </div>
+
+    <!-- OWNER COMMANDS TAB -->
+    <div id="spanel-owner" style="display:none;">
+      <div class="grid grid-3" style="margin-bottom:20px;">
+        <div class="card" style="border-top:2px solid var(--red);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci red"><i class="fas fa-shield-alt"></i></div>
+            <div class="ct">الحماية والأمان</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('banuser')"><span style="font-family:monospace;color:var(--red);font-weight:700">.banuser</span><span style="font-size:10px;color:var(--text-muted)">حظر مستخدم</span></div>
+            <div class="ocmd" onclick="copyCmd('unbanuser')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.unbanuser</span><span style="font-size:10px;color:var(--text-muted)">رفع الحظر</span></div>
+            <div class="ocmd" onclick="copyCmd('block')"><span style="font-family:monospace;color:var(--red);font-weight:700">.block</span><span style="font-size:10px;color:var(--text-muted)">حظر رقم</span></div>
+            <div class="ocmd" onclick="copyCmd('unblock')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.unblock</span><span style="font-size:10px;color:var(--text-muted)">رفع حظر الرقم</span></div>
+            <div class="ocmd" onclick="copyCmd('antilink on')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.antilink</span><span style="font-size:10px;color:var(--text-muted)">حماية الروابط</span></div>
+          </div>
+        </div>
+        <div class="card" style="border-top:2px solid var(--blue);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci blue"><i class="fas fa-users-cog"></i></div>
+            <div class="ct">إدارة المجموعات</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('kick @user')"><span style="font-family:monospace;color:var(--red);font-weight:700">.kick</span><span style="font-size:10px;color:var(--text-muted)">طرد عضو</span></div>
+            <div class="ocmd" onclick="copyCmd('add 2126xxx')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.add</span><span style="font-size:10px;color:var(--text-muted)">إضافة عضو</span></div>
+            <div class="ocmd" onclick="copyCmd('promote @user')"><span style="font-family:monospace;color:var(--purple);font-weight:700">.promote</span><span style="font-size:10px;color:var(--text-muted)">ترقية لمشرف</span></div>
+            <div class="ocmd" onclick="copyCmd('demote @user')"><span style="font-family:monospace;color:var(--yellow);font-weight:700">.demote</span><span style="font-size:10px;color:var(--text-muted)">إلغاء الإشراف</span></div>
+            <div class="ocmd" onclick="copyCmd('hidetag text')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.hidetag</span><span style="font-size:10px;color:var(--text-muted)">منشن الكل</span></div>
+          </div>
+        </div>
+        <div class="card" style="border-top:2px solid var(--accent);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci green"><i class="fas fa-sliders-h"></i></div>
+            <div class="ct">تحكم بالبوت</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('restart')"><span style="font-family:monospace;color:var(--yellow);font-weight:700">.restart</span><span style="font-size:10px;color:var(--text-muted)">إعادة تشغيل البوت</span></div>
+            <div class="ocmd" onclick="copyCmd('off')"><span style="font-family:monospace;color:var(--red);font-weight:700">.off</span><span style="font-size:10px;color:var(--text-muted)">إيقاف البوت</span></div>
+            <div class="ocmd" onclick="copyCmd('on')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.on</span><span style="font-size:10px;color:var(--text-muted)">تفعيل البوت</span></div>
+            <div class="ocmd" onclick="copyCmd('setpic')"><span style="font-family:monospace;color:var(--purple);font-weight:700">.setpic</span><span style="font-size:10px;color:var(--text-muted)">تغيير صورة البوت</span></div>
+            <div class="ocmd" onclick="copyCmd('broadcast hello')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.broadcast</span><span style="font-size:10px;color:var(--text-muted)">رسالة لكل المجموعات</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-3" style="margin-bottom:20px;">
+        <div class="card" style="border-top:2px solid var(--purple);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci purple"><i class="fas fa-database"></i></div>
+            <div class="ct">بيانات المستخدمين</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('addlimit @user 10')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.addlimit</span><span style="font-size:10px;color:var(--text-muted)">إضافة حد</span></div>
+            <div class="ocmd" onclick="copyCmd('setlevel @user 5')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.setlevel</span><span style="font-size:10px;color:var(--text-muted)">تعيين مستوى</span></div>
+            <div class="ocmd" onclick="copyCmd('addmoney @user 1000')"><span style="font-family:monospace;color:var(--yellow);font-weight:700">.addmoney</span><span style="font-size:10px;color:var(--text-muted)">إضافة رصيد</span></div>
+            <div class="ocmd" onclick="copyCmd('resetscore @user')"><span style="font-family:monospace;color:var(--red);font-weight:700">.resetscore</span><span style="font-size:10px;color:var(--text-muted)">إعادة ضبط الدرجات</span></div>
+          </div>
+        </div>
+        <div class="card" style="border-top:2px solid var(--yellow);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci yellow"><i class="fas fa-tools"></i></div>
+            <div class="ct">أدوات المالك</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('getpp 212xxx')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.getpp</span><span style="font-size:10px;color:var(--text-muted)">صورة الملف الشخصي</span></div>
+            <div class="ocmd" onclick="copyCmd('eval 1+1')"><span style="font-family:monospace;color:var(--red);font-weight:700">.eval</span><span style="font-size:10px;color:var(--text-muted)">تنفيذ كود JS</span></div>
+            <div class="ocmd" onclick="copyCmd('exec ls')"><span style="font-family:monospace;color:var(--red);font-weight:700">.exec</span><span style="font-size:10px;color:var(--text-muted)">أوامر النظام</span></div>
+            <div class="ocmd" onclick="copyCmd('getsession')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.getsession</span><span style="font-size:10px;color:var(--text-muted)">استخراج الجلسة</span></div>
+          </div>
+        </div>
+        <div class="card" style="border-top:2px solid var(--accent);">
+          <div class="ch" style="margin-bottom:16px;">
+            <div class="ci green"><i class="fas fa-info-circle"></i></div>
+            <div class="ct">معلومات النظام</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="ocmd" onclick="copyCmd('status')"><span style="font-family:monospace;color:var(--accent);font-weight:700">.status</span><span style="font-size:10px;color:var(--text-muted)">حالة النظام</span></div>
+            <div class="ocmd" onclick="copyCmd('runtime')"><span style="font-family:monospace;color:var(--blue);font-weight:700">.runtime</span><span style="font-size:10px;color:var(--text-muted)">مدة التشغيل</span></div>
+            <div class="ocmd" onclick="copyCmd('speed')"><span style="font-family:monospace;color:var(--purple);font-weight:700">.speed</span><span style="font-size:10px;color:var(--text-muted)">سرعة الاستجابة</span></div>
+            <div class="ocmd" onclick="copyCmd('owners')"><span style="font-family:monospace;color:var(--yellow);font-weight:700">.owners</span><span style="font-size:10px;color:var(--text-muted)">قائمة المالكين</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="copy-toast" style="display:none;padding:12px 20px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:12px;text-align:center;font-size:13px;font-weight:700;color:var(--accent);">✅ تم نسخ الأمر!</div>
+    </div>
+
+    <!-- DATABASE SETTINGS TAB -->
+    <div id="spanel-db" style="display:none;">
+      <div class="card">
+        <div class="ch" style="margin-bottom:18px;">
+          <div class="ci blue"><i class="fas fa-database"></i></div>
+          <div class="ct">إعدادات قاعدة بيانات Supabase</div>
+        </div>
+        <div class="fg">
+          <label class="fl">رابط Supabase URL</label>
+          <input type="text" id="cfg-url" class="fi" />
+        </div>
+        <div class="fg">
+          <label class="fl">المفتاح العام (Anon/Publishable Key)</label>
+          <input type="text" id="cfg-key" class="fi" />
+        </div>
+        <button onclick="saveConfig()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--blue),#2b6cb0);color:#fff;font-weight:800;font-size:14px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+          <i class="fas fa-plug"></i> حفظ والاتصال
+        </button>
+        <div id="cfg-status" style="margin-top:14px;font-size:13px"></div>
+      </div>
+    </div>
+
   </div>
+
 
 </main>
 
@@ -1387,6 +1580,57 @@ const CMDS = [
   { icon:'🎭', name:'fakechat', desc:'محادثة وهمية',           tag:'editor'     },
 ];
 const TC = { downloader:'b-blue', tools:'b-green', sticker:'b-purple', editor:'b-yellow', main:'b-green', infobot:'b-blue', owner:'b-red', group:'b-purple' };
+
+function copyCmd(cmd) {
+  navigator.clipboard.writeText('.' + cmd).catch(() => {});
+  const t = document.getElementById('copy-toast');
+  t.textContent = '✅ تم نسخ: .' + cmd;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+
+function switchSettingsTab(tab) {
+  ['bot','owner','db'].forEach(t => {
+    const panel = document.getElementById('spanel-' + t);
+    const btn = document.getElementById('stab-' + t);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn) {
+      btn.style.background = t === tab ? 'linear-gradient(135deg,var(--accent),#128c7e)' : 'transparent';
+      btn.style.color = t === tab ? '#000' : 'var(--text-muted)';
+    }
+  });
+  if (tab === 'db') loadCfgForm();
+  if (tab === 'bot') loadBotSettings();
+}
+
+function saveBotSettings() {
+  const data = {
+    botname: document.getElementById('s-botname').value.trim(),
+    author: document.getElementById('s-author').value.trim(),
+    source: document.getElementById('s-source').value.trim(),
+    owner1: document.getElementById('s-owner1').value.trim(),
+    owner2: document.getElementById('s-owner2').value.trim(),
+    pairing: document.getElementById('s-pairing').value.trim(),
+    wait: document.getElementById('s-wait').value.trim(),
+    err: document.getElementById('s-error').value.trim(),
+  };
+  localStorage.setItem('bot_settings', JSON.stringify(data));
+  toast('✅ تم حفظ الإعدادات محلياً', 'ok');
+}
+
+function loadBotSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('bot_settings') || '{}');
+    if (saved.botname) document.getElementById('s-botname').value = saved.botname;
+    if (saved.author) document.getElementById('s-author').value = saved.author;
+    if (saved.source) document.getElementById('s-source').value = saved.source;
+    if (saved.owner1) document.getElementById('s-owner1').value = saved.owner1;
+    if (saved.owner2) document.getElementById('s-owner2').value = saved.owner2;
+    if (saved.pairing) document.getElementById('s-pairing').value = saved.pairing;
+    if (saved.wait) document.getElementById('s-wait').value = saved.wait;
+    if (saved.err) document.getElementById('s-error').value = saved.err;
+  } catch(e) {}
+}
 
 function renderCmds() {
   document.getElementById('cmds-grid').innerHTML = CMDS.map(c => `
