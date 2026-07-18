@@ -3,7 +3,7 @@ console.log('🐾 Starting bot-amirni-hamza by Hamza Amirni...');
 import { Worker } from 'worker_threads';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { watchFile, unwatchFile, readFileSync, existsSync } from 'fs';
+import { watchFile, unwatchFile, readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import readline from 'readline';
 import http from 'http';
 
@@ -112,4 +112,90 @@ function restart() {
 	start('main.js');
 }
 
-start('main.js');
+async function restoreSession() {
+  console.log('☁️ Restoring session from Supabase...');
+  try {
+    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number&order=updated_at.desc&limit=1', {
+      headers: {
+        'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+        'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us'
+      }
+    });
+    if (!res.ok) {
+      console.log('⚠️ Failed to query Supabase for session restoration:', await res.text());
+      return;
+    }
+    const data = await res.json();
+    if (data && data[0] && data[0].session_data) {
+      const buffer = Buffer.from(data[0].session_data, 'base64');
+      mkdirSync(join(__dirname, 'sessions'), { recursive: true });
+      writeFileSync(join(__dirname, 'sessions', 'auth.db'), buffer);
+      console.log(`✅ Restored WhatsApp session for ${data[0].phone_number} from Supabase successfully!`);
+    } else {
+      console.log('ℹ️ No previous session found in Supabase.');
+    }
+  } catch (err) {
+    console.error('❌ Error restoring session from Supabase:', err.message);
+  }
+}
+
+let uploadTimeout = null;
+const dbPath = join(__dirname, 'sessions', 'auth.db');
+
+function startBackupWatcher() {
+  console.log('📡 Starting Supabase session backup watcher...');
+  
+  // Ensure the directory exists
+  mkdirSync(join(__dirname, 'sessions'), { recursive: true });
+  
+  // Touch the file if it doesn't exist so we can watch it
+  if (!existsSync(dbPath)) {
+    writeFileSync(dbPath, '');
+  }
+
+  watchFile(dbPath, () => {
+    if (uploadTimeout) clearTimeout(uploadTimeout);
+    uploadTimeout = setTimeout(async () => {
+      try {
+        if (!existsSync(dbPath)) return;
+        const content = readFileSync(dbPath);
+        if (content.length === 0) return; // don't backup empty files
+        const base64 = content.toString('base64');
+        
+        const payload = {
+          phone_number: '212624855939',
+          session_data: base64,
+          status: 'connected',
+          updated_at: new Date().toISOString()
+        };
+        
+        const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+          method: 'POST',
+          headers: {
+            'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+            'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+          console.log('☁️ Backup WhatsApp session to Supabase database successfully!');
+        } else {
+          console.error('❌ Failed to backup session to Supabase:', await res.text());
+        }
+      } catch (err) {
+        console.error('❌ Error during Supabase session backup:', err.message);
+      }
+    }, 10000); // 10-second debounce
+  });
+}
+
+async function init() {
+  await restoreSession();
+  startBackupWatcher();
+  start('main.js');
+}
+
+init();
