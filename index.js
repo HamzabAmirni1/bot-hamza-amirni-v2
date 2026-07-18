@@ -271,7 +271,15 @@ function start(file) {
 
 	worker.stdout.on('data', (chunk) => {
 		const chunkStr = chunk.toString();
-		process.stdout.write(chunk);
+		// Replace Indonesian UI messages with branded Arabic messages
+		const translated = chunkStr
+			.replace(/Mengaktifkan Bot,?\s*Mohon tunggu sebentar\.*/gi, '⚡ جاري تشغيل البوت، انتظر لحظة...')
+			.replace(/Menunggu Pesan Baru/gi, '📨 في انتظار الرسائل')
+			.replace(/Status Aktif/gi, '🟢 الحالة: نشط')
+			.replace(/Tersambung/gi, 'متصل ✅')
+			.replace(/Stream Errored \(conflict\)/gi, '⚠️ تعارض في الاتصال، إعادة المحاولة...');
+		process.stdout.write(translated);
+
 		
 		const codeMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9-]{8,10})/i);
 		if (codeMatch) {
