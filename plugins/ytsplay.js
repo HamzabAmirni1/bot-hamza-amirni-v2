@@ -136,14 +136,14 @@ async function ytmp4Mever(url) {
 // ============================================================
 const handler = async (m, { conn, text, command }) => {
 
-	// ── .play: Download Audio MP3 ──────────────────────────────
-	if (/^(play|ytplay)$/i.test(command)) {
+	// ── .play / .yts: Download Audio / Search Carousel ───────────
+	if (/^(play|ytplay|yts)$/i.test(command)) {
 		if (!text) return m.reply(
-			`🎵 *YouTube Downloader*\n\nأرسل اسم الأغنية أو رابط يوتيوب:\n\n*مثال:*\n.play سيف عامر\n.play https://youtu.be/xxxx`
+			`🎵 *YouTube Downloader & Search*\n\nأرسل اسم الأغنية أو رابط يوتيوب:\n\n*مثال:*\n.play سيف عامر\n.yts سيف عامر`
 		);
 
-		// If it's a search term, send Carousel search results using direct Baileys protobufs
-		if (!text.startsWith('http')) {
+		// If it's a search term OR if command is explicitly "yts", send Carousel search results
+		if (!text.startsWith('http') || /^yts$/i.test(command)) {
 			await m.react('🔍');
 			const search = await yts(text);
 			const videos = search.videos || [];
@@ -383,8 +383,8 @@ const handler = async (m, { conn, text, command }) => {
 	}
 };
 
-handler.help = ['play <اسم الأغنية أو URL>', 'video <اسم الفيديو أو URL>'];
+handler.help = ['play <اسم أو URL>', 'video <اسم أو URL>', 'yts <اسم البحث>'];
 handler.tags = ['downloader'];
-handler.command = /^(play|ytplay|video|ytv)$/i;
+handler.command = /^(play|ytplay|video|ytv|yts)$/i;
 
 export default handler;
