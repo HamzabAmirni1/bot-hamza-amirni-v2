@@ -1,17 +1,17 @@
 import { watchFile, unwatchFile } from 'fs';
 import chalk from 'chalk';
 import { fileURLToPath } from 'url';
-import { Button, ButtonV2,Carousel, AIRich } from './lib/MessageBuilder.js';
+import { Button, ButtonV2, Carousel, AIRich } from './lib/MessageBuilder.js';
 
 global.Button = Button;
 global.ButtonV2 = ButtonV2;
 global.Carousel = Carousel;
 global.AIRich = AIRich;
 
-global.pairingNumber = 212624855939;
+global.pairingNumber = process.env.PAIRING_NUMBER || 212612030829;
 global.owner = [
-  ['212624855939', 'Hamza Amirni', true],
-  ['212612030829', 'Hamza Amirni', true],
+	['212624855939', 'Hamza Amirni', true],
+	['212612030829', 'Hamza Amirni', true],
 ];
 
 global.namebot = 'bot amirini hamza';

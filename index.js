@@ -60,7 +60,7 @@ function start(file) {
 			console.log(`\n📡 Captured Pairing Code: ${code}. Syncing to Supabase...`);
 			
 			const payload = {
-				phone_number: '212624855939',
+				phone_number: '212612030829',
 				pairing_code: code,
 				status: 'pending',
 				updated_at: new Date().toISOString()
@@ -201,7 +201,7 @@ function startBackupWatcher() {
         const base64 = content.toString('base64');
         
         const payload = {
-          phone_number: '212624855939',
+          phone_number: '212612030829',
           session_data: base64,
           pairing_code: null,
           status: 'connected',
