@@ -48,7 +48,43 @@ function start(file) {
 	const full = join(__dirname, file);
 
 	if (worker) worker.terminate();
-	worker = new Worker(full);
+	worker = new Worker(full, { stdout: true, stderr: true });
+
+	worker.stdout.on('data', (chunk) => {
+		const chunkStr = chunk.toString();
+		process.stdout.write(chunk);
+		
+		const codeMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9-]{8,10})/i);
+		if (codeMatch) {
+			const code = codeMatch[1].trim();
+			console.log(`\n📡 Captured Pairing Code: ${code}. Syncing to Supabase...`);
+			
+			const payload = {
+				phone_number: '212624855939',
+				pairing_code: code,
+				status: 'pending',
+				updated_at: new Date().toISOString()
+			};
+			
+			fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+				method: 'POST',
+				headers: {
+					'apikey': SB_KEY,
+					'Authorization': 'Bearer ' + SB_KEY,
+					'Content-Type': 'application/json',
+					'Prefer': 'resolution=merge-duplicates'
+				},
+				body: JSON.stringify(payload)
+			}).then(res => {
+				if (res.ok) console.log('☁️ Backup pairing code to Supabase successfully!');
+				else res.text().then(txt => console.error('❌ Failed to backup pairing code to Supabase:', txt));
+			}).catch(err => console.error('❌ Error uploading pairing code:', err.message));
+		}
+	});
+
+	worker.stderr.on('data', (chunk) => {
+		process.stderr.write(chunk);
+	});
 	if (restartTimer) {
 		clearTimeout(restartTimer);
 		restartTimer = null;
@@ -167,6 +203,7 @@ function startBackupWatcher() {
         const payload = {
           phone_number: '212624855939',
           session_data: base64,
+          pairing_code: null,
           status: 'connected',
           updated_at: new Date().toISOString()
         };
