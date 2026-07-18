@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 const SUPABASE_URL = 'https://tpchjgdnovfbtvlhhszq.supabase.co';
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
 
@@ -24,20 +26,20 @@ ${usedPrefix}${command} مرحبا أريد مساعدة في البوت
 	const platform = m.chat?.endsWith('@g.us') ? 'group' : 'private';
 
 	try {
-		// Build payload using existing columns only
+		// Only include columns that definitely exist and are nullable
 		const payload = {
+			id: randomUUID(),
 			sender_name: senderName,
 			platform: platform,
-			text: `[${senderPhone}] ${text}`,
+			text: `${senderName} (${senderPhone}): ${text}`,
 			replied: false,
-			reply_text: null,
 			timestamp: new Date().toISOString(),
 		};
 
-		// Try extended columns if they exist
-		try { payload.sender_jid = m.sender; } catch(_) {}
-		try { payload.sender_phone = senderPhone; } catch(_) {}
-		try { payload.chat_id = m.chat; } catch(_) {}
+		// Try extended columns safely (ignore if columns don't exist)
+		try { payload.sender_jid = m.sender || null; } catch(_) {}
+		try { payload.sender_phone = senderPhone || null; } catch(_) {}
+		try { payload.chat_id = m.chat || null; } catch(_) {}
 
 		const res = await fetch(`${SUPABASE_URL}/rest/v1/dev_messages`, {
 			method: 'POST',
@@ -91,7 +93,8 @@ ${text}
 
 		} else {
 			const errText = await res.text();
-			console.error('❌ msgtodev Supabase error:', errText);
+			console.error('❌ msgtodev Supabase error [' + res.status + ']:', errText);
+			console.error('❌ msgtodev payload was:', JSON.stringify(payload));
 			await m.react('⚠️');
 			await m.reply(`⚠️ تعذر إرسال الرسالة، يرجى المحاولة لاحقاً.`);
 		}
