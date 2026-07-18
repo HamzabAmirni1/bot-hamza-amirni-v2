@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Button, Carousel } from '../lib/MessageBuilder.js';
 
 // ============================================================
 // APK Download Plugin — Uses appteka.store API
@@ -12,7 +13,6 @@ const HEADERS = { 'content-type': 'application/json', 'user-agent': 'Postify/1.0
 const downloadCount = new Map(); // jid → { count, resetAt }
 
 function getLimit() {
-  // Read from global (set by /api/settings endpoint) or default 5
   return (global.APK_DAILY_LIMIT && !isNaN(global.APK_DAILY_LIMIT))
     ? parseInt(global.APK_DAILY_LIMIT) : 5;
 }
@@ -21,7 +21,6 @@ function canDownload(jid) {
   const now = Date.now();
   const entry = downloadCount.get(jid);
   if (!entry || now >= entry.resetAt) {
-    // First time or reset period passed → reset counter
     downloadCount.set(jid, { count: 0, resetAt: now + 24 * 60 * 60 * 1000 });
     return true;
   }
@@ -46,6 +45,7 @@ function isOwner(jid) {
   return owners.some(o => String(o[0]) === String(num));
 }
 
+// ── Search apps on appteka ──────────────────────────────────
 async function searchApps(query) {
 	const r = await axios.get(`${BASE}/api/1/app/search`, {
 		params: { query, offset: 0, locale: 'en', count: 8 },
@@ -118,14 +118,12 @@ const handler = async (m, { conn, text }) => {
 		`ابحث عن أي تطبيق أندرويد وحمله مباشرة!\n\n` +
 		`*مثال:*\n` +
 		`▸ \`.apk WhatsApp\`\n` +
-		`▸ \`.apk Instagram\`\n` +
-		`▸ \`.apk TikTok\`\n\n` +
+		`▸ \`.apk Instagram\`\n\n` +
 		`⚡ *bot amirini hamza*`
 	);
 
 	await m.react('🔍');
 
-	// ── 1. Search for apps ─────────────────────────────────────
 	let apps = [];
 	try {
 		apps = await searchApps(text);
@@ -139,90 +137,46 @@ const handler = async (m, { conn, text }) => {
 
 	if (!apps.length) {
 		await m.react('❌');
-		return m.reply(`❌ لم يتم العثور على نتائج لـ *"${text}"*\nجرب بالأحرف اللاتينية.`);
+		return m.reply(`❌ لم يتم العثور على نتائج لـ *"${text}"*`);
 	}
 
-	// ── 2. Show search results list ────────────────────────────
-	const top = apps.slice(0, 6);
-	let msg = `╭━━━〔 *📦 APK Search* 〕━━━⬣\n`;
-	msg += `┃ 🔎 نتائج: *${text}*\n`;
-	msg += `╰━━━━━━━━━━━━━━━⬣\n\n`;
+	// Send Carousel cards instead of listing text
+	const carousel = new Carousel(conn);
+	carousel.setBody(`🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*`);
+	carousel.setFooter('اضغط على الزر أسفل الكارت لتحميل التطبيق مباشرة');
 
-	top.forEach((a, i) => {
-		msg += `*${i + 1}. ${a.name}*\n`;
-		msg += `📦 \`${a.package || '—'}\`\n`;
-		msg += `🔢 ${a.version}  |  ⚖️ ${a.size}\n`;
+	for (const a of apps.slice(0, 6)) {
+		const btn = new Button(conn);
+		const iconUrl = a.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random&size=300`;
+		btn.setTitle(a.name)
+		   .setBody(`📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`)
+		   .setImage(iconUrl);
+
 		if (a.appId) {
-			msg += `📥 للتحميل: \`.apkdl ${a.appId}\`\n`;
-		}
-		msg += `\n`;
-	});
-
-	msg += `━━━━━━━━━━━━━━━\n`;
-	msg += `💡 *اكتب \`.apkdl [رقم]\` لتحميل التطبيق*\n`;
-	msg += `⚡ *bot amirini hamza*`;
-
-	// Send with icon of first result
-	try {
-		if (top[0].icon && top[0].appId) {
-			await conn.sendMessage(m.chat, {
-				image: { url: top[0].icon },
-				caption: msg
-			}, { quoted: m });
+			btn.addReply('📥 تحميل التطبيق الآن', `.apkdl ${a.appId}`);
 		} else {
-			await m.reply(msg);
+			btn.addUrl('🔗 صفحة التحميل خارجية', a.link);
 		}
-	} catch (_) {
-		await m.reply(msg);
+
+		const card = await btn.toCard();
+		carousel.addCard(card);
 	}
 
+	await carousel.send(m.chat, { quoted: m });
 	await m.react('✅');
-
-	// ── 3. Auto-download the FIRST result immediately ──────────
-	if (!top[0].appId) return;
-
-	try {
-		await m.react('⏳');
-		const info = await getDownloadInfo(top[0].appId);
-
-		// Size check — WhatsApp limit ~100MB for documents
-		if (info.rawSize > 95 * 1024 * 1024) {
-			return conn.sendMessage(m.chat, {
-				text: `⚠️ *${info.name}* كبير جداً (${info.size}) للإرسال عبر واتساب.\n\n📲 حمله مباشرة من:\n${top[0].link}`
-			}, { quoted: m });
-		}
-
-		if (!info.downloadUrl) throw new Error('No download URL');
-
-		// Send info card
-		await conn.sendMessage(m.chat, {
-			text: `📦 *${info.name}*\n` +
-				`🔢 *الإصدار:* ${info.version}\n` +
-				`⚖️ *الحجم:* ${info.size}\n` +
-				`📱 *أندرويد:* ${info.android}+\n` +
-				(info.description ? `\n📝 ${info.description}...\n` : '') +
-				`\n⏳ *جاري إرسال ملف APK...*`
-		}, { quoted: m });
-
-		// Send the APK as document
-		await conn.sendMessage(m.chat, {
-			document: { url: info.downloadUrl },
-			fileName: `${info.name}_${info.version}.apk`,
-			mimetype: 'application/vnd.android.package-archive',
-			caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.size}\n\n⚡ *bot amirini hamza*`
-		}, { quoted: m });
-
-		await m.react('✅');
-
-	} catch (e) {
-		console.log('[apk] download failed:', e.message);
-		// Don't show error — search results already sent above
-	}
 };
 
 // ── .apkdl <appId> — Direct download by appteka app ID ──────
 const handlerDl = async (m, { conn, text }) => {
 	if (!text) return m.reply('أرسل رقم التطبيق:\n.apkdl 12345678');
+
+	const sender = m.sender || m.key.participant || m.key.remoteJid;
+	
+	// Check user limits (owners have bypass)
+	if (!isOwner(sender) && !canDownload(sender)) {
+		await m.react('❌');
+		return m.reply(`❌ لقد تجاوزت الحد اليومي الأقصى المسموح به لك اليوم وهو (${getLimit()} تطبيقات).`);
+	}
 
 	await m.react('⏳');
 
@@ -231,7 +185,7 @@ const handlerDl = async (m, { conn, text }) => {
 
 		if (info.rawSize > 95 * 1024 * 1024) {
 			await m.react('⚠️');
-			return m.reply(`⚠️ *${info.name}* كبير جداً (${info.size}).\n\nحمله من:\nhttps://appteka.store/app/${text.trim()}`);
+			return m.reply(`⚠️ *${info.name}* كبير جداً (${info.size}) للإرسال عبر واتساب.\n\nحمله من:\nhttps://appteka.store/app/${text.trim()}`);
 		}
 
 		if (!info.downloadUrl) { await m.react('❌'); return m.reply('❌ لم يتم العثور على رابط التحميل.'); }
@@ -247,6 +201,10 @@ const handlerDl = async (m, { conn, text }) => {
 			caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.size}\n\n⚡ *bot amirini hamza*`
 		}, { quoted: m });
 
+		if (!isOwner(sender)) {
+			incrementDownload(sender);
+		}
+		
 		await m.react('✅');
 
 	} catch (e) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import yts from 'yt-search';
+import { Button, Carousel } from '../lib/MessageBuilder.js';
 
 // ============================================================
 // AUDIO DOWNLOADERS — Fallback chain
@@ -138,30 +139,48 @@ const handler = async (m, { conn, text, command }) => {
 	// ── .play: Download Audio MP3 ──────────────────────────────
 	if (/^(play|ytplay)$/i.test(command)) {
 		if (!text) return m.reply(
-			`🎵 *YouTube Audio Downloader*\n\nأرسل اسم الأغنية أو رابط يوتيوب:\n\n*مثال:*\n.play سيف عامر\n.play https://youtu.be/xxxx`
+			`🎵 *YouTube Downloader*\n\nأرسل اسم الأغنية أو رابط يوتيوب:\n\n*مثال:*\n.play سيف عامر\n.play https://youtu.be/xxxx`
 		);
 
-		await m.react('🎧');
-
-		let videoUrl = text, videoTitle = '', videoThumb = '';
+		// If it's a search term, send Carousel search results instead of auto-downloading directly
 		if (!text.startsWith('http')) {
-			const results = await yts(text);
-			const videos = results.videos || [];
+			await m.react('🔍');
+			const search = await yts(text);
+			const videos = search.videos || [];
 			if (!videos.length) { await m.react('❌'); return m.reply('❌ لم يتم العثور على نتائج.'); }
-			videoUrl = videos[0].url;
-			videoTitle = videos[0].title;
-			videoThumb = videos[0].thumbnail;
-		} else {
-			// Extract info from URL
-			try {
-				const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
-				if (id) {
-					const res = await yts({ videoId: id });
-					videoTitle = res.title || '';
-					videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-				}
-			} catch (_) {}
+
+			const carousel = new Carousel(conn);
+			carousel.setBody(`📺 نتائج البحث عن: *${text}*`);
+			carousel.setFooter('اختر وسيلة التحميل المفضلة أدناه');
+
+			for (const v of videos.slice(0, 6)) {
+				const btn = new Button(conn);
+				btn.setTitle(v.title)
+				   .setBody(`⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *تاريخ النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`)
+				   .setImage(v.thumbnail)
+				   .addReply('🎵 تحميل صوت (MP3)', `.play ${v.url}`)
+				   .addReply('🎥 تحميل فيديو (MP4)', `.video ${v.url}`);
+				
+				const card = await btn.toCard();
+				carousel.addCard(card);
+			}
+
+			await carousel.send(m.chat, { quoted: m });
+			return m.react('✅');
 		}
+
+		await m.react('🎧');
+		let videoUrl = text, videoTitle = '', videoThumb = '';
+
+		// Extract info from URL
+		try {
+			const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
+			if (id) {
+				const res = await yts({ videoId: id });
+				videoTitle = res.title || '';
+				videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+			}
+		} catch (_) {}
 
 		// Show thumbnail preview while downloading
 		if (videoThumb) {
@@ -227,29 +246,47 @@ const handler = async (m, { conn, text, command }) => {
 	// ── .video / .ytv: Download Video MP4 ─────────────────────
 	if (/^(video|ytv)$/i.test(command)) {
 		if (!text) return m.reply(
-			`🎬 *YouTube Video Downloader*\n\nأرسل اسم الفيديو أو رابط يوتيوب:\n\n*مثال:*\n.video سيف عامر\n.video https://youtu.be/xxxx`
+			`🎬 *YouTube Downloader*\n\nأرسل اسم الفيديو أو رابط يوتيوب:\n\n*مثال:*\n.video سيف عامر\n.video https://youtu.be/xxxx`
 		);
 
-		await m.react('🎬');
-
-		let videoUrl = text, videoTitle = '', videoThumb = '';
+		// If it's a search term, send Carousel search results instead of auto-downloading directly
 		if (!text.startsWith('http')) {
-			const results = await yts(text);
-			const videos = results.videos || [];
+			await m.react('🔍');
+			const search = await yts(text);
+			const videos = search.videos || [];
 			if (!videos.length) { await m.react('❌'); return m.reply('❌ لم يتم العثور على نتائج.'); }
-			videoUrl = videos[0].url;
-			videoTitle = videos[0].title;
-			videoThumb = videos[0].thumbnail;
-		} else {
-			try {
-				const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
-				if (id) {
-					const res = await yts({ videoId: id });
-					videoTitle = res.title || '';
-					videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-				}
-			} catch (_) {}
+
+			const carousel = new Carousel(conn);
+			carousel.setBody(`📺 نتائج البحث عن: *${text}*`);
+			carousel.setFooter('اختر وسيلة التحميل المفضلة أدناه');
+
+			for (const v of videos.slice(0, 6)) {
+				const btn = new Button(conn);
+				btn.setTitle(v.title)
+				   .setBody(`⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *تاريخ النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`)
+				   .setImage(v.thumbnail)
+				   .addReply('🎵 تحميل صوت (MP3)', `.play ${v.url}`)
+				   .addReply('🎥 تحميل فيديو (MP4)', `.video ${v.url}`);
+				
+				const card = await btn.toCard();
+				carousel.addCard(card);
+			}
+
+			await carousel.send(m.chat, { quoted: m });
+			return m.react('✅');
 		}
+
+		await m.react('🎬');
+		let videoUrl = text, videoTitle = '', videoThumb = '';
+
+		try {
+			const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
+			if (id) {
+				const res = await yts({ videoId: id });
+				videoTitle = res.title || '';
+				videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+			}
+		} catch (_) {}
 
 		// Show thumbnail preview while downloading
 		const ytId = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
