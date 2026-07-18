@@ -1241,50 +1241,59 @@ function closeM(id) { document.getElementById(id).classList.remove('show'); }
 // PAGE LOADERS
 // =============================================
 async function loadStats() {
-  if (!sb) return;
-  const { data, error } = await sb.from('bot_stats').select('*').single();
-  if (error || !data) return;
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || Object.keys(data).length === 0) return;
 
-  animN('s-msgs',   data.messages_handled || 0);
-  animN('s-users',  data.total_users || 0);
-  animN('s-visits', data.visits || 0);
-  animN('s-bots',   data.active_bots || 0);
+    animN('s-msgs',   data.messages_handled || 0);
+    animN('s-users',  data.total_users || 0);
+    animN('s-visits', data.visits || 0);
+    animN('s-bots',   data.active_bots || 0);
 
-  document.getElementById('sys-ram').textContent    = data.ram_usage || '—';
-  document.getElementById('sys-update').textContent = data.last_update
-    ? new Date(data.last_update).toLocaleString('ar')
-    : '—';
+    document.getElementById('sys-ram').textContent    = data.ram_usage || '—';
+    document.getElementById('sys-update').textContent = data.last_update
+      ? new Date(data.last_update).toLocaleString('ar')
+      : '—';
 
-  // Render top commands list on dashboard
-  const tc = document.getElementById('top-cmds');
-  const cmds = Array.isArray(data.top_commands) ? data.top_commands : [];
-  if (!cmds.length) { tc.innerHTML = empty('fas fa-chart-bar', 'لا يوجد بيانات أوامر بعد'); return; }
-  
-  tc.innerHTML = cmds.slice(0, 5).map((c, i) => {
-    const name = typeof c === 'object' ? (c.cmd || c.command || c.name || '') : c;
-    const count = typeof c === 'object' ? (c.count || c.times || 0) : 0;
-    const pct = i === 0 ? 100 : Math.round((count / (cmds[0]?.count || 1)) * 100);
-    return `
-      <div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:13px;font-weight:600">${i+1}. .${name}</span>
-          <span style="font-size:12px;color:var(--text-muted)">${count}x</span>
-        </div>
-        <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px">
-          <div style="height:6px;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:3px;width:${pct}%"></div>
-        </div>
-      </div>`;
-  }).join('');
+    // Render top commands list on dashboard
+    const tc = document.getElementById('top-cmds');
+    const cmds = Array.isArray(data.top_commands) ? data.top_commands : [];
+    if (!cmds.length) { tc.innerHTML = empty('fas fa-chart-bar', 'لا يوجد بيانات أوامر بعد'); return; }
+    
+    tc.innerHTML = cmds.slice(0, 5).map((c, i) => {
+      const name = typeof c === 'object' ? (c.cmd || c.command || c.name || '') : c;
+      const count = typeof c === 'object' ? (c.count || c.times || 0) : 0;
+      const pct = i === 0 ? 100 : Math.round((count / (cmds[0]?.count || 1)) * 100);
+      return `
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:600">${i+1}. .${name}</span>
+            <span style="font-size:12px;color:var(--text-muted)">${count}x</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px">
+            <div style="height:6px;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:3px;width:${pct}%"></div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+  }
 }
 
 async function loadAI() {
   const wrap = document.getElementById('ai-wrap');
   wrap.innerHTML = spin();
-  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال بقاعدة البيانات'); return; }
-  const { data, error } = await sb.from('ai_memory').select('jid,last_image,updated_at').order('updated_at', { ascending:false }).limit(100);
-  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
-  allAI = data || [];
-  renderAI(allAI);
+  try {
+    const res = await fetch('/api/aichat');
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    allAI = data || [];
+    renderAI(allAI);
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + e.message);
+  }
 }
 
 function filterAI(q) {
@@ -1322,25 +1331,31 @@ async function viewAI(jid) {
   document.getElementById('modal-ai-title').textContent = jid;
   document.getElementById('modal-ai-body').innerHTML = spin();
   document.getElementById('modal-ai').classList.add('show');
-  const { data } = await sb.from('ai_memory').select('history,last_image').eq('jid', jid).single();
-  if (!data) { document.getElementById('modal-ai-body').innerHTML = empty('fas fa-comment-slash','لا توجد بيانات محادثة'); return; }
-  const hist = Array.isArray(data.history) ? data.history : [];
-  document.getElementById('modal-ai-body').innerHTML = `
-    ${data.last_image ? `<img src="${data.last_image}" style="width:100%;border-radius:12px;margin-bottom:14px;max-height:180px;object-fit:cover" />` : ''}
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${hist.length} رسالة مخزنة بالذاكرة</div>
-    <div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
-      ${hist.slice(-20).map(m => {
-        const isUser = m.role === 'user';
-        return `<div style="display:flex;${isUser ? 'justify-content:flex-end' : ''}">
-          <div style="max-width:80%;padding:10px 14px;border-radius:14px;font-size:12px;line-height:1.6;
-            background:${isUser ? 'rgba(37,211,102,.15)' : 'rgba(99,179,237,.1)'};
-            border:1px solid ${isUser ? 'rgba(37,211,102,.2)' : 'rgba(99,179,237,.15)'}">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${isUser ? '👤 المستخدم' : '🤖 البوت'}</div>
-            ${(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).substring(0,300)}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+  try {
+    const res = await fetch(`/api/aichat-detail?jid=${encodeURIComponent(jid)}`);
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    if (!data || Object.keys(data).length === 0) { document.getElementById('modal-ai-body').innerHTML = empty('fas fa-comment-slash','لا توجد بيانات محادثة'); return; }
+    const hist = Array.isArray(data.history) ? data.history : [];
+    document.getElementById('modal-ai-body').innerHTML = `
+      ${data.last_image ? `<img src="${data.last_image}" style="width:100%;border-radius:12px;margin-bottom:14px;max-height:180px;object-fit:cover" />` : ''}
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${hist.length} رسالة مخزنة بالذاكرة</div>
+      <div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+        ${hist.slice(-20).map(m => {
+          const isUser = m.role === 'user';
+          return `<div style="display:flex;${isUser ? 'justify-content:flex-end' : ''}">
+            <div style="max-width:80%;padding:10px 14px;border-radius:14px;font-size:12px;line-height:1.6;
+              background:${isUser ? 'rgba(37,211,102,.15)' : 'rgba(99,179,237,.1)'};
+              border:1px solid ${isUser ? 'rgba(37,211,102,.2)' : 'rgba(99,179,237,.15)'}">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${isUser ? '👤 المستخدم' : '🤖 البوت'}</div>
+              ${(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).substring(0,300)}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) {
+    document.getElementById('modal-ai-body').innerHTML = empty('fas fa-exclamation-circle', e.message);
+  }
 }
 
 async function sendUserMsgToDev() {
@@ -1364,8 +1379,12 @@ async function sendUserMsgToDev() {
       timestamp: new Date().toISOString()
     };
     
-    const { error } = await sb.from('dev_messages').insert([payload]);
-    if (error) throw error;
+    const res = await fetch('/api/sendmsg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(res.statusText);
     
     toast('✅ تم إرسال رسالتك بنجاح للمطور!', 'ok');
     document.getElementById('usr-msg-name').value = '';
@@ -1380,26 +1399,30 @@ async function sendUserMsgToDev() {
 async function loadDevMsg() {
   const wrap = document.getElementById('devmsg-wrap');
   wrap.innerHTML = spin();
-  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال'); return; }
-  const { data, error } = await sb.from('dev_messages').select('*').order('timestamp', { ascending:false }).limit(50);
-  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
-  allDevMsg = data || [];
-  renderDevMsg(allDevMsg);
+  try {
+    const res = await fetch('/api/devmsg');
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    allDevMsg = data || [];
+    renderDevMsg(allDevMsg);
 
-  // Update recent logs on dashboard
-  const dw = document.getElementById('dash-devmsg');
-  if (dw) {
-    const recent = allDevMsg.slice(0, 3);
-    if (!recent.length) { dw.innerHTML = empty('fas fa-inbox','لا توجد رسائل موجهة للمطور بعد'); return; }
-    dw.innerHTML = recent.map(m => `
-      <div class="msg-item">
-        <div class="msg-meta">
-          <span class="badge ${m.replied ? 'b-green' : 'b-yellow'}">${m.replied ? 'تم الرد' : 'جديد'}</span>
-          <span class="badge b-blue" style="font-size:10px">${m.platform||'wa'}</span>
-          <span style="font-size:12px">${m.sender_name||m.sender||'—'}</span>
-        </div>
-        <div class="msg-text">${(m.text||'').substring(0,80)}${(m.text||'').length>80?'…':''}</div>
-      </div>`).join('');
+    // Update recent logs on dashboard
+    const dw = document.getElementById('dash-devmsg');
+    if (dw) {
+      const recent = allDevMsg.slice(0, 3);
+      if (!recent.length) { dw.innerHTML = empty('fas fa-inbox','لا توجد رسائل موجهة للمطور بعد'); return; }
+      dw.innerHTML = recent.map(m => `
+        <div class="msg-item">
+          <div class="msg-meta">
+            <span class="badge ${m.replied ? 'b-green' : 'b-yellow'}">${m.replied ? 'تم الرد' : 'جديد'}</span>
+            <span class="badge b-blue" style="font-size:10px">${m.platform||'wa'}</span>
+            <span style="font-size:12px">${m.sender_name||m.sender||'—'}</span>
+          </div>
+          <div class="msg-text">${(m.text||'').substring(0,80)}${(m.text||'').length>80?'…':''}</div>
+        </div>`).join('');
+    }
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + e.message);
   }
 }
 
@@ -1479,20 +1502,15 @@ async function requestPairCode() {
       status: 'requesting',
       updated_at: new Date().toISOString()
     };
-    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+    const res = await fetch('/api/requestpair', {
       method: 'POST',
-      headers: {
-        'apikey': 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
-        'Authorization': 'Bearer sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us',
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw new Error(res.statusText);
     toast('📡 تم إرسال الطلب — انتظر ظهور الكود...', 'inf');
     
-    // Poll for the code
+    // Poll for the code via local API
     let attempts = 0;
     const poll = setInterval(async () => {
       attempts++;
@@ -1501,19 +1519,23 @@ async function requestPairCode() {
         display.innerHTML = `<div style="color:var(--red);font-size:13px;">⏱️ انتهت المهلة. أعد المحاولة.</div>`;
         return;
       }
-      const { data } = await sb.from('whatsapp_auth').select('pairing_code,status').eq('phone_number', phone).limit(1);
-      if (data && data[0] && data[0].pairing_code && data[0].status === 'pending') {
-        clearInterval(poll);
-        const code = data[0].pairing_code;
-        display.innerHTML = `
-          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-            <div style="font-size:11px;color:var(--text-muted);">رمز إقران واتساب</div>
-            <div style="font-size:38px;font-weight:900;letter-spacing:5px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;">${code}</div>
-            <div style="font-size:11px;color:var(--yellow);"><i class="fas fa-clock"></i> ادخله في واتساب خلال دقيقتين</div>
-          </div>
-        `;
-        toast('✅ ظهر كود الإقران! أدخله في واتساب الآن', 'ok');
-      }
+      try {
+        const sRes = await fetch('/api/sessions');
+        const sData = await sRes.json();
+        const match = sData.find(s => s.phone_number === phone);
+        if (match && match.pairing_code && match.status === 'pending') {
+          clearInterval(poll);
+          const code = match.pairing_code;
+          display.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <div style="font-size:11px;color:var(--text-muted);">رمز إقران واتساب</div>
+              <div style="font-size:38px;font-weight:900;letter-spacing:5px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;">${code}</div>
+              <div style="font-size:11px;color:var(--yellow);"><i class="fas fa-clock"></i> ادخله في واتساب خلال دقيقتين</div>
+            </div>
+          `;
+          toast('✅ ظهر كود الإقران! أدخله في واتساب الآن', 'ok');
+        }
+      } catch(_) {}
     }, 5000);
   } catch(e) {
     display.innerHTML = `<div style="color:var(--red);font-size:13px;">❌ ${e.message}</div>`;
@@ -1542,10 +1564,10 @@ async function loadQRCode() {
 }
 
 async function loadPairing() {
-  // Update right panel status and stats
   try {
-    if (!sb) return;
-    const { data } = await sb.from('whatsapp_auth').select('status,phone_number,updated_at').order('updated_at',{ascending:false}).limit(1);
+    const res = await fetch('/api/sessions');
+    if (!res.ok) return;
+    const data = await res.json();
     const s = data && data[0];
     const statusEl = document.getElementById('right-status-text');
     const statusDot = document.getElementById('right-status-dot');
@@ -1570,57 +1592,64 @@ async function loadPairing() {
         document.getElementById('pair-last-update').textContent = '⏰ ' + new Date(s.updated_at).toLocaleString('ar');
       }
     }
-    // Stats
-    const { data: statsData } = await sb.from('bot_stats').select('messages_count,users_count').limit(1);
-    if (statsData && statsData[0]) {
-      const el = statsData[0];
-      document.getElementById('pqs-msg').textContent = el.messages_count ?? '—';
-      document.getElementById('pqs-users').textContent = el.users_count ?? '—';
+    const statsRes = await fetch('/api/stats');
+    if (statsRes.ok) {
+      const el = await statsRes.json();
+      document.getElementById('pqs-msg').textContent = el.messages_handled ?? '—';
+      document.getElementById('pqs-users').textContent = el.total_users ?? '—';
     }
-  } catch(e) {}
+  } catch(e) {
+    console.error(e);
+  }
 }
 
 async function loadAuth() {
   const wrap = document.getElementById('auth-wrap');
   wrap.innerHTML = spin();
-  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال بقاعدة البيانات'); return; }
-  const { data, error } = await sb.from('whatsapp_auth').select('*').order('updated_at', { ascending:false });
-  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
-  const list = data || [];
-  if (!list.length) { wrap.innerHTML = empty('fas fa-key','لا توجد جلسات مسجلة'); return; }
-  wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
-    <thead><tr><th>رقم الهاتف</th><th>رمز الإقران</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
-    <tbody>
-    ${list.map(s => `<tr>
-      <td style="font-family:monospace;direction:ltr;text-align:right">${s.phone_number||'—'}</td>
-      <td><code style="background:rgba(37,211,102,.1);color:var(--accent);padding:2px 8px;border-radius:6px">${s.pairing_code||'—'}</code></td>
-      <td><span class="badge ${s.status==='connected'?'b-green':s.status==='pending'?'b-yellow':'b-red'}">${s.status||'—'}</span></td>
-      <td style="font-size:12px;color:var(--text-muted)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
-    </tr>`).join('')}
-    </tbody>
-  </table></div>`;
+  try {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) throw new Error(res.statusText);
+    const list = await res.json();
+    if (!list.length) { wrap.innerHTML = empty('fas fa-key','لا توجد جلسات مسجلة'); return; }
+    wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>رقم الهاتف</th><th>رمز الإقران</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
+      <tbody>
+      ${list.map(s => `<tr>
+        <td style="font-family:monospace;direction:ltr;text-align:right">${s.phone_number||'—'}</td>
+        <td><code style="background:rgba(37,211,102,.1);color:var(--accent);padding:2px 8px;border-radius:6px">${s.pairing_code||'—'}</code></td>
+        <td><span class="badge ${s.status==='connected'?'b-green':s.status==='pending'?'b-yellow':'b-red'}">${s.status||'—'}</span></td>
+        <td style="font-size:12px;color:var(--text-muted)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + e.message);
+  }
 }
 
 async function loadErrors() {
   const wrap = document.getElementById('errors-wrap');
   wrap.innerHTML = spin();
-  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال بقاعدة البيانات'); return; }
-  const { data, error } = await sb.from('error_logs').select('*').order('created_at', { ascending:false }).limit(50);
-  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle','خطأ: ' + error.message); return; }
-  const list = data || [];
-  if (!list.length) { wrap.innerHTML = empty('fas fa-check-circle','لم يواجه البوت أي أخطاء حتى الآن! 🎉'); return; }
-  wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
-    <thead><tr><th>#</th><th>الأمر</th><th>المنصة</th><th>رسالة الخطأ</th><th>التاريخ</th></tr></thead>
-    <tbody>
-    ${list.map((e,i) => `<tr>
-      <td style="color:var(--text-muted)">${i+1}</td>
-      <td><code style="color:var(--accent)">.${e.command||'—'}</code></td>
-      <td><span class="badge b-blue">${e.platform||'—'}</span></td>
-      <td style="font-size:12px;color:var(--red);max-width:300px;word-break:break-word;text-align:right">${e.error_message||'—'}</td>
-      <td style="font-size:11px;color:var(--text-muted)">${e.created_at ? new Date(e.created_at).toLocaleString('ar') : '—'}</td>
-    </tr>`).join('')}
-    </tbody>
-  </table></div>`;
+  try {
+    const res = await fetch('/api/errors');
+    if (!res.ok) throw new Error(res.statusText);
+    const list = await res.json();
+    if (!list.length) { wrap.innerHTML = empty('fas fa-check-circle','لم يواجه البوت أي أخطاء حتى الآن! 🎉'); return; }
+    wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>#</th><th>الأمر</th><th>المنصة</th><th>رسالة الخطأ</th><th>التاريخ</th></tr></thead>
+      <tbody>
+      ${list.map((e,i) => `<tr>
+        <td style="color:var(--text-muted)">${i+1}</td>
+        <td><code style="color:var(--accent)">.${e.command||'—'}</code></td>
+        <td><span class="badge b-blue">${e.platform||'—'}</span></td>
+        <td style="font-size:12px;color:var(--red);max-width:300px;word-break:break-word;text-align:right">${e.error_message||'—'}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${e.created_at ? new Date(e.created_at).toLocaleString('ar') : '—'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle','خطأ: ' + e.message);
+  }
 }
 
 // =============================================

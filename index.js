@@ -9,9 +9,179 @@ import http from 'http';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Health check & static dashboard server for Koyeb
+const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
+
+// Health check & API dashboard server for Koyeb
 const PORT = process.env.PORT || 8000;
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, apikey, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
+  if (req.url.startsWith('/api/')) {
+    const endpoint = req.url.replace('/api/', '').split('?')[0];
+    
+    try {
+      if (endpoint === 'stats') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_stats?select=*&limit=1', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data[0] || {}));
+        return;
+      }
+      
+      if (endpoint === 'sessions') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=*&order=updated_at.desc', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      
+      if (endpoint === 'aichat') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?select=jid,last_image,updated_at&order=updated_at.desc&limit=100', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      if (endpoint === 'aichat-detail') {
+        const jid = req.url.split('jid=')[1]?.split('&')[0] || '';
+        const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?select=history,last_image&jid=eq.${encodeURIComponent(jid)}&limit=1`, {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data[0] || {}));
+        return;
+      }
+      
+      if (endpoint === 'devmsg') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/dev_messages?select=*&order=timestamp.desc&limit=50', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      
+      if (endpoint === 'errors') {
+        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/error_logs?select=*&order=created_at.desc&limit=50', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        const data = await fetchRes.json();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      if (endpoint === 'sendmsg' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const payload = JSON.parse(body);
+            const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/dev_messages', {
+              method: 'POST',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+              },
+              body: JSON.stringify(payload)
+            });
+            const data = await fetchRes.json();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, data }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      if (endpoint === 'reply' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const { id, reply_text } = JSON.parse(body);
+            const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/dev_messages?id=eq.${id}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                replied: true,
+                reply_text: reply_text,
+                reply_timestamp: new Date().toISOString()
+              })
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      if (endpoint === 'requestpair' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const payload = JSON.parse(body);
+            const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+              method: 'POST',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify(payload)
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+      
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Endpoint not found' }));
+      return;
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+      return;
+    }
+  }
+
   let filePath = join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
   if (!existsSync(filePath) || req.url.includes('..')) {
     filePath = join(__dirname, 'public', 'index.html');
@@ -147,8 +317,6 @@ function restart() {
 
 	start('main.js');
 }
-
-const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
 
 async function restoreSession() {
   console.log('☁️ Restoring session from Supabase...');
