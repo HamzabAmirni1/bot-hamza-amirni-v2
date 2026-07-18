@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🤖 بوت حمزة اعمرني — لوحة التحكم</title>
+  <meta name="description" content="لوحة تحكم بوت واتساب حمزة اعمرني" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --card: #1a2235;
+      --card2: #1e2d45;
+      --border: rgba(99,179,237,0.15);
+      --accent: #25d366;
+      --accent2: #128c7e;
+      --blue: #63b3ed;
+      --purple: #9f7aea;
+      --red: #fc8181;
+      --yellow: #f6e05e;
+      --text: #e2e8f0;
+      --text-muted: #718096;
+      --glass: rgba(255,255,255,0.04);
+      --glow: 0 0 30px rgba(37,211,102,0.15);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Cairo',sans-serif; background:var(--bg);
+      color:var(--text); min-height:100vh; overflow-x:hidden;
+    }
+    body::before {
+      content:''; position:fixed; inset:0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(37,211,102,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(99,179,237,0.06) 0%, transparent 60%);
+      pointer-events:none; z-index:0;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      position:fixed; right:0; top:0; width:260px; height:100vh;
+      background:var(--surface); border-left:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:200; padding-bottom:20px;
+      transition:transform .3s cubic-bezier(.4,0,.2,1); transform:translateX(110%);
+    }
+    .sidebar.open { transform:translateX(0); }
+    .sidebar-overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.65); z-index:190; backdrop-filter:blur(3px);
+    }
+    .sidebar-overlay.show { display:block; }
+    .ham-btn {
+      position:fixed; top:14px; left:14px; z-index:300;
+      width:46px; height:46px; border-radius:13px;
+      background:var(--surface); border:1px solid var(--border);
+      color:var(--text); font-size:18px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .25s; box-shadow:0 4px 20px rgba(0,0,0,.35);
+    }
+    .ham-btn:hover { background:var(--card); border-color:var(--accent); color:var(--accent); }
+    @media(min-width:901px){
+      .sidebar{ transform:translateX(0)!important; }
+      .ham-btn{ display:none; }
+      .sidebar-overlay{ display:none!important; }
+      .main{ margin-right:260px; padding-top:30px; }
+    }
+
+    .sb-head {
+      padding:24px 20px;
+      background:linear-gradient(135deg,rgba(37,211,102,.15),rgba(18,140,126,.1));
+      border-bottom:1px solid var(--border); text-align:center;
+    }
+    .sb-logo {
+      width:64px; height:64px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      border-radius:18px; margin:0 auto 12px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:30px; box-shadow:var(--glow);
+    }
+    .sb-title { font-size:15px; font-weight:700; }
+    .sb-sub { font-size:11px; color:var(--accent); margin-top:4px; }
+
+    .online-badge {
+      margin:10px 14px; display:flex; align-items:center;
+      justify-content:space-between; padding:10px 14px;
+      background:rgba(37,211,102,.08); border:1px solid rgba(37,211,102,.2);
+      border-radius:12px;
+    }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--accent); box-shadow:0 0 8px var(--accent);
+      animation:pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .nav { padding:16px 12px 8px; flex:1; overflow-y:auto; }
+    .nav-lbl {
+      font-size:10px; font-weight:700; color:var(--text-muted);
+      text-transform:uppercase; letter-spacing:1px; padding:0 8px 8px;
+    }
+    .nv {
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      border-radius:12px; cursor:pointer; transition:all .2s;
+      color:var(--text-muted); font-size:14px; font-weight:500;
+      margin-bottom:4px; border:1px solid transparent;
+    }
+    .nv:hover { background:var(--glass); color:var(--text); }
+    .nv.active {
+      background:linear-gradient(135deg,rgba(37,211,102,.2),rgba(18,140,126,.1));
+      color:var(--accent); border-color:rgba(37,211,102,.2);
+    }
+    .nv i { width:18px; text-align:center; font-size:16px; }
+
+    /* ===== MAIN ===== */
+    .main { margin-right:0; min-height:100vh; padding:30px; padding-top:74px; position:relative; z-index:1; }
+    .page { display:none; }
+    .page.active { display:block; }
+    .ph { margin-bottom:28px; }
+    .ph h1 { font-size:26px; font-weight:800; background:linear-gradient(135deg,var(--text),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .ph p { color:var(--text-muted); margin-top:6px; font-size:13px; }
+
+    /* GRID */
+    .g { display:grid; gap:20px; }
+    .g2 { grid-template-columns:repeat(2,1fr); }
+    .g3 { grid-template-columns:repeat(3,1fr); }
+    .g4 { grid-template-columns:repeat(4,1fr); }
+    @media(max-width:768px){ .g2,.g3,.g4{ grid-template-columns:1fr; } }
+    @media(max-width:1100px) and (min-width:769px){ .g4{ grid-template-columns:repeat(2,1fr); } }
+
+    /* STAT CARD */
+    .sc {
+      background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:20px; display:flex; align-items:center; gap:16px;
+      transition:all .3s; position:relative; overflow:hidden;
+    }
+    .sc::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+    .sc.green::before { background:linear-gradient(270deg,var(--accent),transparent); }
+    .sc.blue::before  { background:linear-gradient(270deg,var(--blue),transparent); }
+    .sc.purple::before{ background:linear-gradient(270deg,var(--purple),transparent); }
+    .sc.red::before   { background:linear-gradient(270deg,var(--red),transparent); }
+    .sc.yellow::before{ background:linear-gradient(270deg,var(--yellow),transparent); }
+    .sc:hover { transform:translateY(-2px); border-color:rgba(99,179,237,.3); }
+    .si {
+      width:52px; height:52px; border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:22px; flex-shrink:0;
+    }
+    .si.green  { background:rgba(37,211,102,.15); color:var(--accent); }
+    .si.blue   { background:rgba(99,179,237,.15);  color:var(--blue); }
+    .si.purple { background:rgba(159,122,234,.15); color:var(--purple); }
+    .si.red    { background:rgba(252,129,129,.15); color:var(--red); }
+    .si.yellow { background:rgba(246,224,94,.15);  color:var(--yellow); }
+    .sv { font-size:28px; font-weight:800; }
+    .sl { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+    /* CARD */
+    .card {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:20px; padding:24px; margin-bottom:20px;
+    }
+    .ch {
+      display:flex; align-items:center; gap:12px;
+      margin-bottom:20px; padding-bottom:14px;
+      border-bottom:1px solid var(--border);
+    }
+    .ci {
+      width:40px; height:40px; border-radius:12px;
+      display:flex; align-items:center; justify-content:center; font-size:18px;
+    }
+    .ci.green  { background:rgba(37,211,102,.15); color:var(--accent); }
+    .ci.blue   { background:rgba(99,179,237,.15);  color:var(--blue); }
+    .ci.purple { background:rgba(159,122,234,.15); color:var(--purple); }
+    .ci.red    { background:rgba(252,129,129,.15); color:var(--red); }
+    .ci.yellow { background:rgba(246,224,94,.15);  color:var(--yellow); }
+    .ct { font-size:16px; font-weight:700; }
+
+    /* TABLE */
+    .tbl { width:100%; border-collapse:collapse; }
+    .tbl th {
+      text-align:right; padding:10px 14px; font-size:11px;
+      font-weight:700; color:var(--text-muted); text-transform:uppercase;
+      letter-spacing:1px; border-bottom:1px solid var(--border);
+    }
+    .tbl td { padding:13px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.04); }
+    .tbl tr:last-child td { border-bottom:none; }
+    .tbl tr:hover td { background:rgba(255,255,255,.02); }
+
+    /* BADGE */
+    .badge {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700;
+    }
+    .b-green  { background:rgba(37,211,102,.15); color:var(--accent); }
+    .b-blue   { background:rgba(99,179,237,.15);  color:var(--blue); }
+    .b-red    { background:rgba(252,129,129,.15); color:var(--red); }
+    .b-purple { background:rgba(159,122,234,.15); color:var(--purple); }
+    .b-yellow { background:rgba(246,224,94,.15);  color:var(--yellow); }
+    .b-muted  { background:rgba(255,255,255,.06); color:var(--text-muted); }
+
+    /* BUTTONS */
+    .btn {
+      display:inline-flex; align-items:center; gap:8px; padding:10px 20px;
+      border-radius:12px; font-family:'Cairo',sans-serif; font-size:13px;
+      font-weight:600; cursor:pointer; border:none; transition:all .2s;
+    }
+    .bp { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:white; box-shadow:0 4px 15px rgba(37,211,102,.3); }
+    .bp:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,211,102,.4); }
+    .bs { background:var(--glass); border:1px solid var(--border); color:var(--text); }
+    .bs:hover { background:rgba(255,255,255,.08); }
+    .bd { background:rgba(252,129,129,.12); border:1px solid rgba(252,129,129,.25); color:var(--red); }
+    .bd:hover { background:rgba(252,129,129,.22); }
+    .bb { background:rgba(99,179,237,.12); border:1px solid rgba(99,179,237,.25); color:var(--blue); }
+    .sm { padding:6px 12px; font-size:11px; border-radius:8px; }
+
+    /* FORM */
+    .fi {
+      width:100%; background:var(--bg); border:1px solid var(--border);
+      border-radius:12px; padding:12px 16px; color:var(--text);
+      font-family:'Cairo',sans-serif; font-size:14px; outline:none; transition:all .2s;
+    }
+    .fi:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,211,102,.1); }
+    .fi::placeholder { color:var(--text-muted); }
+    .fl { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:8px; }
+    .fg { margin-bottom:16px; }
+
+    /* SPINNER */
+    .sw { display:flex; align-items:center; justify-content:center; padding:40px; }
+    .sp {
+      width:36px; height:36px; border:3px solid var(--border);
+      border-top-color:var(--accent); border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* EMPTY */
+    .empty { text-align:center; padding:50px 20px; color:var(--text-muted); }
+    .empty i { font-size:48px; margin-bottom:12px; opacity:.3; display:block; }
+    .empty p { font-size:14px; }
+
+    /* TOAST */
+    #toasts {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+      z-index:9999; display:flex; flex-direction:column; gap:8px;
+      align-items:center; pointer-events:none;
+    }
+    .toast {
+      padding:12px 24px; border-radius:14px; font-size:13px; font-weight:600;
+      color:white; box-shadow:0 8px 30px rgba(0,0,0,.4);
+      animation:tIn .3s ease forwards; pointer-events:auto;
+    }
+    .t-ok  { background:linear-gradient(135deg,#25d366,#128c7e); }
+    .t-err { background:linear-gradient(135deg,#fc8181,#c53030); }
+    .t-inf { background:linear-gradient(135deg,#63b3ed,#2b6cb0); }
+    @keyframes tIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    /* MODAL */
+    .mo {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.7); z-index:500;
+      backdrop-filter:blur(4px); align-items:center; justify-content:center;
+    }
+    .mo.show { display:flex; }
+    .mbox {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:24px; padding:28px; width:90%; max-width:520px;
+      animation:mIn .3s ease; max-height:90vh; overflow-y:auto;
+    }
+    @keyframes mIn { from{opacity:0;transform:scale(.92)} to{opacity:1;transform:scale(1)} }
+    .mh {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border);
+    }
+    .mt { font-size:18px; font-weight:700; }
+    .mx { background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; }
+    .mx:hover { color:var(--red); }
+
+    /* MESSAGE ITEM */
+    .msg-item {
+      background:var(--bg); border:1px solid var(--border); border-radius:14px;
+      padding:14px 16px; margin-bottom:10px; transition:border-color .2s;
+    }
+    .msg-item:hover { border-color:rgba(99,179,237,.3); }
+    .msg-meta { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+    .msg-text { font-size:13px; line-height:1.7; color:var(--text); }
+    .msg-reply {
+      margin-top:10px; padding:10px 14px;
+      background:rgba(37,211,102,.06); border-right:3px solid var(--accent);
+      border-radius:0 10px 10px 0; font-size:12px; color:var(--text-muted);
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.2); }
+  </style>
+</head>
+<body>
+
+<button class="ham-btn" onclick="toggleSB()"><i class="fas fa-bars"></i></button>
+<div class="sidebar-overlay" id="sbo" onclick="closeSB()"></div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sb">
+  <div class="sb-head">
+    <div class="sb-logo">🤖</div>
+    <div class="sb-title">بوت حمزة اعمرني</div>
+    <div class="sb-sub">bot amirini hamza</div>
+  </div>
+  <div class="online-badge">
+    <span style="font-size:13px;font-weight:600;color:var(--accent)">
+      <i class="fab fa-whatsapp" style="margin-left:6px"></i> متصل
+    </span>
+    <div class="dot"></div>
+  </div>
+  <div class="nav">
+    <div class="nav-lbl">الرئيسية</div>
+    <div class="nv active" onclick="goPage('dashboard',this)"><i class="fas fa-chart-pie"></i> لوحة التحكم</div>
+    <div class="nv" onclick="goPage('aichat',this)"><i class="fas fa-brain"></i> محادثات AI</div>
+    <div class="nv" onclick="goPage('devmsg',this)"><i class="fas fa-envelope"></i> رسائل المطور</div>
+    <div class="nv" onclick="goPage('auth',this)"><i class="fas fa-key"></i> جلسات واتساب</div>
+    <div class="nv" onclick="goPage('errors',this)"><i class="fas fa-exclamation-triangle"></i> سجل الأخطاء</div>
+    <div class="nv" onclick="goPage('commands',this)"><i class="fas fa-terminal"></i> الأوامر</div>
+    <div class="nav-lbl" style="margin-top:16px">النظام</div>
+    <div class="nv" onclick="goPage('settings',this)"><i class="fas fa-cog"></i> الإعدادات</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="page active" id="page-dashboard">
+    <div class="ph">
+      <h1>📊 لوحة التحكم</h1>
+      <p>نظرة عامة على أداء البوت — متصل بـ Supabase مباشرة</p>
+    </div>
+    <div class="g g4" style="margin-bottom:20px">
+      <div class="sc green">
+        <div class="si green"><i class="fas fa-comment-dots"></i></div>
+        <div><div class="sv" id="s-msgs">—</div><div class="sl">رسائل معالجة</div></div>
+      </div>
+      <div class="sc blue">
+        <div class="si blue"><i class="fas fa-users"></i></div>
+        <div><div class="sv" id="s-users">—</div><div class="sl">إجمالي المستخدمين</div></div>
+      </div>
+      <div class="sc purple">
+        <div class="si purple"><i class="fas fa-eye"></i></div>
+        <div><div class="sv" id="s-visits">—</div><div class="sl">الزيارات</div></div>
+      </div>
+      <div class="sc yellow">
+        <div class="si yellow"><i class="fas fa-robot"></i></div>
+        <div><div class="sv" id="s-bots">—</div><div class="sl">بوتات نشطة</div></div>
+      </div>
+    </div>
+
+    <div class="g g2">
+      <!-- Top Commands -->
+      <div class="card">
+        <div class="ch">
+          <div class="ci green"><i class="fas fa-trophy"></i></div>
+          <div class="ct">أكثر الأوامر استخداماً</div>
+        </div>
+        <div id="top-cmds"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+      <!-- Last Dev Messages -->
+      <div class="card">
+        <div class="ch">
+          <div class="ci blue"><i class="fas fa-envelope-open"></i></div>
+          <div class="ct">آخر رسائل المطور</div>
+          <button class="btn bs sm" style="margin-right:auto" onclick="goPage('devmsg', document.querySelectorAll('.nv')[2])">
+            <i class="fas fa-arrow-left"></i> الكل
+          </button>
+        </div>
+        <div id="dash-devmsg"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="card">
+      <div class="ch">
+        <div class="ci green"><i class="fas fa-server"></i></div>
+        <div class="ct">حالة النظام</div>
+        <button class="btn bs sm" style="margin-right:auto" onclick="loadStats()">
+          <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+      </div>
+      <div class="g g3">
+        <div style="text-align:center;padding:18px;background:var(--bg);border-radius:14px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">RAM</div>
+          <div id="sys-ram" style="font-size:22px;font-weight:800;color:var(--accent)">—</div>
+        </div>
+        <div style="text-align:center;padding:18px;background:var(--bg);border-radius:14px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">آخر تحديث</div>
+          <div id="sys-update" style="font-size:13px;font-weight:700;color:var(--blue)">—</div>
+        </div>
+        <div style="text-align:center;padding:18px;background:var(--bg);border-radius:14px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">قاعدة البيانات</div>
+          <div style="font-size:14px;font-weight:700;color:var(--purple)">Supabase ✅</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== AI MEMORY (محادثات) ===== -->
+  <div class="page" id="page-aichat">
+    <div class="ph">
+      <h1>🧠 محادثات AI</h1>
+      <p>ذاكرة البوت الذكاء الاصطناعي — جدول <code style="color:var(--accent)">ai_memory</code></p>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci purple"><i class="fas fa-brain"></i></div>
+        <div class="ct">مستخدمو AI</div>
+        <div style="margin-right:auto;display:flex;gap:8px">
+          <input type="text" class="fi" id="ai-search" placeholder="بحث بـ JID..." oninput="filterAI(this.value)" style="max-width:220px;padding:8px 12px;font-size:12px" />
+          <button class="btn bs sm" onclick="loadAI()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div id="ai-wrap"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ===== DEV MESSAGES ===== -->
+  <div class="page" id="page-devmsg">
+    <div class="ph">
+      <h1>✉️ رسائل المطور</h1>
+      <p>الرسائل المرسلة للمطور — جدول <code style="color:var(--accent)">dev_messages</code></p>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci blue"><i class="fas fa-inbox"></i></div>
+        <div class="ct">صندوق الرسائل</div>
+        <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:160px;padding:8px 12px;font-size:12px">
+            <option value="all">الكل</option>
+            <option value="false">غير مرد</option>
+            <option value="true">مرد عليه</option>
+          </select>
+          <button class="btn bs sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div id="devmsg-wrap"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ===== WHATSAPP AUTH ===== -->
+  <div class="page" id="page-auth">
+    <div class="ph">
+      <h1>🔑 جلسات واتساب</h1>
+      <p>جلسات الاتصال بواتساب — جدول <code style="color:var(--accent)">whatsapp_auth</code></p>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci green"><i class="fab fa-whatsapp"></i></div>
+        <div class="ct">الجلسات المسجلة</div>
+        <button class="btn bs sm" style="margin-right:auto" onclick="loadAuth()">
+          <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+      </div>
+      <div id="auth-wrap"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ===== ERROR LOGS ===== -->
+  <div class="page" id="page-errors">
+    <div class="ph">
+      <h1>⚠️ سجل الأخطاء</h1>
+      <p>أخطاء الأوامر — جدول <code style="color:var(--accent)">error_logs</code></p>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci red"><i class="fas fa-bug"></i></div>
+        <div class="ct">الأخطاء الأخيرة</div>
+        <button class="btn bs sm" style="margin-right:auto" onclick="loadErrors()">
+          <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+      </div>
+      <div id="errors-wrap"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ===== COMMANDS ===== -->
+  <div class="page" id="page-commands">
+    <div class="ph">
+      <h1>⌨️ الأوامر المتاحة</h1>
+      <p>قائمة كاملة بأوامر البوت</p>
+    </div>
+    <div class="g g3" id="cmds-grid"></div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="page" id="page-settings">
+    <div class="ph">
+      <h1>⚙️ الإعدادات</h1>
+      <p>إعدادات الاتصال بـ Supabase</p>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci blue"><i class="fas fa-database"></i></div>
+        <div class="ct">Supabase Connection</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Supabase URL</label>
+        <input type="text" id="cfg-url" class="fi" />
+      </div>
+      <div class="fg">
+        <label class="fl">Anon / Publishable Key</label>
+        <input type="text" id="cfg-key" class="fi" />
+      </div>
+      <button class="btn bp" onclick="saveConfig()"><i class="fas fa-plug"></i> اتصال</button>
+      <div id="cfg-status" style="margin-top:14px;font-size:13px"></div>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div class="ci green"><i class="fas fa-info-circle"></i></div>
+        <div class="ct">معلومات البوت</div>
+      </div>
+      <table class="tbl">
+        <tr><td style="color:var(--text-muted)">اسم البوت</td><td><b>bot amirini hamza</b></td></tr>
+        <tr><td style="color:var(--text-muted)">المالك</td><td><b>Hamza Amirni</b></td></tr>
+        <tr><td style="color:var(--text-muted)">رقم المالك</td><td><b style="direction:ltr">+212 612 030829</b></td></tr>
+        <tr><td style="color:var(--text-muted)">الإصدار</td><td><b>v2.0.0</b></td></tr>
+        <tr><td style="color:var(--text-muted)">قاعدة البيانات</td><td><span class="badge b-green">Supabase ✅</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- AI Memory Modal -->
+<div class="mo" id="modal-ai">
+  <div class="mbox">
+    <div class="mh">
+      <span class="mt" id="modal-ai-title">محادثة AI</span>
+      <button class="mx" onclick="closeM('modal-ai')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="modal-ai-body"></div>
+  </div>
+</div>
+
+<!-- Dev Msg Reply Modal -->
+<div class="mo" id="modal-reply">
+  <div class="mbox">
+    <div class="mh">
+      <span class="mt">رد على الرسالة</span>
+      <button class="mx" onclick="closeM('modal-reply')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="fg">
+      <label class="fl">الرد</label>
+      <textarea id="reply-text" class="fi" rows="4" placeholder="اكتب ردك هنا..."></textarea>
+    </div>
+    <input type="hidden" id="reply-id" />
+    <button class="btn bp" onclick="sendReply()"><i class="fas fa-paper-plane"></i> إرسال الرد</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// =============================================
+// SUPABASE CONFIG
+// =============================================
+const DEF_URL = 'https://tpchjgdnovfbtvlhhszq.supabase.co';
+const DEF_KEY = 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us';
+
+let cfg = {
+  url: localStorage.getItem('sb_url') || DEF_URL,
+  key: localStorage.getItem('sb_key') || DEF_KEY,
+};
+
+let sb = null;
+let allAI = [], allDevMsg = [];
+
+function initSB() {
+  try {
+    sb = supabase.createClient(cfg.url, cfg.key);
+    return true;
+  } catch(e) {
+    toast('❌ خطأ في الاتصال: ' + e.message, 'err');
+    return false;
+  }
+}
+
+// =============================================
+// NAVIGATION
+// =============================================
+function toggleSB() {
+  document.getElementById('sb').classList.toggle('open');
+  document.getElementById('sbo').classList.toggle('show');
+}
+function closeSB() {
+  document.getElementById('sb').classList.remove('open');
+  document.getElementById('sbo').classList.remove('show');
+}
+function goPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nv').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  closeSB();
+  if (id === 'aichat')   loadAI();
+  if (id === 'devmsg')   loadDevMsg();
+  if (id === 'auth')     loadAuth();
+  if (id === 'errors')   loadErrors();
+  if (id === 'commands') renderCmds();
+  if (id === 'settings') loadCfgForm();
+}
+
+// =============================================
+// TOAST
+// =============================================
+function toast(msg, type='inf') {
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// =============================================
+// MODAL
+// =============================================
+function closeM(id) { document.getElementById(id).classList.remove('show'); }
+
+// =============================================
+// DASHBOARD STATS — bot_stats table
+// =============================================
+async function loadStats() {
+  if (!sb) return;
+  const { data, error } = await sb.from('bot_stats').select('*').single();
+  if (error || !data) return;
+
+  animN('s-msgs',   data.messages_handled || 0);
+  animN('s-users',  data.total_users || 0);
+  animN('s-visits', data.visits || 0);
+  animN('s-bots',   data.active_bots || 0);
+
+  document.getElementById('sys-ram').textContent    = data.ram_usage || '—';
+  document.getElementById('sys-update').textContent = data.last_update
+    ? new Date(data.last_update).toLocaleString('ar')
+    : '—';
+
+  // Top commands
+  const tc = document.getElementById('top-cmds');
+  const cmds = Array.isArray(data.top_commands) ? data.top_commands : [];
+  if (!cmds.length) { tc.innerHTML = empty('fas fa-chart-bar', 'لا يوجد بيانات أوامر بعد'); return; }
+  tc.innerHTML = cmds.slice(0,8).map((c,i) => {
+    const name  = typeof c === 'object' ? (c.cmd || c.command || c.name || JSON.stringify(c)) : c;
+    const count = typeof c === 'object' ? (c.count || c.times || '') : '';
+    const pct = i === 0 ? 100 : Math.round((count / (cmds[0]?.count||1)) * 100);
+    return `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600">${i+1}. .${name}</span>
+          ${count ? `<span style="font-size:12px;color:var(--text-muted)">${count}x</span>` : ''}
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px">
+          <div style="height:6px;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:3px;width:${pct}%;transition:width .6s"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// =============================================
+// AI MEMORY — ai_memory table
+// =============================================
+async function loadAI() {
+  const wrap = document.getElementById('ai-wrap');
+  wrap.innerHTML = spin();
+  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال'); return; }
+  const { data, error } = await sb.from('ai_memory').select('jid,last_image,updated_at').order('updated_at', { ascending:false }).limit(100);
+  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
+  allAI = data || [];
+  renderAI(allAI);
+}
+
+function filterAI(q) {
+  renderAI(allAI.filter(u => (u.jid||'').includes(q)));
+}
+
+function renderAI(list) {
+  const wrap = document.getElementById('ai-wrap');
+  if (!list.length) { wrap.innerHTML = empty('fas fa-brain','لا توجد محادثات AI بعد'); return; }
+  wrap.innerHTML = `<div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>JID / المعرف</th><th>المنصة</th><th>آخر تحديث</th><th>إجراء</th></tr></thead>
+      <tbody>
+      ${list.map((u,i) => {
+        const pl = u.jid?.includes('@s.whatsapp') ? 'whatsapp' : u.jid?.startsWith('tg:') ? 'telegram' : u.jid?.startsWith('fb:') ? 'facebook' : 'other';
+        const plBadge = { whatsapp:'b-green', telegram:'b-blue', facebook:'b-blue', other:'b-muted' }[pl];
+        const plLabel = { whatsapp:'WhatsApp 🟢', telegram:'Telegram 🔵', facebook:'Facebook 🔵', other:pl }[pl];
+        return `<tr>
+          <td style="color:var(--text-muted)">${i+1}</td>
+          <td style="font-family:monospace;font-size:11px;direction:ltr">${u.jid||'—'}</td>
+          <td><span class="badge ${plBadge}">${plLabel}</span></td>
+          <td style="font-size:12px;color:var(--text-muted)">${u.updated_at ? new Date(u.updated_at).toLocaleString('ar') : '—'}</td>
+          <td>
+            <button class="btn bb sm" onclick="viewAI('${(u.jid||'').replace(/'/g,"\\'")}')">
+              <i class="fas fa-eye"></i> عرض
+            </button>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function viewAI(jid) {
+  document.getElementById('modal-ai-title').textContent = jid;
+  document.getElementById('modal-ai-body').innerHTML = spin();
+  document.getElementById('modal-ai').classList.add('show');
+  const { data } = await sb.from('ai_memory').select('history,last_image').eq('jid', jid).single();
+  if (!data) { document.getElementById('modal-ai-body').innerHTML = empty('fas fa-comment-slash','لا توجد بيانات'); return; }
+  const hist = Array.isArray(data.history) ? data.history : [];
+  document.getElementById('modal-ai-body').innerHTML = `
+    ${data.last_image ? `<img src="${data.last_image}" style="width:100%;border-radius:12px;margin-bottom:14px;max-height:200px;object-fit:cover" />` : ''}
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${hist.length} رسالة في الذاكرة</div>
+    <div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+      ${hist.slice(-20).map(m => {
+        const isUser = m.role === 'user';
+        return `<div style="display:flex;${isUser ? 'justify-content:flex-end' : ''}">
+          <div style="max-width:80%;padding:10px 14px;border-radius:14px;font-size:12px;line-height:1.6;
+            background:${isUser ? 'rgba(37,211,102,.15)' : 'rgba(99,179,237,.1)'};
+            border:1px solid ${isUser ? 'rgba(37,211,102,.2)' : 'rgba(99,179,237,.15)'}">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${isUser ? '👤 المستخدم' : '🤖 البوت'}</div>
+            ${(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).substring(0,300)}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// =============================================
+// DEV MESSAGES — dev_messages table
+// =============================================
+async function loadDevMsg() {
+  const wrap = document.getElementById('devmsg-wrap');
+  wrap.innerHTML = spin();
+  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال'); return; }
+  const { data, error } = await sb.from('dev_messages').select('*').order('timestamp', { ascending:false }).limit(50);
+  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
+  allDevMsg = data || [];
+  renderDevMsg(allDevMsg);
+
+  // Also load for dashboard
+  const dw = document.getElementById('dash-devmsg');
+  if (dw) {
+    const recent = (data||[]).slice(0,4);
+    if (!recent.length) { dw.innerHTML = empty('fas fa-inbox','لا توجد رسائل بعد'); return; }
+    dw.innerHTML = recent.map(m => `
+      <div class="msg-item">
+        <div class="msg-meta">
+          <span class="badge ${m.replied ? 'b-green' : 'b-yellow'}">${m.replied ? '✅ مرد' : '⏳ جديد'}</span>
+          <span class="badge b-blue" style="font-size:10px">${m.platform||'wa'}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${m.sender_name||m.sender||'—'}</span>
+        </div>
+        <div class="msg-text">${(m.text||'').substring(0,80)}${(m.text||'').length>80?'…':''}</div>
+      </div>`).join('');
+  }
+}
+
+function filterDevMsg() {
+  const f = document.getElementById('devmsg-filter').value;
+  if (f === 'all') renderDevMsg(allDevMsg);
+  else renderDevMsg(allDevMsg.filter(m => String(m.replied) === f));
+}
+
+function renderDevMsg(list) {
+  const wrap = document.getElementById('devmsg-wrap');
+  if (!list.length) { wrap.innerHTML = empty('fas fa-inbox','لا توجد رسائل'); return; }
+  wrap.innerHTML = list.map(m => `
+    <div class="msg-item">
+      <div class="msg-meta">
+        <span class="badge ${m.replied ? 'b-green':'b-yellow'}">${m.replied ? '✅ مرد عليه':'⏳ جديد'}</span>
+        <span class="badge b-blue">${m.platform||'—'}</span>
+        <b style="font-size:13px">${m.sender_name||'—'}</b>
+        <span style="font-size:11px;color:var(--text-muted);direction:ltr">${m.sender||''}</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-right:auto">${m.timestamp ? new Date(m.timestamp).toLocaleString('ar') : ''}</span>
+      </div>
+      <div class="msg-text">${m.text||'—'}</div>
+      ${m.reply_text ? `<div class="msg-reply"><b>ردك:</b> ${m.reply_text}</div>` : ''}
+      ${!m.replied ? `
+        <div style="margin-top:10px">
+          <button class="btn bp sm" onclick="openReply('${(m.id||'').replace(/'/g,"\\'")}')">
+            <i class="fas fa-reply"></i> رد
+          </button>
+        </div>` : ''}
+    </div>`).join('');
+}
+
+function openReply(id) {
+  document.getElementById('reply-id').value = id;
+  document.getElementById('reply-text').value = '';
+  document.getElementById('modal-reply').classList.add('show');
+}
+
+async function sendReply() {
+  const id   = document.getElementById('reply-id').value;
+  const text = document.getElementById('reply-text').value.trim();
+  if (!text) { toast('❌ اكتب رداً أولاً', 'err'); return; }
+  const { error } = await sb.from('dev_messages').update({
+    replied: true, reply_text: text, reply_timestamp: new Date().toISOString()
+  }).eq('id', id);
+  if (error) { toast('❌ فشل: ' + error.message, 'err'); return; }
+  toast('✅ تم حفظ الرد', 'ok');
+  closeM('modal-reply');
+  loadDevMsg();
+}
+
+// =============================================
+// WHATSAPP AUTH — whatsapp_auth table
+// =============================================
+async function loadAuth() {
+  const wrap = document.getElementById('auth-wrap');
+  wrap.innerHTML = spin();
+  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال'); return; }
+  const { data, error } = await sb.from('whatsapp_auth').select('*').order('updated_at', { ascending:false });
+  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + error.message); return; }
+  const list = data || [];
+  if (!list.length) { wrap.innerHTML = empty('fas fa-key','لا توجد جلسات مسجلة'); return; }
+  wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>رقم الهاتف</th><th>رمز الإقران</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
+    <tbody>
+    ${list.map(s => `<tr>
+      <td style="font-family:monospace;direction:ltr">${s.phone_number||'—'}</td>
+      <td><code style="background:rgba(37,211,102,.1);color:var(--accent);padding:2px 8px;border-radius:6px">${s.pairing_code||'—'}</code></td>
+      <td><span class="badge ${s.status==='connected'?'b-green':s.status==='pending'?'b-yellow':'b-red'}">${s.status||'—'}</span></td>
+      <td style="font-size:12px;color:var(--text-muted)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// =============================================
+// ERROR LOGS — error_logs table
+// =============================================
+async function loadErrors() {
+  const wrap = document.getElementById('errors-wrap');
+  wrap.innerHTML = spin();
+  if (!sb) { wrap.innerHTML = empty('fas fa-unlink','لا يوجد اتصال'); return; }
+  const { data, error } = await sb.from('error_logs').select('*').order('created_at', { ascending:false }).limit(50);
+  if (error) { wrap.innerHTML = empty('fas fa-exclamation-circle','خطأ: ' + error.message); return; }
+  const list = data || [];
+  if (!list.length) { wrap.innerHTML = empty('fas fa-check-circle','لا أخطاء 🎉 كل شيء يعمل!'); return; }
+  wrap.innerHTML = `<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>#</th><th>الأمر</th><th>المنصة</th><th>رسالة الخطأ</th><th>التاريخ</th></tr></thead>
+    <tbody>
+    ${list.map((e,i) => `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td><code style="color:var(--accent)">.${e.command||'—'}</code></td>
+      <td><span class="badge b-blue">${e.platform||'—'}</span></td>
+      <td style="font-size:12px;color:var(--red);max-width:300px;word-break:break-word">${e.error_message||'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${e.created_at ? new Date(e.created_at).toLocaleString('ar') : '—'}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// =============================================
+// COMMANDS
+// =============================================
+const CMDS = [
+  { icon:'📥', name:'ytmp3',   desc:'تحميل صوت يوتيوب',       tag:'downloader' },
+  { icon:'📹', name:'ytmp4',   desc:'تحميل فيديو يوتيوب',      tag:'downloader' },
+  { icon:'🎵', name:'yts',     desc:'بحث في يوتيوب',           tag:'downloader' },
+  { icon:'📲', name:'tiktok',  desc:'تحميل من تيك توك',        tag:'downloader' },
+  { icon:'🖼️', name:'pinterest',desc:'تحميل من بينتريست',      tag:'downloader' },
+  { icon:'📁', name:'mediafire',desc:'تحميل من ميديافاير',     tag:'downloader' },
+  { icon:'📸', name:'ssweb',   desc:'لقطة شاشة موقع',          tag:'tools'      },
+  { icon:'🎨', name:'sticker', desc:'تحويل صورة لملصق',        tag:'sticker'    },
+  { icon:'✒️', name:'dafont',  desc:'تحويل نص بخط مخصص',      tag:'tools'      },
+  { icon:'🛰️', name:'landsat', desc:'صور NASA القمر الصناعي',   tag:'tools'      },
+  { icon:'🤖', name:'brat',    desc:'Brat Generator',           tag:'editor'     },
+  { icon:'🔗', name:'qrcode',  desc:'إنشاء QR Code',           tag:'tools'      },
+  { icon:'🏆', name:'ping',    desc:'سرعة البوت والإحصائيات', tag:'infobot'    },
+  { icon:'📋', name:'menu',    desc:'قائمة الأوامر الكاملة',   tag:'main'       },
+  { icon:'👤', name:'register',desc:'تسجيل في البوت',           tag:'main'       },
+  { icon:'💎', name:'listpremium',desc:'قائمة المميزين',       tag:'infobot'    },
+  { icon:'👑', name:'addprem', desc:'إضافة مميز (مالك)',        tag:'owner'      },
+  { icon:'🚫', name:'banuser', desc:'حظر مستخدم (مالك)',        tag:'owner'      },
+  { icon:'✅', name:'unban',   desc:'رفع الحظر (مالك)',          tag:'owner'      },
+  { icon:'🔄', name:'restart', desc:'إعادة تشغيل البوت',       tag:'owner'      },
+  { icon:'👥', name:'hidetag', desc:'منشن الجميع بالمجموعة',   tag:'group'      },
+  { icon:'🖊️', name:'editimage',desc:'تعديل الصور',            tag:'editor'     },
+  { icon:'📊', name:'totaluser',desc:'إجمالي المستخدمين',      tag:'infobot'    },
+  { icon:'🎭', name:'fakechat', desc:'محادثة وهمية',           tag:'editor'     },
+];
+const TC = { downloader:'b-blue', tools:'b-green', sticker:'b-purple', editor:'b-yellow', main:'b-green', infobot:'b-blue', owner:'b-red', group:'b-purple' };
+
+function renderCmds() {
+  document.getElementById('cmds-grid').innerHTML = CMDS.map(c => `
+    <div class="card" style="margin-bottom:0;cursor:default;transition:transform .2s"
+         onmouseenter="this.style.transform='translateY(-3px)'"
+         onmouseleave="this.style.transform=''">
+      <div style="font-size:32px;margin-bottom:10px">${c.icon}</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;font-family:monospace">.${c.name}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${c.desc}</div>
+      <span class="badge ${TC[c.tag]||'b-blue'}">${c.tag}</span>
+    </div>`).join('');
+}
+
+// =============================================
+// SETTINGS
+// =============================================
+function loadCfgForm() {
+  document.getElementById('cfg-url').value = cfg.url;
+  document.getElementById('cfg-key').value = cfg.key;
+}
+
+async function saveConfig() {
+  cfg.url = document.getElementById('cfg-url').value.trim() || DEF_URL;
+  cfg.key = document.getElementById('cfg-key').value.trim() || DEF_KEY;
+  localStorage.setItem('sb_url', cfg.url);
+  localStorage.setItem('sb_key', cfg.key);
+  initSB();
+  const st = document.getElementById('cfg-status');
+  st.innerHTML = '<span style="color:var(--text-muted)">جاري الاتصال...</span>';
+  try {
+    const { error } = await sb.from('bot_stats').select('id').limit(1);
+    if (!error) {
+      st.innerHTML = '<span style="color:var(--accent)">✅ الاتصال بـ Supabase ناجح!</span>';
+      toast('✅ تم الاتصال بنجاح', 'ok');
+      loadStats();
+    } else {
+      st.innerHTML = `<span style="color:var(--red)">❌ ${error.message}</span>`;
+    }
+  } catch(e) {
+    st.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function spin() { return '<div class="sw"><div class="sp"></div></div>'; }
+function empty(icon, msg) {
+  return `<div class="empty"><i class="${icon}"></i><p>${msg}</p></div>`;
+}
+function animN(id, target) {
+  const el = document.getElementById(id); if (!el) return;
+  let cur = 0; const step = Math.max(1, Math.ceil(target/30));
+  const t = setInterval(() => {
+    cur = Math.min(cur+step, target);
+    el.textContent = cur.toLocaleString('ar');
+    if (cur >= target) clearInterval(t);
+  }, 30);
+}
+
+// =============================================
+// INIT
+// =============================================
+window.addEventListener('DOMContentLoaded', async () => {
+  loadCfgForm();
+  initSB();
+  await loadStats();
+  // Load dash dev messages in background
+  if (sb) {
+    sb.from('dev_messages').select('id,sender_name,platform,text,replied,timestamp')
+      .order('timestamp', { ascending:false }).limit(4)
+      .then(({ data }) => {
+        const dw = document.getElementById('dash-devmsg');
+        if (!dw) return;
+        const list = data || [];
+        if (!list.length) { dw.innerHTML = empty('fas fa-inbox','لا توجد رسائل بعد'); return; }
+        dw.innerHTML = list.map(m => `
+          <div class="msg-item">
+            <div class="msg-meta">
+              <span class="badge ${m.replied?'b-green':'b-yellow'}">${m.replied?'✅ مرد':'⏳ جديد'}</span>
+              <span class="badge b-blue">${m.platform||'wa'}</span>
+              <span style="font-size:12px">${m.sender_name||'—'}</span>
+            </div>
+            <div class="msg-text">${(m.text||'').substring(0,80)}${(m.text||'').length>80?'…':''}</div>
+          </div>`).join('');
+      });
+  }
+});
+</script>
+</body>
+</html>
