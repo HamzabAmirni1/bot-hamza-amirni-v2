@@ -146,24 +146,52 @@ const handler = async (m, { conn, text }) => {
 	carousel.setFooter('اضغط على الزر أسفل الكارت لتحميل التطبيق مباشرة');
 
 	for (const a of apps.slice(0, 6)) {
-		const btn = new Button(conn);
-		const iconUrl = a.icon || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random&size=300`;
-		btn.setTitle(a.name)
-		   .setBody(`📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`)
-		   .setImage(iconUrl);
+		try {
+			const btn = new Button(conn);
+			
+			// Validate if icon exists on AppTeka, otherwise fallback to UI Avatar
+			let iconUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=25D366&color=FFFFFF&size=300`;
+			if (a.icon) {
+				try {
+					const headCheck = await axios.head(a.icon, { timeout: 3000, headers: HEADERS });
+					if (headCheck.status === 200) {
+						iconUrl = a.icon;
+					}
+				} catch (_) {
+					// Fallback to GET check (some CDNs block HEAD)
+					try {
+						const getCheck = await axios.get(a.icon, { timeout: 2000, headers: HEADERS });
+						if (getCheck.status === 200) {
+							iconUrl = a.icon;
+						}
+					} catch (__) {}
+				}
+			}
 
-		if (a.appId) {
-			btn.addReply('📥 تحميل التطبيق الآن', `.apkdl ${a.appId}`);
-		} else {
-			btn.addUrl('🔗 صفحة التحميل خارجية', a.link);
+			btn.setTitle(a.name)
+			   .setBody(`📦 *الحزمة:* ${a.package || '—'}\n🔢 *الإصدار:* ${a.version}\n⚖️ *الحجم:* ${a.size}`)
+			   .setImage(iconUrl);
+
+			if (a.appId) {
+				btn.addReply('📥 تحميل التطبيق الآن', `.apkdl ${a.appId}`);
+			} else {
+				btn.addUrl('🔗 صفحة التحميل خارجية', a.link);
+			}
+
+			const card = await btn.toCard();
+			carousel.addCard(card);
+		} catch (cardErr) {
+			console.log('[apk] failed to build card for app:', a.name, cardErr.message);
 		}
-
-		const card = await btn.toCard();
-		carousel.addCard(card);
 	}
 
-	await carousel.send(m.chat, { quoted: m });
-	await m.react('✅');
+	if (carousel._cards.length > 0) {
+		await carousel.send(m.chat, { quoted: m });
+		await m.react('✅');
+	} else {
+		await m.react('❌');
+		await m.reply('❌ فشل إنشاء بطاقات البحث لهذا التطبيق.');
+	}
 };
 
 // ── .apkdl <appId> — Direct download by appteka app ID ──────
