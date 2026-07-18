@@ -844,22 +844,49 @@
   <div class="page" id="page-devmsg">
     <div class="page-header">
       <h1>✉️ رسائل المستخدمين للمطور</h1>
-      <p>استقبال والرد على الرسائل الموجهة للمطور</p>
+      <p>استقبال والرد على الرسائل الموجهة للمطور مباشرة من الموقع</p>
     </div>
-    <div class="card">
-      <div class="ch">
-        <div class="ci blue"><i class="fas fa-inbox"></i></div>
-        <div class="ct">صندوق الرسائل</div>
-        <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:160px;padding:8px 12px;font-size:12px">
-            <option value="all">الكل</option>
-            <option value="false">غير مرد عليها</option>
-            <option value="true">تم الرد عليها</option>
-          </select>
-          <button class="btn bs sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start;">
+      <!-- Send Message Card -->
+      <div class="card" style="padding:24px;">
+        <div class="ch" style="margin-bottom:18px;">
+          <div class="ci green"><i class="fas fa-paper-plane"></i></div>
+          <div class="ct">إرسال رسالة جديدة للمطور</div>
         </div>
+        <div class="fg">
+          <label class="fl">الاسم الكامل</label>
+          <input type="text" id="usr-msg-name" class="fi" placeholder="اكتب اسمك هنا..." />
+        </div>
+        <div class="fg">
+          <label class="fl">رقم الواتساب الخاص بك</label>
+          <input type="tel" id="usr-msg-phone" class="fi" placeholder="مثال: 212612345678" style="direction:ltr;text-align:right" />
+        </div>
+        <div class="fg">
+          <label class="fl">نص الرسالة</label>
+          <textarea id="usr-msg-text" class="fi" rows="5" placeholder="اكتب رسالتك أو استفسارك هنا للمطور..."></textarea>
+        </div>
+        <button onclick="sendUserMsgToDev()" style="width:100%;justify-content:center;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:13px;padding:12px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          <i class="fas fa-paper-plane"></i> إرسال الرسالة للمطور
+        </button>
       </div>
-      <div id="devmsg-wrap"><div class="sw"><div class="sp"></div></div></div>
+
+      <!-- Inbox Card -->
+      <div class="card" style="padding:24px;">
+        <div class="ch" style="margin-bottom:18px;">
+          <div class="ci blue"><i class="fas fa-inbox"></i></div>
+          <div class="ct">صندوق الرسائل الواردة</div>
+          <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:130px;padding:6px 10px;font-size:11px">
+              <option value="all">الكل</option>
+              <option value="false">غير مرد عليها</option>
+              <option value="true">تم الرد عليها</option>
+            </select>
+            <button class="btn bs sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+          </div>
+        </div>
+        <div id="devmsg-wrap" style="max-height:450px;overflow-y:auto;"><div class="sw"><div class="sp"></div></div></div>
+      </div>
     </div>
   </div>
 
@@ -1304,6 +1331,40 @@ async function viewAI(jid) {
     </div>`;
 }
 
+async function sendUserMsgToDev() {
+  const name = document.getElementById('usr-msg-name').value.trim();
+  const phone = document.getElementById('usr-msg-phone').value.trim().replace(/\D/g,'');
+  const text = document.getElementById('usr-msg-text').value.trim();
+  
+  if (!name) { toast('⚠️ يرجى إدخال اسمك', 'err'); return; }
+  if (!phone || phone.length < 10) { toast('⚠️ يرجى إدخال رقم واتساب صحيح مع كود الدولة', 'err'); return; }
+  if (!text) { toast('⚠️ يرجى كتابة نص الرسالة', 'err'); return; }
+  
+  try {
+    const payload = {
+      id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      sender_name: name,
+      sender_phone: phone,
+      sender_jid: phone + '@s.whatsapp.net',
+      platform: 'web',
+      text: text,
+      replied: false,
+      timestamp: new Date().toISOString()
+    };
+    
+    const { error } = await sb.from('dev_messages').insert([payload]);
+    if (error) throw error;
+    
+    toast('✅ تم إرسال رسالتك بنجاح للمطور!', 'ok');
+    document.getElementById('usr-msg-name').value = '';
+    document.getElementById('usr-msg-phone').value = '';
+    document.getElementById('usr-msg-text').value = '';
+    loadDevMsg();
+  } catch(e) {
+    toast('❌ فشل إرسال الرسالة: ' + e.message, 'err');
+  }
+}
+
 async function loadDevMsg() {
   const wrap = document.getElementById('devmsg-wrap');
   wrap.innerHTML = spin();
@@ -1569,6 +1630,7 @@ const CMDS = [
   { icon:'🏆', name:'ping',    desc:'سرعة البوت والإحصائيات', tag:'infobot'    },
   { icon:'📋', name:'menu',    desc:'قائمة الأوامر الكاملة',   tag:'main'       },
   { icon:'👤', name:'register',desc:'تسجيل في البوت',           tag:'main'       },
+  { icon:'📩', name:'msgtodev',desc:'إرسال رسالة للمطور',     tag:'main'       },
   { icon:'💎', name:'listpremium',desc:'قائمة المميزين',       tag:'infobot'    },
   { icon:'👑', name:'addprem', desc:'إضافة مميز (مالك)',        tag:'owner'      },
   { icon:'🚫', name:'banuser', desc:'حظر مستخدم (مالك)',        tag:'owner'      },
