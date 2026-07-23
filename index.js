@@ -80,7 +80,117 @@ http.createServer(async (req, res) => {
         res.end(JSON.stringify(data));
         return;
       }
-      
+
+      // ── GET /api/broadcasts — broadcast history ────────────
+      if (endpoint === 'broadcasts' && req.method === 'GET') {
+        try {
+          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/broadcasts?select=*&order=created_at.desc&limit=30', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          const data = await fetchRes.json();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(Array.isArray(data) ? data : []));
+        } catch (err) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify([]));
+        }
+        return;
+      }
+
+      // ── GET /api/users — users count ───────────────────────
+      if (endpoint === 'users' && req.method === 'GET') {
+        try {
+          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/users?select=id', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Prefer': 'count=exact', 'Range': '0-0' }
+          });
+          const countHeader = fetchRes.headers.get('content-range') || '';
+          const total = countHeader.split('/')[1] || '0';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ count: parseInt(total) || 0 }));
+        } catch (err) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ count: 0 }));
+        }
+        return;
+      }
+
+      // ── POST /api/broadcast — send broadcast to all users ──
+      if (endpoint === 'broadcast' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', async () => {
+          try {
+            // Parse multipart manually (simple boundary parse for text field)
+            const raw = Buffer.concat(chunks).toString('utf8');
+            let text = '';
+            // Extract text field from multipart
+            const textMatch = raw.match(/name="text"\r\n\r\n([\s\S]*?)(?=\r\n--)/);
+            if (textMatch) text = textMatch[1].trim();
+            if (!text) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'لا توجد رسالة' }));
+              return;
+            }
+
+            // Get all registered users from global db
+            const users = global.db?.data?.users ? Object.keys(global.db.data.users) : [];
+            const conn = global.conn;
+            if (!conn || !users.length) {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ sent: 0, failed: 0, total: 0, error: 'لا يوجد اتصال أو مستخدمون' }));
+              return;
+            }
+
+            const { generateWAMessageFromContent, proto } = await import('baileys');
+            const header_text = '📣 رسالة من المطور — حمزة اعمرني';
+            const full_text = `${header_text}\n${'─'.repeat(28)}\n\n${text}\n\n${'─'.repeat(28)}\n⚡ *bot amirini hamza*`;
+            const buttons = [
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📢 قناة الواتساب", url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" }) },
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" }) }
+            ];
+
+            let sent = 0, failed = 0;
+            // Send early response so dashboard doesn't timeout
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+
+            (async () => {
+              for (const jid of users) {
+                try {
+                  if (!jid || jid.includes('@broadcast')) continue;
+                  const botMsg = generateWAMessageFromContent(jid, {
+                    viewOnceMessage: { message: { messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+                      interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: full_text }),
+                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza • حمزة اعمرني' }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+                      })
+                    }}
+                  }, {});
+                  await conn.relayMessage(jid, botMsg.message, { messageId: botMsg.key.id });
+                  sent++;
+                  await new Promise(r => setTimeout(r, 800));
+                } catch (_) { failed++; }
+              }
+              // Log to Supabase
+              await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/broadcasts', {
+                method: 'POST',
+                headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+                body: JSON.stringify({ text, sent_count: sent, failed_count: failed, total_count: users.length, sent_by: 'dashboard', created_at: new Date().toISOString() })
+              }).catch(() => {});
+              console.log(`[Broadcast] Done: ${sent} sent, ${failed} failed`);
+            })();
+
+            res.end(JSON.stringify({ sent: users.length, failed: 0, total: users.length, status: 'sending' }));
+          } catch (err) {
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+            }
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
       if (endpoint === 'errors') {
         const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/error_logs?select=*&order=created_at.desc&limit=50', {
           headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
@@ -260,6 +370,26 @@ let running = false;
 let restartTimer = null;
 let restartCount = 0;          // exponential back-off counter
 let lastRestartTime = 0;
+let conflictCount = 0;         // consecutive conflict counter
+let conflictTimer = null;      // timer to force-kill on persistent conflict
+
+function forceRestartOnConflict() {
+	if (conflictTimer) return; // already scheduled
+	conflictTimer = setTimeout(async () => {
+		conflictTimer = null;
+		conflictCount = 0;
+		console.log('🔧 Persistent conflict loop detected → forcing clean restart...');
+		if (worker) {
+			try { worker.terminate(); } catch {}
+			worker = null;
+		}
+		running = false;
+		// Give WhatsApp 20 seconds to fully close the old session
+		console.log('⏳ Waiting 20s for WhatsApp session to settle...');
+		await new Promise(r => setTimeout(r, 20000));
+		start('main.js');
+	}, 4000); // wait 4s of consecutive conflicts before acting
+}
 
 function start(file) {
 	if (running) return;
@@ -279,6 +409,22 @@ function start(file) {
 			.replace(/Tersambung/gi, 'متصل ✅')
 			.replace(/Stream Errored \(conflict\)/gi, '⚠️ تعارض في الاتصال، إعادة المحاولة...');
 		process.stdout.write(translated);
+
+		// ── Conflict loop breaker ────────────────────────────────────────
+		if (chunkStr.toLowerCase().includes('stream errored') && chunkStr.toLowerCase().includes('conflict')) {
+			conflictCount++;
+			console.log(`[Conflict #${conflictCount}] Internal reconnect detected`);
+			if (conflictCount >= 3) {
+				forceRestartOnConflict();
+			}
+		}
+		// Reset counter when bot connects successfully
+		if (chunkStr.includes('Tersambung') || chunkStr.includes('Menunggu Pesan Baru')) {
+			if (conflictCount > 0) console.log(`✅ Connection stabilized, resetting conflict counter`);
+			conflictCount = 0;
+			if (conflictTimer) { clearTimeout(conflictTimer); conflictTimer = null; }
+		}
+		// ────────────────────────────────────────────────────────────────
 
 		
 		const codeMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9-]{8,10})/i);
