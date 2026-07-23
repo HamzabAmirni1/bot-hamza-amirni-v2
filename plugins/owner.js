@@ -19,58 +19,23 @@ let handler = async (m, { conn, usedPrefix }) => {
         }
     }, { quoted: m });
 
-    // 2. Send Short Presentation & Accounts Link
-    const presentationText = `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n\n`
-        + `👤 *الاسم الكامل:* حمزة اعمرني (Hamza Amirni)\n`
-        + `💻 *الدور:* المطور الرئيسي وصاحب مشروع البوت.\n`
-        + `🌐 *الاهتمامات:* مبرمج ومصمم مواقع ويب، مهتم بالذكاء الاصطناعي وتطوير بوتات التواصل الاجتماعي.\n\n`
-        + `📫 *حساباتي للتواصل:* \n`
-        + `📧 *البريد الإلكتروني:* hamzaamirni1@gmail.com\n`
-        + `📸 *إنستغرام:* @hamza_amirni_01\n`
-        + `📢 *قناة البوت على واتساب:* تابع التحديثات الحصرية أولاً بأول!\n\n`
-        + `⚡ *bot amirini hamza*`;
+    const presentationText =
+        `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
+        `${'─'.repeat(30)}\n\n` +
+        `👤 *الاسم:* حمزة اعمرني (Hamza Amirni)\n` +
+        `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
+        `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، بوتات\n\n` +
+        `📫 *حساباتي للتواصل:*\n` +
+        `📧 *إيميل:* hamzaamirni1@gmail.com\n` +
+        `📸 *إنستغرام:* @hamza_amirni_01\n` +
+        `📢 *قناة الواتساب:* اضغط الزر أدناه!\n\n` +
+        `${'─'.repeat(30)}\n` +
+        `⚡ *bot amirini hamza*`;
 
-    // Send using custom Interactive buttons specifically for owner to look highly premium
-    const buttons = [
-        {
-            "name": "cta_url",
-            "buttonParamsJson": JSON.stringify({
-                display_text: "📢 قناة الواتساب",
-                url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p"
-            })
-        },
-        {
-            "name": "cta_url",
-            "buttonParamsJson": JSON.stringify({
-                display_text: "📸 حساب إنستغرام",
-                url: "https://www.instagram.com/hamza_amirni_01"
-            })
-        },
-        {
-            "name": "cta_url",
-            "buttonParamsJson": JSON.stringify({
-                display_text: "📧 راسلني إيميل",
-                url: "mailto:hamzaamirni1@gmail.com"
-            })
-        }
-    ];
+    // conn.sendMessage is already auto-wrapped with channel+instagram buttons
+    await conn.sendMessage(m.chat, { text: presentationText }, { quoted: m });
 
-    const botMsg = generateWAMessageFromContent(m.chat, {
-        viewOnceMessage: {
-            message: {
-                messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-                interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-                    body: proto.Message.InteractiveMessage.Body.create({ text: presentationText }),
-                    footer: proto.Message.InteractiveMessage.Footer.create({ text: 'Hamza Amirni Presentation Card' }),
-                    nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-                        buttons
-                    })
-                })
-            }
-        }
-    }, { quoted: m });
 
-    await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
 };
 
 handler.help = ['owner', 'creator'];
