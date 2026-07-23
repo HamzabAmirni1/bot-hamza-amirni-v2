@@ -23,16 +23,16 @@ let handler = async (m, { conn, usedPrefix }) => {
         `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
         `${'─'.repeat(30)}\n\n` +
         `👤 *الاسم:* حمزة اعمرني (Hamza Amirni)\n` +
+        `📱 *رقم المالك:* +212 612-030829\n` +
         `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
-        `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، بوتات\n\n` +
-        `📫 *حساباتي للتواصل:*\n` +
-        `📧 *إيميل:* hamzaamirni1@gmail.com\n` +
-        `📸 *إنستغرام:* @hamza_amirni_01\n` +
-        `📢 *قناة الواتساب:* اضغط الزر أدناه!\n\n` +
+        `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، وتطوير البوتات\n\n` +
+        `📫 *حساباتي للتواصل الفوري:*\n` +
+        `📧 *البريد الإلكتروني:* hamzaamirni1@gmail.com\n` +
+        `📸 *حساب إنستغرام:* https://www.instagram.com/hamza_amirni_01\n` +
+        `📢 *قناة الواتساب الرسمية:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n` +
         `${'─'.repeat(30)}\n` +
         `⚡ *bot amirini hamza*`;
 
-    // conn.sendMessage is already auto-wrapped with channel+instagram buttons
     await conn.sendMessage(m.chat, { text: presentationText }, { quoted: m });
 
 

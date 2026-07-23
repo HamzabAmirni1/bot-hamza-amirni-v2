@@ -163,16 +163,11 @@ const handler = async (m, { conn, text, command }) => {
 		}
 
 		const botMsg = generateWAMessageFromContent(m.chat, {
-			viewOnceMessage: {
-				message: {
-					messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-					interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-						body: proto.Message.InteractiveMessage.Body.create({ text: `🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*` }),
-						footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
-						carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
-					})
-				}
-			}
+			interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+				body: proto.Message.InteractiveMessage.Body.create({ text: `🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*` }),
+				footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+				carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+			})
 		}, { quoted: m });
 
 		await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
