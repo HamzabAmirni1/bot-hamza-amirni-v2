@@ -13,15 +13,15 @@ async function sendBroadcastMessage(conn, jid, text, mediaUrl = null, mediaType 
         {
             "name": "cta_url",
             "buttonParamsJson": JSON.stringify({
-                display_text: "📸 إنستغرام",
+                display_text: "📸 إنستغرام 01",
                 url: "https://www.instagram.com/hamza_amirni_01"
             })
         },
         {
             "name": "cta_url",
             "buttonParamsJson": JSON.stringify({
-                display_text: "📧 Gmail",
-                url: "mailto:hamzaamirni1@gmail.com"
+                display_text: "📸 إنستغرام 02",
+                url: "https://www.instagram.com/hamza_amirni_02"
             })
         },
         {

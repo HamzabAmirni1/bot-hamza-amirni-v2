@@ -34,8 +34,8 @@ let handler = async (m, { conn, usedPrefix }) => {
         `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
         `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، وتطوير البوتات\n\n` +
         `📫 *حساباتي للتواصل الفوري:*\n` +
-        `📧 *Gmail:* hamzaamirni1@gmail.com\n` +
-        `📸 *إنستغرام:* @hamza_amirni_01\n` +
+        `📸 *إنستغرام 1:* @hamza_amirni_01\n` +
+        `📸 *إنستغرام 2:* @hamza_amirni_02\n` +
         `🤖 *فيسبوك البوت:* chatbot hamza amirni\n` +
         `📘 *فيسبوك الرسمي:* Hamza Amirni Official\n\n` +
         `⚡ *انقر على الأزرار أدناه للوصول السريع إلى القناة والحسابات:*`;
@@ -54,15 +54,15 @@ let handler = async (m, { conn, usedPrefix }) => {
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: '📸 حساب إنستغرام',
+                    display_text: '📸 إنستغرام 01',
                     url: 'https://www.instagram.com/hamza_amirni_01'
                 })
             },
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: '📧 Gmail',
-                    url: 'mailto:hamzaamirni1@gmail.com'
+                    display_text: '📸 إنستغرام 02',
+                    url: 'https://www.instagram.com/hamza_amirni_02'
                 })
             },
             {
