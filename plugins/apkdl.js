@@ -148,6 +148,14 @@ const handler = async (m, { conn, text, command }) => {
 						{
 							"name": "quick_reply",
 							"buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل التطبيق", id: `.apkdl ${a.package}` })
+						},
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({ display_text: "📢 قناة الواتساب", url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" })
+						},
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" })
 						}
 					]
 				})
