@@ -20,15 +20,22 @@ async function sendBroadcastMessage(conn, jid, text, mediaUrl = null, mediaType 
         {
             "name": "cta_url",
             "buttonParamsJson": JSON.stringify({
-                display_text: "📧 البريد الإلكتروني",
+                display_text: "📧 Gmail",
                 url: "mailto:hamzaamirni1@gmail.com"
             })
         },
         {
             "name": "cta_url",
             "buttonParamsJson": JSON.stringify({
-                display_text: "👤 مطور البوت",
-                url: "https://wa.me/212612030829"
+                display_text: "🤖 صفحة البوت",
+                url: "https://www.facebook.com/profile.php?id=61578860781418&mibextid=rS40aB7S9Ucbxw6v"
+            })
+        },
+        {
+            "name": "cta_url",
+            "buttonParamsJson": JSON.stringify({
+                display_text: "📘 الصفحة الرسمية",
+                url: "https://www.facebook.com/hamzaamirni.official"
             })
         }
     ];

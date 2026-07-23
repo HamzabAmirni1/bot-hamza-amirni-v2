@@ -34,12 +34,15 @@ let handler = async (m, { conn, usedPrefix }) => {
         `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
         `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، وتطوير البوتات\n\n` +
         `📫 *حساباتي للتواصل الفوري:*\n` +
-        `📧 *البريد الإلكتروني:* hamzaamirni1@gmail.com\n\n` +
+        `📧 *Gmail:* hamzaamirni1@gmail.com\n` +
+        `📸 *إنستغرام:* @hamza_amirni_01\n` +
+        `🤖 *فيسبوك البوت:* chatbot hamza amirni\n` +
+        `📘 *فيسبوك الرسمي:* Hamza Amirni Official\n\n` +
         `⚡ *انقر على الأزرار أدناه للوصول السريع إلى القناة والحسابات:*`;
 
     await conn.sendButton(m.chat, {
         text: presentationText,
-        footer: 'bot amirini hamza • حمزة اعمرني',
+        footer: 'bot amirni hamza • حمزة اعمرني',
         buttons: [
             {
                 name: 'cta_url',
@@ -58,8 +61,22 @@ let handler = async (m, { conn, usedPrefix }) => {
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: '📧 إرسال بريد إلكتروني',
+                    display_text: '📧 Gmail',
                     url: 'mailto:hamzaamirni1@gmail.com'
+                })
+            },
+            {
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '🤖 صفحة البوت فيسبوك',
+                    url: 'https://www.facebook.com/profile.php?id=61578860781418&mibextid=rS40aB7S9Ucbxw6v'
+                })
+            },
+            {
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '📘 الصفحة الرسمية فيسبوك',
+                    url: 'https://www.facebook.com/hamzaamirni.official'
                 })
             }
         ]

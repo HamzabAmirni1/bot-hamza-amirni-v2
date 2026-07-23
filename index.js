@@ -138,8 +138,9 @@ http.createServer(async (req, res) => {
             const buttons = [
               { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📢 قناة الواتساب", url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" }) },
               { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" }) },
-              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📧 البريد الإلكتروني", url: "mailto:hamzaamirni1@gmail.com" }) },
-              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "👤 مطور البوت", url: "https://wa.me/212612030829" }) }
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📧 Gmail", url: "mailto:hamzaamirni1@gmail.com" }) },
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "🤖 صفحة البوت", url: "https://www.facebook.com/profile.php?id=61578860781418&mibextid=rS40aB7S9Ucbxw6v" }) },
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📘 الصفحة الرسمية", url: "https://www.facebook.com/hamzaamirni.official" }) }
             ];
 
             let sent = 0, failed = 0;
