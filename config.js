@@ -10,12 +10,12 @@ global.AIRich = AIRich;
 
 global.pairingNumber = process.env.PAIRING_NUMBER || 212612030829;
 global.owner = [
-	['212624855939', 'Hamza Amirni', true],
-	['212612030829', 'Hamza Amirni', true],
+	['212624855939', 'Hamza Aamarni', true],
+	['212612030829', 'Hamza Aamarni', true],
 ];
 
 global.namebot = 'bot amirini hamza';
-global.author = 'Hamza Amirni';
+global.author = 'Hamza Aamarni';
 global.source = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 
 global.wait = 'Loading... | جاري الانتظار';

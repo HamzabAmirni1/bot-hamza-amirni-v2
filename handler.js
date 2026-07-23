@@ -59,6 +59,57 @@ async function incrementStats(cmd) {
  * @param {import('baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate
  */
 export async function handler(chatUpdate) {
+	if (this && !this.sendMessage._wrapped) {
+		const originalSendMessage = this.sendMessage.bind(this);
+		this.sendMessage = async (jid, content, options = {}) => {
+			if (content && typeof content === 'object' && content.text && !content.buttons && !content.templateButtons && !content.carouselMessage && !jid.endsWith('@broadcast') && !jid.endsWith('@newsletter')) {
+				try {
+					const text = content.text;
+					const { generateWAMessageFromContent, proto } = await import('baileys');
+					const buttons = [
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({
+								display_text: "📢 قناة الواتساب",
+								url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p"
+							})
+						},
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({
+								display_text: "📸 إنستغرام",
+								url: "https://www.instagram.com/hamza_amirni_01"
+							})
+						}
+					];
+					
+					const botMsg = generateWAMessageFromContent(jid, {
+						viewOnceMessage: {
+							message: {
+								messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+								interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+									body: proto.Message.InteractiveMessage.Body.create({ text }),
+									footer: proto.Message.InteractiveMessage.Footer.create({ text: '⚡ bot amirini hamza' }),
+									nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+										buttons
+									})
+								})
+							}
+						}
+					}, { quoted: options.quoted || null });
+
+					await this.relayMessage(jid, botMsg.message, { messageId: botMsg.key.id });
+					return botMsg;
+				} catch (err) {
+					console.error('[sendMessage override] Fallback to original due to error:', err);
+					return originalSendMessage(jid, content, options);
+				}
+			}
+			return originalSendMessage(jid, content, options);
+		};
+		this.sendMessage._wrapped = true;
+	}
+
 	if (!chatUpdate) return;
 	this.pushMessage(chatUpdate.messages).catch(console.error);
 	let m = chatUpdate.messages[chatUpdate.messages.length - 1];

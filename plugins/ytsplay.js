@@ -10,7 +10,7 @@ import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'b
 async function ytmp3Yupra(url) {
 	const r = await axios.get(
 		`https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(url)}`,
-		{ timeout: 25000 }
+		{ timeout: 6000 }
 	);
 	if (r?.data?.success && r?.data?.data?.download_url)
 		return { download: r.data.data.download_url, title: r.data.data.title };
@@ -22,16 +22,16 @@ async function ytmp3Ytconvert(url) {
 	const payload = { url, os: 'android', output: { type: 'audio', format: 'mp3', quality: '320kbps' } };
 	let init;
 	try {
-		init = await axios.post('https://hub.ytconvert.org/api/download', payload, { headers, timeout: 15000 });
+		init = await axios.post('https://hub.ytconvert.org/api/download', payload, { headers, timeout: 5000 });
 	} catch {
-		init = await axios.post('https://api.ytconvert.org/api/download', payload, { headers, timeout: 15000 });
+		init = await axios.post('https://api.ytconvert.org/api/download', payload, { headers, timeout: 5000 });
 	}
 	if (!init?.data?.statusUrl) throw new Error('YTConvert empty');
-	for (let i = 0; i < 30; i++) {
-		const { data } = await axios.get(init.data.statusUrl, { headers, timeout: 10000 });
+	for (let i = 0; i < 5; i++) { // reduce check iterations
+		const { data } = await axios.get(init.data.statusUrl, { headers, timeout: 5000 });
 		if (data.status === 'completed') return { download: data.downloadUrl, title: 'Audio' };
 		if (data.status === 'failed') throw new Error('Failed');
-		await new Promise(r => setTimeout(r, 2000));
+		await new Promise(r => setTimeout(r, 1000));
 	}
 	throw new Error('YTConvert timeout');
 }
@@ -41,7 +41,7 @@ async function ytmp3Mever(url) {
 	if (!id) throw new Error('Invalid YouTube URL');
 	const r = await axios.get(
 		`https://mever.zeabur.app/api/youtube?url=https://www.youtube.com/watch?v=${id}&type=mp3`,
-		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 20000 }
+		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 5000 }
 	);
 	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.data.title || 'Audio' };
 	throw new Error('Mever mp3 failed');
@@ -56,10 +56,20 @@ const HEADERS = {
 	'Accept': 'application/json, text/plain, */*'
 };
 
+async function ytmp4Yupra(url) {
+	const r = await axios.get(
+		`https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`,
+		{ timeout: 6000, headers: HEADERS }
+	);
+	if (r?.data?.success && r?.data?.data?.download_url)
+		return { download: r.data.data.download_url, title: r.data.data.title };
+	throw new Error('Yupra mp4 failed');
+}
+
 async function ytmp4Vreden(url) {
 	const r = await axios.get(
 		`https://api.vreden.web.id/api/v1/download/youtube/video?url=${encodeURIComponent(url)}&quality=720`,
-		{ timeout: 30000, headers: HEADERS }
+		{ timeout: 5000, headers: HEADERS }
 	);
 	if (r?.data?.result?.download?.url) return { download: r.data.result.download.url, title: r.data.result.title };
 	throw new Error('Vreden failed');
@@ -68,7 +78,7 @@ async function ytmp4Vreden(url) {
 async function ytmp4Nekolabs(url) {
 	const r = await axios.get(
 		`https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(url)}&format=mp4`,
-		{ timeout: 30000, headers: HEADERS }
+		{ timeout: 5000, headers: HEADERS }
 	);
 	if (r?.data?.result?.downloadUrl) return { download: r.data.result.downloadUrl, title: r.data.result.title };
 	throw new Error('Nekolabs failed');
@@ -79,43 +89,33 @@ async function ytmp4Ytconvert(url) {
 	const payload = { url, os: 'android', output: { type: 'video', format: 'mp4', quality: '720p' } };
 	let init;
 	try {
-		init = await axios.post('https://hub.ytconvert.org/api/download', payload, { headers, timeout: 15000 });
+		init = await axios.post('https://hub.ytconvert.org/api/download', payload, { headers, timeout: 5000 });
 	} catch {
-		init = await axios.post('https://api.ytconvert.org/api/download', payload, { headers, timeout: 15000 });
+		init = await axios.post('https://api.ytconvert.org/api/download', payload, { headers, timeout: 5000 });
 	}
 	if (!init?.data?.statusUrl) throw new Error('YTConvert empty');
-	for (let i = 0; i < 30; i++) {
-		const { data } = await axios.get(init.data.statusUrl, { headers, timeout: 10000 });
+	for (let i = 0; i < 5; i++) { // reduce check iterations
+		const { data } = await axios.get(init.data.statusUrl, { headers, timeout: 5000 });
 		if (data.status === 'completed') return { download: data.downloadUrl, title: 'Video' };
 		if (data.status === 'failed') throw new Error('Failed');
-		await new Promise(r => setTimeout(r, 2000));
+		await new Promise(r => setTimeout(r, 1000));
 	}
 	throw new Error('YTConvert timeout');
-}
-
-async function ytmp4Yupra(url) {
-	const r = await axios.get(
-		`https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`,
-		{ timeout: 30000, headers: HEADERS }
-	);
-	if (r?.data?.success && r?.data?.data?.download_url)
-		return { download: r.data.data.download_url, title: r.data.data.title };
-	throw new Error('Yupra mp4 failed');
 }
 
 async function ytmp4Savetube(url, quality = '720') {
 	const videoId = (url.match(/(?:youtu\.be\/|v=)([a-zA-Z0-9_-]{11})/) || [])[1];
 	if (!videoId) throw new Error('Invalid YouTube ID');
 	const stH = { 'accept': '*/*', 'content-type': 'application/json', 'origin': 'https://yt.savetube.me', 'referer': 'https://yt.savetube.me/', 'user-agent': 'Postify/1.0.0' };
-	const cdnRes = await axios.get('https://media.savetube.me/api/random-cdn', { headers: stH, timeout: 10000 });
+	const cdnRes = await axios.get('https://media.savetube.me/api/random-cdn', { headers: stH, timeout: 5000 });
 	const cdn = cdnRes.data.cdn;
-	const infoRes = await axios.post(`https://${cdn}/api/v2/info`, { url: `https://www.youtube.com/watch?v=${videoId}` }, { headers: stH, timeout: 15000 });
+	const infoRes = await axios.post(`https://${cdn}/api/v2/info`, { url: `https://www.youtube.com/watch?v=${videoId}` }, { headers: stH, timeout: 5000 });
 	const data2 = Buffer.from(infoRes.data.data, 'base64');
 	const iv = data2.slice(0, 16), content = data2.slice(16);
 	const key = Buffer.from('C5D58EF67A7584E4A29F6C35BBC4EB12'.match(/.{1,2}/g).join(''), 'hex');
 	const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
 	const decrypted = JSON.parse(Buffer.concat([decipher.update(content), decipher.final()]).toString());
-	const dlRes = await axios.post(`https://${cdn}/api/download`, { id: videoId, downloadType: 'video', quality, key: decrypted.key }, { headers: stH, timeout: 15000 });
+	const dlRes = await axios.post(`https://${cdn}/api/download`, { id: videoId, downloadType: 'video', quality, key: decrypted.key }, { headers: stH, timeout: 5000 });
 	if (dlRes.data?.data?.downloadUrl) return { download: dlRes.data.data.downloadUrl, title: decrypted.title };
 	throw new Error('Savetube no URL');
 }
@@ -125,7 +125,7 @@ async function ytmp4Mever(url) {
 	if (!id) throw new Error('Invalid YouTube URL');
 	const r = await axios.get(
 		`https://mever.zeabur.app/api/youtube?url=https://www.youtube.com/watch?v=${id}&type=mp4`,
-		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 20000 }
+		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 5000 }
 	);
 	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.data.title || 'Video' };
 	throw new Error('Mever mp4 failed');
@@ -227,9 +227,9 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try audio downloaders in fallback order
+		// Try audio downloaders in fallback order (Yupra first for speed)
 		let audioData = null;
-		for (const fn of [ytmp3Mever, ytmp3Yupra, ytmp3Ytconvert]) {
+		for (const fn of [ytmp3Yupra, ytmp3Mever, ytmp3Ytconvert]) {
 			try {
 				audioData = await fn(videoUrl);
 				if (audioData?.download) break;
@@ -355,9 +355,9 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try video downloaders in fallback order
+		// Try video downloaders in fallback order (Yupra first for speed)
 		let videoData = null;
-		for (const fn of [ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra]) {
+		for (const fn of [ytmp4Yupra, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Mever]) {
 			try {
 				videoData = await fn(videoUrl);
 				if (videoData?.download) break;
