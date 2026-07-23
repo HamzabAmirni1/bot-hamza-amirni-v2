@@ -3,7 +3,7 @@ import { generateWAMessageFromContent, proto } from 'baileys';
 let handler = async (m, { conn, usedPrefix }) => {
     // 1. Send VCard (Contact) for the Owner
     const ownerNumber = '212612030829';
-    const ownerName = 'Hamza Aamarni';
+    const ownerName = 'Hamza Amirni';
     
     const vcard = 'BEGIN:VCARD\n' // metadata of the contact card
         + 'VERSION:3.0\n' 
@@ -21,7 +21,7 @@ let handler = async (m, { conn, usedPrefix }) => {
 
     // 2. Send Short Presentation & Accounts Link
     const presentationText = `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n\n`
-        + `👤 *الاسم الكامل:* حمزة اعمرني (Hamza Aamarni)\n`
+        + `👤 *الاسم الكامل:* حمزة اعمرني (Hamza Amirni)\n`
         + `💻 *الدور:* المطور الرئيسي وصاحب مشروع البوت.\n`
         + `🌐 *الاهتمامات:* مبرمج ومصمم مواقع ويب، مهتم بالذكاء الاصطناعي وتطوير بوتات التواصل الاجتماعي.\n\n`
         + `📫 *حساباتي للتواصل:* \n`

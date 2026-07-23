@@ -1,4 +1,4 @@
-console.log('🐾 Starting bot-amirni-hamza by Hamza Aamarni...');
+console.log('🐾 Starting bot-amirni-hamza by Hamza Amirni...');
 process.setMaxListeners(50); // prevent MaxListenersExceededWarning during reconnects
 
 import { Worker } from 'worker_threads';
