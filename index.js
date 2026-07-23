@@ -99,18 +99,9 @@ http.createServer(async (req, res) => {
 
       // ── GET /api/users — users count ───────────────────────
       if (endpoint === 'users' && req.method === 'GET') {
-        try {
-          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/users?select=id', {
-            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Prefer': 'count=exact', 'Range': '0-0' }
-          });
-          const countHeader = fetchRes.headers.get('content-range') || '';
-          const total = countHeader.split('/')[1] || '0';
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ count: parseInt(total) || 0 }));
-        } catch (err) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ count: 0 }));
-        }
+        const memUsers = Object.keys(global.db?.data?.users || {});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ count: memUsers.length }));
         return;
       }
 
@@ -143,10 +134,12 @@ http.createServer(async (req, res) => {
 
             const { generateWAMessageFromContent, proto } = await import('baileys');
             const header_text = '📣 رسالة من المطور — حمزة اعمرني';
-            const full_text = `${header_text}\n${'─'.repeat(28)}\n\n${text}\n\n${'─'.repeat(28)}\n⚡ *bot amirini hamza*`;
+            const full_text = `${header_text}\n${'─'.repeat(28)}\n\n${text}\n\n${'─'.repeat(28)}\n⚡ *bot amirni hamza*`;
             const buttons = [
               { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📢 قناة الواتساب", url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" }) },
-              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" }) }
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" }) },
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "📧 البريد الإلكتروني", url: "mailto:hamzaamirni1@gmail.com" }) },
+              { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "👤 مطور البوت", url: "https://wa.me/212612030829" }) }
             ];
 
             let sent = 0, failed = 0;
@@ -156,15 +149,13 @@ http.createServer(async (req, res) => {
             (async () => {
               for (const jid of users) {
                 try {
-                  if (!jid || jid.includes('@broadcast')) continue;
+                  if (!jid || jid.includes('@broadcast') || jid.includes('@newsletter')) continue;
                   const botMsg = generateWAMessageFromContent(jid, {
-                    viewOnceMessage: { message: { messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-                      interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-                        body: proto.Message.InteractiveMessage.Body.create({ text: full_text }),
-                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza • حمزة اعمرني' }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
-                      })
-                    }}
+                    interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                      body: proto.Message.InteractiveMessage.Body.create({ text: full_text }),
+                      footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza • حمزة اعمرني' }),
+                      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+                    })
                   }, {});
                   await conn.relayMessage(jid, botMsg.message, { messageId: botMsg.key.id });
                   sent++;

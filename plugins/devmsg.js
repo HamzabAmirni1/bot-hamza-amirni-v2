@@ -16,11 +16,25 @@ async function sendBroadcastMessage(conn, jid, text, mediaUrl = null, mediaType 
                 display_text: "📸 إنستغرام",
                 url: "https://www.instagram.com/hamza_amirni_01"
             })
+        },
+        {
+            "name": "cta_url",
+            "buttonParamsJson": JSON.stringify({
+                display_text: "📧 البريد الإلكتروني",
+                url: "mailto:hamzaamirni1@gmail.com"
+            })
+        },
+        {
+            "name": "cta_url",
+            "buttonParamsJson": JSON.stringify({
+                display_text: "👤 مطور البوت",
+                url: "https://wa.me/212612030829"
+            })
         }
     ];
 
     const header_text = '📣 رسالة من المطور — حمزة اعمرني';
-    const full_text = `${header_text}\n${'─'.repeat(30)}\n\n${text}\n\n${'─'.repeat(30)}\n⚡ *bot amirini hamza*`;
+    const full_text = `${header_text}\n${'─'.repeat(30)}\n\n${text}\n\n${'─'.repeat(30)}\n⚡ *bot amirni hamza*`;
 
     try {
         // If there's media (image), send it with caption using interactive
@@ -33,39 +47,29 @@ async function sendBroadcastMessage(conn, jid, text, mediaUrl = null, mediaType 
 
             if (imageMessage) {
                 const botMsg = generateWAMessageFromContent(jid, {
-                    viewOnceMessage: {
-                        message: {
-                            messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-                            interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-                                header: proto.Message.InteractiveMessage.Header.fromObject({
-                                    title: header_text,
-                                    hasMediaAttachment: true,
-                                    imageMessage
-                                }),
-                                body: proto.Message.InteractiveMessage.Body.create({ text }),
-                                footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza • حمزة اعمرني' }),
-                                nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
-                            })
-                        }
-                    }
+                    interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                        header: proto.Message.InteractiveMessage.Header.fromObject({
+                            title: header_text,
+                            hasMediaAttachment: true,
+                            imageMessage
+                        }),
+                        body: proto.Message.InteractiveMessage.Body.create({ text }),
+                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza • حمزة اعمرني' }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+                    })
                 }, {});
                 await conn.relayMessage(jid, botMsg.message, { messageId: botMsg.key.id });
                 return;
             }
         }
 
-        // Text only interactive message
+        // Text only interactive message (no viewOnceMessage wrapper so Web & Phone load it cleanly)
         const botMsg = generateWAMessageFromContent(jid, {
-            viewOnceMessage: {
-                message: {
-                    messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-                    interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-                        body: proto.Message.InteractiveMessage.Body.create({ text: full_text }),
-                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza • حمزة اعمرني' }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
-                    })
-                }
-            }
+            interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                body: proto.Message.InteractiveMessage.Body.create({ text: full_text }),
+                footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza • حمزة اعمرني' }),
+                nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+            })
         }, {});
         await conn.relayMessage(jid, botMsg.message, { messageId: botMsg.key.id });
     } catch (err) {
@@ -89,7 +93,7 @@ const handler = async (m, { conn, text, command, usedPrefix }) => {
     // Get all registered users from database
     let users = [];
     try {
-        users = Object.keys(global.db.data.users || {});
+        users = Object.keys(global.db?.data?.users || {});
     } catch (_) {}
 
     if (!users.length) return m.reply('❌ لا يوجد مستخدمون مسجلون في قاعدة البيانات بعد.');
@@ -102,8 +106,6 @@ const handler = async (m, { conn, text, command, usedPrefix }) => {
         if (q.mtype === 'imageMessage') {
             try {
                 const buffer = await q.download();
-                // Upload to WhatsApp server by sending a message first and getting its URL
-                // For simplicity, we'll just use the quoted message's URL if available
                 mediaUrl = q.message?.imageMessage?.url || null;
                 if (mediaUrl) mediaType = 'image';
             } catch (_) {}
@@ -119,10 +121,10 @@ const handler = async (m, { conn, text, command, usedPrefix }) => {
     // Batch send with delay to avoid spam detection
     for (const jid of users) {
         try {
-            if (!jid || jid === m.sender) continue; // skip sender
+            if (!jid || jid.includes('@broadcast') || jid.includes('@newsletter')) continue;
             await sendBroadcastMessage(conn, jid, text, mediaUrl, mediaType);
             sent++;
-            // 800ms delay between each message to avoid ban
+            // 800ms delay between each message
             await new Promise(r => setTimeout(r, 800));
         } catch (e) {
             failed++;
@@ -160,7 +162,7 @@ const handler = async (m, { conn, text, command, usedPrefix }) => {
         `• 👥 إجمالي المستخدمين: *${total}*\n` +
         `• ✅ تم الإرسال: *${sent}*\n` +
         `• ❌ فشل الإرسال: *${failed}*\n\n` +
-        `⚡ *bot amirini hamza*`
+        `⚡ *bot amirni hamza*`
     );
 };
 
