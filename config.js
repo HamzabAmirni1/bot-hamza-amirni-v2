@@ -14,7 +14,7 @@ global.owner = [
 	['212612030829', 'Hamza Amirni', true],
 ];
 
-global.namebot = 'bot amirini hamza';
+global.namebot = 'bot amirni hamza';
 global.author = 'Hamza Amirni';
 global.source = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 

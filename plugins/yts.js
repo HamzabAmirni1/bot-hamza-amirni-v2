@@ -56,6 +56,20 @@ let handler = async (m, { usedPrefix, command, text }) => {
        ],
       }),
      },
+     {
+      name: 'cta_url',
+      buttonParamsJson: JSON.stringify({
+       display_text: '📢 قناة الواتساب',
+       url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p'
+      })
+     },
+     {
+      name: 'cta_url',
+      buttonParamsJson: JSON.stringify({
+       display_text: '📸 إنستغرام',
+       url: 'https://www.instagram.com/hamza_amirni_01'
+      })
+     },
     ],
     messageParamsJson: JSON.stringify({
      bottom_sheet: {

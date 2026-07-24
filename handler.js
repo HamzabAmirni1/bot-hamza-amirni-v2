@@ -331,7 +331,7 @@ export async function handler(chatUpdate) {
 				`❌ *الأمر غير موجود!*\n\n` +
 				`الأمر *${usedPrefix}${command}* غير متاح في البوت.\n\n` +
 				`📋 اكتب *${usedPrefix}menu* لعرض جميع الأوامر المتاحة.\n\n` +
-				`⚡ *bot amirini hamza*`
+				`⚡ *bot amirni hamza*`
 			);
 		}
 

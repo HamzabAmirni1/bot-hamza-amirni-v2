@@ -847,52 +847,159 @@
   <!-- ==================== DEV MESSAGES PAGE ==================== -->
   <div class="page" id="page-devmsg">
     <div class="page-header">
-      <h1>✉️ رسائل المستخدمين للمطور</h1>
-      <p>استقبال والرد على الرسائل الموجهة للمطور مباشرة من الموقع</p>
+      <h1>📣 مركز البث — رسائل المطور</h1>
+      <p>إرسال رسائل جماعية لجميع المستخدمين بتصميم احترافي</p>
     </div>
-    
-    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start;">
-      <!-- Send Message Card -->
-      <div class="card" style="padding:24px;">
-        <div class="ch" style="margin-bottom:18px;">
-          <div class="ci green"><i class="fas fa-paper-plane"></i></div>
-          <div class="ct">إرسال رسالة جديدة للمطور</div>
-        </div>
-        <div class="fg">
-          <label class="fl">الاسم الكامل</label>
-          <input type="text" id="usr-msg-name" class="fi" placeholder="اكتب اسمك هنا..." />
-        </div>
-        <div class="fg">
-          <label class="fl">رقم الواتساب الخاص بك</label>
-          <input type="tel" id="usr-msg-phone" class="fi" placeholder="مثال: 212612345678" style="direction:ltr;text-align:right" />
-        </div>
-        <div class="fg">
-          <label class="fl">نص الرسالة</label>
-          <textarea id="usr-msg-text" class="fi" rows="5" placeholder="اكتب رسالتك أو استفسارك هنا للمطور..."></textarea>
-        </div>
-        <button onclick="sendUserMsgToDev()" style="width:100%;justify-content:center;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:13px;padding:12px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-          <i class="fas fa-paper-plane"></i> إرسال الرسالة للمطور
-        </button>
-      </div>
 
-      <!-- Inbox Card -->
-      <div class="card" style="padding:24px;">
-        <div class="ch" style="margin-bottom:18px;">
-          <div class="ci blue"><i class="fas fa-inbox"></i></div>
-          <div class="ct">صندوق الرسائل الواردة</div>
-          <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:130px;padding:6px 10px;font-size:11px">
-              <option value="all">الكل</option>
-              <option value="false">غير مرد عليها</option>
-              <option value="true">تم الرد عليها</option>
-            </select>
-            <button class="btn bs sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;align-items:start;">
+
+      <!-- ═══ COMPOSE CARD (Chat-style) ═══ -->
+      <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);">
+
+        <!-- Card Header -->
+        <div style="padding:18px 24px;background:linear-gradient(135deg,rgba(37,211,102,.12),rgba(18,140,126,.08));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
+          <div class="ci green"><i class="fas fa-satellite-dish"></i></div>
+          <div>
+            <div style="font-weight:700;font-size:14px;">إرسال بث جماعي</div>
+            <div style="font-size:11px;color:var(--text-muted);" id="bc-user-count">جاري تحميل عدد المستخدمين...</div>
+          </div>
+          <div style="margin-right:auto;display:flex;gap:8px;">
+            <span class="badge b-green" id="bc-status-badge">جاهز</span>
           </div>
         </div>
-        <div id="devmsg-wrap" style="max-height:450px;overflow-y:auto;"><div class="sw"><div class="sp"></div></div></div>
+
+        <!-- Preview of how message looks -->
+        <div style="padding:20px 24px 10px;background:var(--bg);">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;text-align:center;">معاينة الرسالة كما ستصل للمستخدمين</div>
+          <div id="bc-preview" style="background:var(--card);border-radius:14px;padding:16px;border-right:4px solid var(--accent);font-size:13px;line-height:1.7;min-height:80px;color:var(--text);direction:rtl;position:relative;">
+            <div style="font-weight:700;color:var(--accent);margin-bottom:6px;font-size:12px;">📣 رسالة من المطور — حمزة اعمرني</div>
+            <div style="border-bottom:1px solid var(--border);margin-bottom:8px;"></div>
+            <div id="bc-preview-text" style="color:var(--text-muted);font-style:italic;">اكتب رسالتك لترى المعاينة هنا...</div>
+            <div id="bc-preview-img" style="display:none;margin-top:10px;"></div>
+            <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;font-size:11px;color:var(--text-muted);">⚡ bot amirni hamza • حمزة اعمرني</div>
+            <!-- Fake buttons preview -->
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+              <div style="background:rgba(37,211,102,.15);color:var(--accent);border:1px solid rgba(37,211,102,.3);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;">📢 قناة الواتساب</div>
+              <div style="background:rgba(232,62,140,.12);color:#e83e8c;border:1px solid rgba(232,62,140,.25);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;">📸 إنستغرام</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attached image preview -->
+        <div id="bc-attach-preview" style="display:none;padding:0 24px 10px;">
+          <div style="position:relative;display:inline-block;">
+            <img id="bc-attach-img" style="max-height:120px;border-radius:10px;border:2px solid var(--accent);" />
+            <button onclick="removeBcAttach()" style="position:absolute;top:-8px;right:-8px;background:#e74c3c;color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">✕</button>
+          </div>
+        </div>
+
+        <!-- Input area -->
+        <div style="padding:14px 24px 20px;">
+          <!-- Toggle: Text vs Voice -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;background:var(--bg);border-radius:10px;padding:5px;">
+            <button id="bc-btn-text" onclick="bcSwitchMode('text')" style="flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s;">
+              <i class="fas fa-keyboard"></i> نص
+            </button>
+            <button id="bc-btn-voice" onclick="bcSwitchMode('voice')" style="flex:1;padding:8px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s;">
+              <i class="fas fa-microphone"></i> صوت
+            </button>
+          </div>
+
+          <!-- Text mode -->
+          <div id="bc-text-mode">
+            <textarea id="bc-msg-text" class="fi" rows="4" placeholder="اكتب رسالتك للمستخدمين هنا..." oninput="updateBcPreview()" style="resize:vertical;font-size:14px;line-height:1.6;"></textarea>
+          </div>
+
+          <!-- Voice mode -->
+          <div id="bc-voice-mode" style="display:none;">
+            <div id="bc-voice-ui" style="background:var(--bg);border-radius:14px;padding:20px;text-align:center;border:2px dashed var(--border);">
+              <div id="bc-voice-idle">
+                <i class="fas fa-microphone" style="font-size:40px;color:var(--text-muted);margin-bottom:10px;"></i>
+                <div style="font-size:13px;color:var(--text-muted);">اضغط لبدء التسجيل الصوتي</div>
+              </div>
+              <div id="bc-voice-recording" style="display:none;">
+                <div style="width:60px;height:60px;background:radial-gradient(circle,#e74c3c,#c0392b);border-radius:50%;margin:0 auto 10px;animation:pulse 1s infinite;display:flex;align-items:center;justify-content:center;">
+                  <i class="fas fa-microphone" style="color:#fff;font-size:22px;"></i>
+                </div>
+                <div id="bc-rec-time" style="font-size:18px;font-weight:700;color:#e74c3c;">00:00</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">جاري التسجيل...</div>
+              </div>
+              <div id="bc-voice-done" style="display:none;">
+                <i class="fas fa-check-circle" style="font-size:40px;color:var(--accent);margin-bottom:8px;"></i>
+                <div style="font-size:13px;color:var(--accent);">تم التسجيل بنجاح!</div>
+                <audio id="bc-audio-player" controls style="margin-top:10px;width:100%;border-radius:8px;"></audio>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button id="bc-rec-btn" onclick="bcToggleRecording()" style="flex:1;padding:10px;border-radius:10px;border:none;background:#e74c3c;color:#fff;font-weight:700;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <i class="fas fa-microphone"></i> <span id="bc-rec-label">ابدأ التسجيل</span>
+              </button>
+              <button id="bc-rec-clear" onclick="bcClearRecording()" style="display:none;padding:10px 16px;border-radius:10px;border:none;background:var(--card);color:var(--text-muted);cursor:pointer;">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Action buttons row -->
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <!-- Attach file/image button -->
+            <button onclick="document.getElementById('bc-file-input').click()" style="padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);cursor:pointer;font-size:14px;transition:all 0.2s;" title="إرفاق صورة أو ملف" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+              <i class="fas fa-paperclip"></i>
+            </button>
+            <input type="file" id="bc-file-input" accept="image/*" style="display:none;" onchange="bcAttachFile(this)">
+
+            <!-- Send button -->
+            <button onclick="sendBroadcast()" id="bc-send-btn" style="flex:1;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              <i class="fas fa-satellite-dish"></i> إرسال البث للجميع
+            </button>
+          </div>
+
+          <!-- Progress bar (hidden by default) -->
+          <div id="bc-progress-wrap" style="display:none;margin-top:14px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;color:var(--text-muted);">
+              <span>جاري الإرسال...</span>
+              <span id="bc-progress-label">0%</span>
+            </div>
+            <div style="background:var(--bg);border-radius:8px;height:8px;overflow:hidden;">
+              <div id="bc-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--accent),#128c7e);border-radius:8px;transition:width 0.5s;"></div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <!-- ═══ HISTORY CARD ═══ -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+          <div class="ci blue"><i class="fas fa-history"></i></div>
+          <div class="ct">سجل البثوث المرسلة</div>
+          <button class="btn bs sm" style="margin-right:auto;" onclick="loadBroadcastHistory()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div id="bc-history-wrap" style="max-height:560px;overflow-y:auto;padding:16px;">
+          <div class="sw"><div class="sp"></div></div>
+        </div>
+      </div>
+
     </div>
+
+    <!-- ═══ INBOX CARD (User messages to dev) ═══ -->
+    <div class="card" style="padding:0;overflow:hidden;margin-top:20px;">
+      <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div class="ci purple"><i class="fas fa-inbox"></i></div>
+        <div class="ct">رسائل المستخدمين للمطور</div>
+        <div style="margin-right:auto;display:flex;gap:8px;align-items:center;">
+          <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:140px;padding:6px 12px;font-size:11px;">
+            <option value="all">الكل</option>
+            <option value="false">غير مرد عليها</option>
+            <option value="true">تم الرد عليها</option>
+          </select>
+          <button class="btn bs sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div id="devmsg-wrap" style="max-height:400px;overflow-y:auto;padding:16px;"><div class="sw"><div class="sp"></div></div></div>
+    </div>
+
   </div>
+
 
   <!-- ==================== ERROR LOGS PAGE ==================== -->
   <div class="page" id="page-errors">
@@ -951,7 +1058,7 @@
           </div>
           <div class="fg">
             <label class="fl">اسم البوت</label>
-            <input type="text" id="s-botname" class="fi" value="bot amirini hamza" />
+            <input type="text" id="s-botname" class="fi" value="bot amirni hamza" />
           </div>
           <div class="fg">
             <label class="fl">المطور / المالك</label>
@@ -1263,7 +1370,7 @@ function goPage(id, el) {
 
   // Lazy loading pages on click
   if (id === 'aichat')   loadAI();
-  if (id === 'devmsg')   loadDevMsg();
+  if (id === 'devmsg')   { loadDevMsg(); loadBroadcastHistory(); loadBcUserCount(); }
   if (id === 'auth')     loadAuth();
   if (id === 'sessions') loadAuth();
   if (id === 'errors')   loadErrors();
@@ -1457,7 +1564,220 @@ async function sendUserMsgToDev() {
   }
 }
 
+// ══════════════════════════════════════════════════
+// BROADCAST CENTER — JS Functions
+// ══════════════════════════════════════════════════
+
+let bcMode = 'text';   // 'text' or 'voice'
+let bcMediaFile = null;
+let bcMediaB64 = null;
+let bcRecorder = null;
+let bcRecording = false;
+let bcRecTimer = null;
+let bcRecSeconds = 0;
+let bcAudioBlob = null;
+
+function bcSwitchMode(mode) {
+  bcMode = mode;
+  const isText = mode === 'text';
+  document.getElementById('bc-text-mode').style.display = isText ? 'block' : 'none';
+  document.getElementById('bc-voice-mode').style.display = isText ? 'none' : 'block';
+  const btnText = document.getElementById('bc-btn-text');
+  const btnVoice = document.getElementById('bc-btn-voice');
+  btnText.style.background = isText ? 'linear-gradient(135deg,var(--accent),#128c7e)' : 'transparent';
+  btnText.style.color = isText ? '#000' : 'var(--text-muted)';
+  btnVoice.style.background = !isText ? 'linear-gradient(135deg,#e74c3c,#c0392b)' : 'transparent';
+  btnVoice.style.color = !isText ? '#fff' : 'var(--text-muted)';
+}
+
+function updateBcPreview() {
+  const text = document.getElementById('bc-msg-text').value.trim();
+  const prev = document.getElementById('bc-preview-text');
+  if (!text) {
+    prev.style.fontStyle = 'italic';
+    prev.style.color = 'var(--text-muted)';
+    prev.textContent = 'اكتب رسالتك لترى المعاينة هنا...';
+  } else {
+    prev.style.fontStyle = 'normal';
+    prev.style.color = 'var(--text)';
+    prev.textContent = text;
+  }
+}
+
+function bcAttachFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  bcMediaFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    bcMediaB64 = e.target.result;
+    document.getElementById('bc-attach-img').src = e.target.result;
+    document.getElementById('bc-attach-preview').style.display = 'block';
+    document.getElementById('bc-preview-img').innerHTML = `<img src="${e.target.result}" style="max-width:100%;border-radius:10px;max-height:150px;"/>`;
+    document.getElementById('bc-preview-img').style.display = 'block';
+    toast('📎 تم إرفاق الصورة', 'ok');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBcAttach() {
+  bcMediaFile = null; bcMediaB64 = null;
+  document.getElementById('bc-attach-preview').style.display = 'none';
+  document.getElementById('bc-preview-img').style.display = 'none';
+  document.getElementById('bc-preview-img').innerHTML = '';
+  document.getElementById('bc-file-input').value = '';
+  toast('🗑️ تم حذف المرفق', 'ok');
+}
+
+async function bcToggleRecording() {
+  if (!bcRecording) {
+    // Start recording
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      bcRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      bcRecorder.ondataavailable = e => chunks.push(e.data);
+      bcRecorder.onstop = () => {
+        bcAudioBlob = new Blob(chunks, { type: 'audio/ogg;codecs=opus' });
+        const url = URL.createObjectURL(bcAudioBlob);
+        document.getElementById('bc-audio-player').src = url;
+        document.getElementById('bc-voice-recording').style.display = 'none';
+        document.getElementById('bc-voice-done').style.display = 'block';
+        document.getElementById('bc-rec-clear').style.display = 'flex';
+        document.getElementById('bc-rec-btn').innerHTML = '<i class="fas fa-microphone"></i> <span>سجل مجدداً</span>';
+        stream.getTracks().forEach(t => t.stop());
+      };
+      bcRecorder.start();
+      bcRecording = true;
+      bcRecSeconds = 0;
+      document.getElementById('bc-voice-idle').style.display = 'none';
+      document.getElementById('bc-voice-recording').style.display = 'block';
+      document.getElementById('bc-voice-done').style.display = 'none';
+      document.getElementById('bc-rec-btn').innerHTML = '<i class="fas fa-stop"></i> <span id="bc-rec-label">إيقاف التسجيل</span>';
+      document.getElementById('bc-rec-btn').style.background = '#c0392b';
+      bcRecTimer = setInterval(() => {
+        bcRecSeconds++;
+        const m = String(Math.floor(bcRecSeconds/60)).padStart(2,'0');
+        const s = String(bcRecSeconds%60).padStart(2,'0');
+        document.getElementById('bc-rec-time').textContent = `${m}:${s}`;
+      }, 1000);
+    } catch(e) {
+      toast('❌ لا يمكن الوصول للميكروفون: ' + e.message, 'err');
+    }
+  } else {
+    // Stop recording
+    bcRecording = false;
+    clearInterval(bcRecTimer);
+    bcRecorder.stop();
+    document.getElementById('bc-rec-btn').style.background = '#e74c3c';
+  }
+}
+
+function bcClearRecording() {
+  bcAudioBlob = null;
+  bcRecording = false;
+  clearInterval(bcRecTimer);
+  bcRecSeconds = 0;
+  document.getElementById('bc-voice-idle').style.display = 'block';
+  document.getElementById('bc-voice-recording').style.display = 'none';
+  document.getElementById('bc-voice-done').style.display = 'none';
+  document.getElementById('bc-rec-clear').style.display = 'none';
+  document.getElementById('bc-rec-btn').innerHTML = '<i class="fas fa-microphone"></i> <span>ابدأ التسجيل</span>';
+  document.getElementById('bc-rec-btn').style.background = '#e74c3c';
+  document.getElementById('bc-audio-player').src = '';
+}
+
+async function sendBroadcast() {
+  const text = bcMode === 'text' ? (document.getElementById('bc-msg-text').value.trim()) : '';
+  if (!text && !bcAudioBlob && !bcMediaB64) {
+    toast('❌ اكتب رسالة أو سجل صوتاً أو أرفق صورة', 'err'); return;
+  }
+
+  const btn = document.getElementById('bc-send-btn');
+  const badge = document.getElementById('bc-status-badge');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+  badge.textContent = 'جاري الإرسال';
+  badge.className = 'badge b-yellow';
+  document.getElementById('bc-progress-wrap').style.display = 'block';
+
+  try {
+    // Build form data
+    const formData = new FormData();
+    if (text) formData.append('text', text);
+    if (bcMediaFile) formData.append('image', bcMediaFile);
+    if (bcAudioBlob) formData.append('audio', bcAudioBlob, 'voice.ogg');
+
+    const res = await fetch('/api/broadcast', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    const result = await res.json();
+
+    // Animate progress to 100%
+    document.getElementById('bc-progress-bar').style.width = '100%';
+    document.getElementById('bc-progress-label').textContent = '100%';
+
+    badge.textContent = 'تم الإرسال ✅';
+    badge.className = 'badge b-green';
+    toast(`✅ تم إرسال البث لـ ${result.sent || 0} مستخدم!`, 'ok');
+
+    // Reset form
+    document.getElementById('bc-msg-text').value = '';
+    updateBcPreview();
+    removeBcAttach();
+    bcClearRecording();
+    loadBroadcastHistory();
+  } catch(e) {
+    badge.textContent = 'خطأ في الإرسال';
+    badge.className = 'badge b-red';
+    toast('❌ ' + e.message, 'err');
+  } finally {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-satellite-dish"></i> إرسال البث للجميع';
+      document.getElementById('bc-progress-wrap').style.display = 'none';
+      document.getElementById('bc-progress-bar').style.width = '0%';
+      badge.textContent = 'جاهز';
+      badge.className = 'badge b-green';
+    }, 3000);
+  }
+}
+
+async function loadBroadcastHistory() {
+  const wrap = document.getElementById('bc-history-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/broadcasts');
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    if (!data || !data.length) { wrap.innerHTML = empty('fas fa-satellite-dish','لا توجد بثوث مرسلة بعد'); return; }
+    wrap.innerHTML = data.map(b => `
+      <div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:12px;border-right:4px solid var(--accent);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <span class="badge b-green" style="font-size:11px;">✅ ${b.sent_count||0} وصلت</span>
+          ${b.failed_count ? `<span class="badge b-red" style="font-size:11px;">❌ ${b.failed_count} فشل</span>` : ''}
+          ${b.has_media ? `<span class="badge b-blue" style="font-size:11px;">📎 مع صورة</span>` : ''}
+          <span style="font-size:11px;color:var(--text-muted);margin-right:auto;">${b.created_at ? new Date(b.created_at).toLocaleString('ar') : ''}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">${(b.text||'').substring(0,120)}${(b.text||'').length>120?'…':''}</div>
+      </div>`).join('');
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + e.message);
+  }
+}
+
+async function loadBcUserCount() {
+  try {
+    const res = await fetch('/api/users?count=1');
+    if (!res.ok) return;
+    const d = await res.json();
+    const el = document.getElementById('bc-user-count');
+    if (el) el.textContent = `${d.count || 0} مستخدم مسجل في قاعدة البيانات`;
+  } catch(_) {}
+}
+
 async function loadDevMsg() {
+
   const wrap = document.getElementById('devmsg-wrap');
   wrap.innerHTML = spin();
   try {

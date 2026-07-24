@@ -102,7 +102,7 @@ const handler = async (m, { conn, text, command }) => {
 			`*مثال:*\n` +
 			`▸ \`.apk WhatsApp\`\n` +
 			`▸ \`.apk Instagram\`\n\n` +
-			`⚡ *bot amirini hamza*`
+			`⚡ *bot amirni hamza*`
 		);
 
 		await m.react('🔍');
@@ -148,6 +148,14 @@ const handler = async (m, { conn, text, command }) => {
 						{
 							"name": "quick_reply",
 							"buttonParamsJson": JSON.stringify({ display_text: "📥 تحميل التطبيق", id: `.apkdl ${a.package}` })
+						},
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({ display_text: "📢 قناة الواتساب", url: "https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" })
+						},
+						{
+							"name": "cta_url",
+							"buttonParamsJson": JSON.stringify({ display_text: "📸 إنستغرام", url: "https://www.instagram.com/hamza_amirni_01" })
 						}
 					]
 				})
@@ -155,16 +163,11 @@ const handler = async (m, { conn, text, command }) => {
 		}
 
 		const botMsg = generateWAMessageFromContent(m.chat, {
-			viewOnceMessage: {
-				message: {
-					messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-					interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-						body: proto.Message.InteractiveMessage.Body.create({ text: `🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*` }),
-						footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
-						carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
-					})
-				}
-			}
+			interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+				body: proto.Message.InteractiveMessage.Body.create({ text: `🚀 *مكتبة التطبيقات* — نتائج البحث عن: *${text}*` }),
+				footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
+				carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
+			})
 		}, { quoted: m });
 
 		await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
@@ -207,7 +210,7 @@ const handler = async (m, { conn, text, command }) => {
 				document: { url: info.downloadUrl },
 				fileName: `${info.name}_v${info.version}.apk`,
 				mimetype: 'application/vnd.android.package-archive',
-				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirini hamza*`
+				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
 			}, { quoted: m });
 
 			if (!isOwner(sender)) {
