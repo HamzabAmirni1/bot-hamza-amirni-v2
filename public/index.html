@@ -760,16 +760,23 @@
 
         <!-- Code Tab -->
         <div id="panel-code">
-          <div id="pair-code-display" style="min-height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
-            <div style="font-size:12px;color:var(--text-muted);">الكود سيظهر هنا بعد الطلب</div>
+          <!-- Live Pairing Code Display -->
+          <div id="live-code-box" style="background:var(--bg);border:2px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">🔑 كود الإقران الحالي</div>
+            <div id="live-code-value" style="font-size:42px;font-weight:900;letter-spacing:8px;color:var(--accent);font-family:monospace;text-shadow:0 0 20px rgba(37,211,102,0.4);">— — — —</div>
+            <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
+              <div style="font-size:11px;color:var(--yellow);" id="live-code-timer">⏳ جاري التحميل...</div>
+              <button onclick="copyLiveCode()" style="padding:4px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-family:'Cairo',sans-serif;cursor:pointer;">📋 نسخ</button>
+            </div>
           </div>
-          <div style="text-align:right;margin-bottom:8px;">
-            <label style="font-size:12px;color:var(--text-muted);">رقم الهاتف (مثال: 212612345678)</label>
-          </div>
-          <input id="pair-phone-input" type="tel" class="fi" placeholder="رقم الهاتف (مثال: 212612345678)" style="direction:ltr;text-align:left;margin-bottom:16px;" />
-          <button onclick="requestPairCode()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:14px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-            🔑 طلب كود الإقران
+          <div id="live-code-status" style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px;">يتجدد الكود تلقائياً كل 55 ثانية</div>
+          <div id="pair-code-display" style="display:none;"></div>
+          <button onclick="forceNewCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            🔄 توليد كود جديد الآن
           </button>
+          <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">
+            ⚡ الكود يتجدد تلقائياً — لا تحتاج لفعل شيء
+          </div>
         </div>
 
         <!-- QR Tab -->
@@ -1385,13 +1392,17 @@ function goPage(id, el) {
 
   if (id === 'pairing') {
     loadPairing();
+    loadLiveCode();
     if (window.pairingInterval) clearInterval(window.pairingInterval);
     window.pairingInterval = setInterval(loadPairing, 5000);
+    if (liveCodeInterval) clearInterval(liveCodeInterval);
+    liveCodeInterval = setInterval(loadLiveCode, 10000); // refresh live code every 10s
   } else {
     if (window.pairingInterval) {
       clearInterval(window.pairingInterval);
       window.pairingInterval = null;
     }
+    if (liveCodeInterval) { clearInterval(liveCodeInterval); liveCodeInterval = null; }
   }
 }
 
@@ -1947,6 +1958,110 @@ async function loadQRCode() {
     }
   } catch(e) {
     display.innerHTML = `<div style="color:var(--red);font-size:12px;">❌ ${e.message}</div>`;
+  }
+}
+
+// ── Live Pairing Code ────────────────────────────────────────────────
+let liveCodeInterval = null;
+let liveCodeCountdown = 55;
+let liveCodeCountdownTimer = null;
+let currentLiveCode = '';
+
+async function loadLiveCode() {
+  try {
+    const res = await fetch('/api/pairingcode');
+    if (!res.ok) return;
+    const data = await res.json();
+    const codeEl = document.getElementById('live-code-value');
+    const statusEl = document.getElementById('live-code-status');
+    if (!codeEl) return;
+
+    if (data.status === 'connected') {
+      codeEl.textContent = '✅';
+      codeEl.style.fontSize = '32px';
+      codeEl.style.color = 'var(--accent)';
+      document.getElementById('live-code-timer').textContent = '🟢 البوت متصل بنجاح!';
+      document.getElementById('live-code-timer').style.color = 'var(--accent)';
+      if (statusEl) statusEl.textContent = 'البوت متصل — لا حاجة لكود';
+      if (liveCodeCountdownTimer) { clearInterval(liveCodeCountdownTimer); liveCodeCountdownTimer = null; }
+      return;
+    }
+
+    if (data.pairing_code && data.pairing_code !== currentLiveCode) {
+      currentLiveCode = data.pairing_code;
+      codeEl.textContent = data.pairing_code;
+      codeEl.style.fontSize = '42px';
+      codeEl.style.color = 'var(--accent)';
+      // Reset countdown
+      liveCodeCountdown = 55;
+      if (liveCodeCountdownTimer) clearInterval(liveCodeCountdownTimer);
+      liveCodeCountdownTimer = setInterval(() => {
+        liveCodeCountdown--;
+        const timerEl = document.getElementById('live-code-timer');
+        if (!timerEl) { clearInterval(liveCodeCountdownTimer); return; }
+        if (liveCodeCountdown <= 0) {
+          timerEl.textContent = '🔄 جاري تجديد الكود...';
+          timerEl.style.color = 'var(--red)';
+          clearInterval(liveCodeCountdownTimer);
+        } else if (liveCodeCountdown <= 10) {
+          timerEl.textContent = `⚠️ ${liveCodeCountdown}s — أدخله بسرعة!`;
+          timerEl.style.color = 'var(--red)';
+        } else {
+          timerEl.textContent = `⏳ صالح لـ ${liveCodeCountdown}s`;
+          timerEl.style.color = 'var(--yellow)';
+        }
+      }, 1000);
+      if (statusEl) statusEl.textContent = '✅ الكود جاهز — أدخله الآن في واتساب';
+      if (statusEl) statusEl.style.color = 'var(--accent)';
+    } else if (!data.pairing_code) {
+      codeEl.textContent = '⏳';
+      codeEl.style.fontSize = '32px';
+      document.getElementById('live-code-timer').textContent = 'البوت يولّد كوداً جديداً...';
+      if (statusEl) statusEl.textContent = 'انتظر قليلاً...';
+    }
+  } catch(e) {
+    const codeEl = document.getElementById('live-code-value');
+    if (codeEl) { codeEl.textContent = '❌'; codeEl.style.fontSize = '32px'; }
+  }
+}
+
+function copyLiveCode() {
+  if (!currentLiveCode) return toast('لا يوجد كود لنسخه', 'err');
+  navigator.clipboard?.writeText(currentLiveCode).then(() => {
+    toast('✅ تم نسخ الكود: ' + currentLiveCode, 'ok');
+  }).catch(() => {
+    // fallback
+    const el = document.createElement('textarea');
+    el.value = currentLiveCode;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    toast('✅ تم نسخ الكود: ' + currentLiveCode, 'ok');
+  });
+}
+
+async function forceNewCode() {
+  if (!confirm('⚠️ سيتم إعادة تشغيل البوت لتوليد كود جديد. متأكد؟')) return;
+  const btn = document.querySelector('[onclick="forceNewCode()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري التوليد...'; }
+  try {
+    const res = await fetch('/api/resetsession', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      currentLiveCode = '';
+      toast('🔄 البوت يعيد التشغيل — كود جديد خلال 15 ثانية!', 'ok');
+      document.getElementById('live-code-value').textContent = '⏳';
+      document.getElementById('live-code-value').style.fontSize = '32px';
+      document.getElementById('live-code-timer').textContent = 'جاري التوليد...';
+      setTimeout(() => {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 توليد كود جديد الآن'; }
+        loadLiveCode();
+      }, 15000);
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 توليد كود جديد الآن'; }
   }
 }
 

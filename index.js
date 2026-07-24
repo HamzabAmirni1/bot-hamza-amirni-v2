@@ -418,6 +418,8 @@ let restartCount = 0;          // exponential back-off counter
 let lastRestartTime = 0;
 let conflictCount = 0;         // consecutive conflict counter
 let conflictTimer = null;      // timer to force-kill on persistent conflict
+let pairingRenewTimer = null;  // auto-renew pairing code every 55s if not connected
+let botConnected = false;       // track if bot has connected at least once
 
 function forceRestartOnConflict() {
 	if (conflictTimer) return; // already scheduled
@@ -468,7 +470,10 @@ function start(file) {
 		if (chunkStr.includes('Tersambung') || chunkStr.includes('Menunggu Pesan Baru')) {
 			if (conflictCount > 0) console.log(`✅ Connection stabilized, resetting conflict counter`);
 			conflictCount = 0;
+			botConnected = true;
 			if (conflictTimer) { clearTimeout(conflictTimer); conflictTimer = null; }
+			// Cancel pairing renew timer — bot is now connected
+			if (pairingRenewTimer) { clearTimeout(pairingRenewTimer); pairingRenewTimer = null; }
 		}
 		// ── Handle Session Logged Out ────────────────────────────────────
 		if (chunkStr.toLowerCase().includes('session logged out')) {
@@ -498,6 +503,7 @@ function start(file) {
 		if (codeMatch) {
 			const code = codeMatch[1].trim();
 			console.log(`\n📡 Captured Pairing Code: ${code}. Syncing to Supabase...`);
+			console.log(`⏳ Code valid for ~55s — will auto-renew if not connected.`);
 			
 			const payload = {
 				phone_number: '212612030829',
@@ -519,6 +525,18 @@ function start(file) {
 				if (res.ok) console.log('☁️ Backup pairing code to Supabase successfully!');
 				else res.text().then(txt => console.error('❌ Failed to backup pairing code to Supabase:', txt));
 			}).catch(err => console.error('❌ Error uploading pairing code:', err.message));
+
+			// ── Auto-renew: restart bot after 55s if still not connected ────
+			if (pairingRenewTimer) clearTimeout(pairingRenewTimer);
+			pairingRenewTimer = setTimeout(() => {
+				pairingRenewTimer = null;
+				if (!botConnected) {
+					console.log('🔄 Pairing code expired — restarting worker to generate a fresh code...');
+					if (worker) { try { worker.terminate(); } catch {} worker = null; }
+					running = false;
+					setTimeout(() => start('main.js'), 2000);
+				}
+			}, 55000); // 55 seconds
 		}
 	});
 
