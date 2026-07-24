@@ -48,6 +48,35 @@ async function ytmp3Mever(url) {
 }
 
 // ============================================================
+// REDIRECT RESOLVER — Follow 302/301 redirects to get final URL
+// ============================================================
+
+async function resolveRedirect(url, maxHops = 6) {
+	let current = url;
+	for (let i = 0; i < maxHops; i++) {
+		try {
+			const r = await axios.head(current, {
+				maxRedirects: 0,
+				timeout: 6000,
+				validateStatus: s => true,
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+					'Accept': '*/*'
+				}
+			});
+			if ((r.status === 301 || r.status === 302 || r.status === 307 || r.status === 308) && r.headers.location) {
+				current = r.headers.location.startsWith('http')
+					? r.headers.location
+					: new URL(r.headers.location, current).href;
+				continue;
+			}
+			break;
+		} catch { break; }
+	}
+	return current;
+}
+
+// ============================================================
 // VIDEO DOWNLOADERS — Fallback chain
 // ============================================================
 
@@ -56,13 +85,28 @@ const HEADERS = {
 	'Accept': 'application/json, text/plain, */*'
 };
 
+async function ytmp4Tflow(query) {
+	// Search + download via toktik/tflow style API
+	const r = await axios.get(
+		`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(`https://www.youtube.com/results?search_query=${query}`)}`,
+		{ timeout: 8000, headers: HEADERS }
+	);
+	if (r?.data?.status && r?.data?.data?.dl) {
+		const finalUrl = await resolveRedirect(r.data.data.dl);
+		return { download: finalUrl, title: r.data.data.title || query };
+	}
+	throw new Error('Tflow failed');
+}
+
 async function ytmp4Yupra(url) {
 	const r = await axios.get(
 		`https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`,
 		{ timeout: 6000, headers: HEADERS }
 	);
-	if (r?.data?.success && r?.data?.data?.download_url)
-		return { download: r.data.data.download_url, title: r.data.data.title };
+	if (r?.data?.success && r?.data?.data?.download_url) {
+		const finalUrl = await resolveRedirect(r.data.data.download_url);
+		return { download: finalUrl, title: r.data.data.title };
+	}
 	throw new Error('Yupra mp4 failed');
 }
 
@@ -71,7 +115,10 @@ async function ytmp4Vreden(url) {
 		`https://api.vreden.web.id/api/v1/download/youtube/video?url=${encodeURIComponent(url)}&quality=720`,
 		{ timeout: 5000, headers: HEADERS }
 	);
-	if (r?.data?.result?.download?.url) return { download: r.data.result.download.url, title: r.data.result.title };
+	if (r?.data?.result?.download?.url) {
+		const finalUrl = await resolveRedirect(r.data.result.download.url);
+		return { download: finalUrl, title: r.data.result.title };
+	}
 	throw new Error('Vreden failed');
 }
 
@@ -80,7 +127,10 @@ async function ytmp4Nekolabs(url) {
 		`https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(url)}&format=mp4`,
 		{ timeout: 5000, headers: HEADERS }
 	);
-	if (r?.data?.result?.downloadUrl) return { download: r.data.result.downloadUrl, title: r.data.result.title };
+	if (r?.data?.result?.downloadUrl) {
+		const finalUrl = await resolveRedirect(r.data.result.downloadUrl);
+		return { download: finalUrl, title: r.data.result.title };
+	}
 	throw new Error('Nekolabs failed');
 }
 
@@ -361,12 +411,16 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try video downloaders in fallback order (Yupra first for speed)
+		// Try video downloaders in fallback order
 		let videoData = null;
-		for (const fn of [ytmp4Yupra, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Mever]) {
+		for (const fn of [ytmp4Tflow, ytmp4Yupra, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Mever]) {
 			try {
 				videoData = await fn(videoUrl);
-				if (videoData?.download) break;
+				if (videoData?.download) {
+					// Ensure URL is resolved from any redirects
+					videoData.download = await resolveRedirect(videoData.download);
+					break;
+				}
 			} catch (e) {
 				console.log('[ytsplay/video] failed:', e.message);
 			}
