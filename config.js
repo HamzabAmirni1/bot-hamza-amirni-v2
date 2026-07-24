@@ -8,7 +8,7 @@ global.ButtonV2 = ButtonV2;
 global.Carousel = Carousel;
 global.AIRich = AIRich;
 
-global.pairingNumber = process.env.PAIRING_NUMBER || 212631342792;
+global.pairingNumber = process.env.PAIRING_NUMBER || 212624855939;
 global.owner = [
 	['212624855939', 'Hamza Amirni', true],
 	['212612030829', 'Hamza Amirni', true],
