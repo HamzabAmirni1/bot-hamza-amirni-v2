@@ -751,15 +751,8 @@
   <!-- ==================== PAIRING PAGE ==================== -->
   <div class="page" id="page-pairing">
     <div class="page-header">
-      <h1><i class="fas fa-link" style="color:var(--accent)"></i> ربط منصة جديدة</h1>
-      <p>قم بربط حساب واتساب جديد، أو بوت تليجرام، أو صفحة فيسبوك بالبوت</p>
-    </div>
-
-    <!-- Platform Tabs -->
-    <div class="tab-btns">
-      <button class="tab-btn active" id="tab-btn-wa" onclick="switchPairTab('wa')"><i class="fab fa-whatsapp"></i> واتساب</button>
-      <button class="tab-btn" id="tab-btn-tg" onclick="switchPairTab('tg')"><i class="fab fa-telegram-plane"></i> تليجرام</button>
-      <button class="tab-btn" id="tab-btn-fb" onclick="switchPairTab('fb')"><i class="fab fa-facebook-messenger"></i> فيسبوك</button>
+      <h1><i class="fas fa-link" style="color:var(--accent)"></i> ربط رقم جديد</h1>
+      <p>اربط البوت برقم الواتساب الخاص بك باستخدام رمز الإقران أو QR</p>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:20px;align-items:start;">
@@ -794,9 +787,8 @@
         </div>
       </div>
 
-      <!-- CENTER: Pairing Panels -->
+      <!-- CENTER: WhatsApp Pairing Panel -->
       <div>
-        <!-- WhatsApp Panel -->
         <div id="pair-panel-wa" class="card" style="padding:28px;text-align:center;">
           <div class="pairing-icon"><i class="fab fa-whatsapp" style="font-size: 40px; color: var(--accent);"></i></div>
           <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط واتساب جديد</div>
@@ -851,38 +843,6 @@
               <i class="fas fa-sync fa-spin"></i> يتجدد تلقائياً كل 5 ثوانٍ
             </div>
           </div>
-        </div>
-
-        <!-- Telegram Panel -->
-        <div id="pair-panel-tg" class="card" style="display:none;padding:28px;text-align:center;">
-          <div class="pairing-icon"><i class="fab fa-telegram-plane" style="font-size: 42px; color: #38bdf8;"></i></div>
-          <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط بوت تليجرام جديد</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل رمز الـ Token الخاص بالبوت الذي أنشأته عبر BotFather</div>
-          <div class="form-group" style="margin-bottom:12px;text-align:right;">
-            <label style="font-size:11px;color:var(--text-muted);">اسم البوت</label>
-            <input type="text" id="tg-bot-name" class="fi" placeholder="مثال: بوت التواصل العربي" style="text-align:right;" />
-          </div>
-          <div class="form-group" style="margin-bottom:16px;text-align:right;">
-            <label style="font-size:11px;color:var(--text-muted);">مفتاح الوصول (Bot Token)</label>
-            <input type="password" id="tg-bot-token" class="fi" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" style="direction:ltr;" />
-          </div>
-          <button onclick="toast('✅ تم ربط بوت تليجرام بنجاح!','ok')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#37aee2,#1e96c8);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;">
-            <i class="fab fa-telegram-plane"></i> حفظ وتفعيل بوت تليجرام
-          </button>
-        </div>
-
-        <!-- Facebook Panel -->
-        <div id="pair-panel-fb" class="card" style="display:none;padding:28px;text-align:center;">
-          <div class="pairing-icon"><i class="fab fa-facebook-messenger" style="font-size: 42px; color: #0084FF;"></i></div>
-          <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط صفحة فيسبوك مسنجر</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل Page Access Token الخاص بصفحة فيسبوك</div>
-          <div class="form-group" style="margin-bottom:16px;text-align:right;">
-            <label style="font-size:11px;color:var(--text-muted);">Page Access Token</label>
-            <input type="password" id="fb-page-token" class="fi" placeholder="EAAxxxxxx..." style="direction:ltr;" />
-          </div>
-          <button onclick="toast('✅ تم ربط صفحة فيسبوك بنجاح!','ok')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#0084FF,#0044FF);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;">
-            <i class="fab fa-facebook-messenger"></i> حفظ وتفعيل صفحة فيسبوك
-          </button>
         </div>
       </div>
 
