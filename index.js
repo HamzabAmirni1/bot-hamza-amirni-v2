@@ -11,6 +11,7 @@ import http from 'http';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
+const BOT_PHONE = (process.env.PAIRING_NUMBER || '212612030829').toString().replace(/[^0-9]/g, '');
 
 // Health check & API dashboard server for Koyeb
 const PORT = process.env.PORT || 8000;
@@ -336,7 +337,7 @@ http.createServer(async (req, res) => {
               'Prefer': 'resolution=merge-duplicates'
             },
             body: JSON.stringify({
-              phone_number: '212612030829',
+              phone_number: BOT_PHONE,
               session_data: null,
               pairing_code: null,
               status: 'logged_out',
@@ -362,7 +363,7 @@ http.createServer(async (req, res) => {
       // ── GET /api/pairingcode — get current pairing code ──────
       if (endpoint === 'pairingcode' && req.method === 'GET') {
         try {
-          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=pairing_code,status,updated_at&order=updated_at.desc&limit=1', {
+          const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${BOT_PHONE}&select=pairing_code,status,updated_at&limit=1`, {
             headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
           });
           const data = await fetchRes.json();
@@ -488,7 +489,7 @@ function start(file) {
 					'Prefer': 'resolution=merge-duplicates'
 				},
 				body: JSON.stringify({
-					phone_number: '212612030829',
+					phone_number: BOT_PHONE,
 					session_data: null,
 					pairing_code: null,
 					status: 'logged_out',
@@ -502,11 +503,11 @@ function start(file) {
 		const codeMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9-]{8,10})/i);
 		if (codeMatch) {
 			const code = codeMatch[1].trim();
-			console.log(`\n📡 Captured Pairing Code: ${code}. Syncing to Supabase...`);
+			console.log(`\n📡 Captured Pairing Code: ${code} (Phone: ${BOT_PHONE}). Syncing to Supabase...`);
 			console.log(`⏳ Code valid for ~3 minutes — will auto-renew if not connected.`);
 			
 			const payload = {
-				phone_number: '212612030829',
+				phone_number: BOT_PHONE,
 				pairing_code: code,
 				status: 'pending',
 				updated_at: new Date().toISOString()
@@ -616,9 +617,9 @@ function restart() {
 }
 
 async function restoreSession() {
-  console.log('☁️ Restoring session from Supabase...');
+  console.log(`☁️ Restoring session for ${BOT_PHONE} from Supabase...`);
   try {
-    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number,status&order=updated_at.desc&limit=1', {
+    const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${BOT_PHONE}&select=session_data,phone_number,status&limit=1`, {
       headers: {
         'apikey': SB_KEY,
         'Authorization': 'Bearer ' + SB_KEY
@@ -639,7 +640,7 @@ async function restoreSession() {
         console.log('ℹ️ Supabase session file is empty or too small, skipping restoration.');
       }
     } else {
-      console.log('ℹ️ No valid active session found in Supabase.');
+      console.log(`ℹ️ No valid active session found for ${BOT_PHONE} in Supabase.`);
     }
   } catch (err) {
     console.error('❌ Error restoring session from Supabase:', err.message);
@@ -674,7 +675,7 @@ function startBackupWatcher() {
         const base64 = content.toString('base64');
         
         const payload = {
-          phone_number: '212612030829',
+          phone_number: BOT_PHONE,
           session_data: base64,
           pairing_code: null,
           status: 'connected',
