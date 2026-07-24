@@ -94,7 +94,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
             `*مثال:*\n` +
             `▸ \`${usedPrefix}pinterest anime wallpaper\`\n` +
             `▸ \`${usedPrefix}pinterest minimalist tattoo\`\n\n` +
-            `⚡ *bot amirini hamza*`
+            `⚡ *bot amirni hamza*`
         );
 
         const query = text.trim()
@@ -167,7 +167,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         const botMsg = generateWAMessageFromContent(m.chat, {
             interactiveMessage: proto.Message.InteractiveMessage.fromObject({
                 body: proto.Message.InteractiveMessage.Body.create({ text: `📌 نتائج البحث في Pinterest عن: *${query}*` }),
-                footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+                footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
                 carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
             })
         }, { quoted: m });
@@ -185,7 +185,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         try {
             await conn.sendMessage(m.chat, {
                 image: { url: text.trim() },
-                caption: `✅ *تم تحميل الصورة بنجاح*\n\n⚡ *bot amirini hamza*`
+                caption: `✅ *تم تحميل الصورة بنجاح*\n\n⚡ *bot amirni hamza*`
             }, { quoted: m });
             await m.react('✅');
         } catch (e) {

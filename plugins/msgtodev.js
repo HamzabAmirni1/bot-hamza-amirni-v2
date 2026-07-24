@@ -16,7 +16,7 @@ ${usedPrefix}${command} رسالتك هنا
 ${usedPrefix}${command} مرحبا أريد مساعدة في البوت
 
 ╭━━━━━━━━━━━━━━━━╮
-│ ⚡ bot amirini hamza
+│ ⚡ bot amirni hamza
 │ 👨‍💻 By Hamza Amirni
 ╰━━━━━━━━━━━━━━━━╯`);
 	}
@@ -65,7 +65,7 @@ ${text}
 📡 سيتم الرد عليك في أقرب وقت ممكن.
 
 ╭━━━━━━━━━━━━━━━━╮
-│ ⚡ bot amirini hamza
+│ ⚡ bot amirni hamza
 ╰━━━━━━━━━━━━━━━━╯`);
 
 			// Notify owners on WhatsApp

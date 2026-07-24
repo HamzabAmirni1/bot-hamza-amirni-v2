@@ -249,7 +249,7 @@ const handler = async (m, { conn, text, command }) => {
 			const botMsg = generateWAMessageFromContent(m.chat, {
 				interactiveMessage: proto.Message.InteractiveMessage.fromObject({
 					body: proto.Message.InteractiveMessage.Body.create({ text: `📺 نتائج البحث عن: *${text}*` }),
-					footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+					footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
 					carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
 				})
 			}, { quoted: m });
@@ -276,7 +276,7 @@ const handler = async (m, { conn, text, command }) => {
 		if (videoThumb) {
 			await conn.sendMessage(m.chat, {
 				image: { url: videoThumb },
-				caption: `🎵 *${videoTitle || 'جاري البحث...'}*\n⏳ *جاري تحميل الصوت...*\n\n⚡ *bot amirini hamza*`
+				caption: `🎵 *${videoTitle || 'جاري البحث...'}*\n⏳ *جاري تحميل الصوت...*\n\n⚡ *bot amirni hamza*`
 			}, { quoted: m });
 		}
 
@@ -305,7 +305,7 @@ const handler = async (m, { conn, text, command }) => {
 			contextInfo: {
 				externalAdReply: {
 					title: audioTitle,
-					body: 'bot amirini hamza',
+					body: 'bot amirni hamza',
 					mediaType: 2,
 					renderLargerThumbnail: true,
 					thumbnailUrl: videoThumb || 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF'
@@ -379,7 +379,7 @@ const handler = async (m, { conn, text, command }) => {
 			const botMsg = generateWAMessageFromContent(m.chat, {
 				interactiveMessage: proto.Message.InteractiveMessage.fromObject({
 					body: proto.Message.InteractiveMessage.Body.create({ text: `📺 نتائج البحث عن: *${text}*` }),
-					footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirini hamza' }),
+					footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
 					carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
 				})
 			}, { quoted: m });
@@ -407,7 +407,7 @@ const handler = async (m, { conn, text, command }) => {
 		if (thumbUrl) {
 			await conn.sendMessage(m.chat, {
 				image: { url: thumbUrl },
-				caption: `🎬 *${videoTitle || 'جاري البحث...'}*\n⏳ *جاري تحميل الفيديو...*\n\n⚡ *bot amirini hamza*`
+				caption: `🎬 *${videoTitle || 'جاري البحث...'}*\n⏳ *جاري تحميل الفيديو...*\n\n⚡ *bot amirni hamza*`
 			}, { quoted: m });
 		}
 
@@ -436,7 +436,7 @@ const handler = async (m, { conn, text, command }) => {
 			video: { url: videoData.download },
 			mimetype: 'video/mp4',
 			fileName: `${vidTitle}.mp4`,
-			caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirini hamza*`
+			caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
 		}, { quoted: m });
 
 		return m.react('✅');
