@@ -298,17 +298,11 @@ http.createServer(async (req, res) => {
               })
             });
 
-            // 3. Restart worker to initiate pairing/QR generation for cleanPhone
+            // 3. Respond immediately - do NOT restart the worker so current session stays alive
+            //    The UI will poll /api/pairingcode after a delay to get the code for the new number.
+            console.log(`📱 New pairing request registered for phone: ${cleanPhone} (worker NOT restarted)`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, phone_number: cleanPhone }));
-
-            setTimeout(() => {
-              console.log(`📱 Requesting pairing/QR code for phone: ${cleanPhone}. Restarting bot...`);
-              botConnected = false;
-              if (worker) { try { worker.terminate(); } catch {} worker = null; }
-              running = false;
-              setTimeout(() => start('main.js'), 2000);
-            }, 500);
+            res.end(JSON.stringify({ success: true, phone_number: cleanPhone, message: 'registered' }));
           } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
@@ -482,22 +476,31 @@ let conflictTimer = null;      // timer to force-kill on persistent conflict
 let pairingRenewTimer = null;  // auto-renew pairing code every 55s if not connected
 let botConnected = false;       // track if bot has connected at least once
 
+let lastForceRestart = 0;
 function forceRestartOnConflict() {
 	if (conflictTimer) return; // already scheduled
+	// Cooldown: don't force-restart if we restarted in the last 60 seconds
+	const now = Date.now();
+	if (now - lastForceRestart < 60000) {
+		console.log('⏸️ Conflict restart cooldown active — skipping force restart');
+		conflictCount = 0;
+		return;
+	}
 	conflictTimer = setTimeout(async () => {
 		conflictTimer = null;
 		conflictCount = 0;
-		console.log('🔧 Persistent conflict loop detected → forcing clean restart...');
+		lastForceRestart = Date.now();
+		console.log('🔧 Persistent conflict loop → forcing clean restart (after cooldown)...');
 		if (worker) {
 			try { worker.terminate(); } catch {}
 			worker = null;
 		}
 		running = false;
-		// Give WhatsApp 20 seconds to fully close the old session
-		console.log('⏳ Waiting 20s for WhatsApp session to settle...');
-		await new Promise(r => setTimeout(r, 20000));
+		// Give WhatsApp 30 seconds to fully close the old session
+		console.log('⏳ Waiting 30s for WhatsApp session to settle...');
+		await new Promise(r => setTimeout(r, 30000));
 		start('main.js');
-	}, 4000); // wait 4s of consecutive conflicts before acting
+	}, 10000); // wait 10s of consecutive conflicts before acting
 }
 
 function start(file) {
@@ -523,7 +526,8 @@ function start(file) {
 		if (chunkStr.toLowerCase().includes('stream errored') && chunkStr.toLowerCase().includes('conflict')) {
 			conflictCount++;
 			console.log(`[Conflict #${conflictCount}] Internal reconnect detected`);
-			if (conflictCount >= 3) {
+			// Only force-restart after 5 consecutive conflicts (was 3) — reduces flapping
+			if (conflictCount >= 5) {
 				forceRestartOnConflict();
 			}
 		}
