@@ -321,6 +321,60 @@ http.createServer(async (req, res) => {
         return;
       }
 
+      // ── POST /api/resetsession — clear session & restart bot ──
+      if (endpoint === 'resetsession' && req.method === 'POST') {
+        try {
+          // 1. Delete local auth.db file
+          try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
+          // 2. Clear session in Supabase
+          await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+            method: 'POST',
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': 'Bearer ' + SB_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+              phone_number: '212612030829',
+              session_data: null,
+              pairing_code: null,
+              status: 'logged_out',
+              updated_at: new Date().toISOString()
+            })
+          });
+          // 3. Restart the bot worker
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, message: 'Session cleared. Bot restarting...' }));
+          setTimeout(() => {
+            console.log('🔄 Manual session reset requested from dashboard. Restarting bot...');
+            if (worker) { try { worker.terminate(); } catch {} worker = null; }
+            running = false;
+            setTimeout(() => start('main.js'), 2000);
+          }, 500);
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── GET /api/pairingcode — get current pairing code ──────
+      if (endpoint === 'pairingcode' && req.method === 'GET') {
+        try {
+          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=pairing_code,status,updated_at&order=updated_at.desc&limit=1', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          const data = await fetchRes.json();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(data[0] || { pairing_code: null, status: 'unknown' }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Endpoint not found' }));
       return;
