@@ -12,6 +12,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
 const BOT_PHONE = (process.env.PAIRING_NUMBER || '212612030829').toString().replace(/[^0-9]/g, '');
+// Mutable: updated when a pairing code is captured, so backup always uses the real connected phone
+let currentBotPhone = BOT_PHONE;
 
 let latestAuthInfo = {
   pairing_code: null,
@@ -278,8 +280,8 @@ http.createServer(async (req, res) => {
               updated_at: new Date().toISOString()
             };
 
-            // 1. Delete local auth.db to start fresh pairing for this number
-            try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
+            // NOTE: we do NOT delete auth.db here — the current session stays alive.
+            // The new pairing request is just registered; the user must use the dashboard to enter the code.
 
             // 2. Register request in Supabase (NO qr_code column)
             await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
@@ -568,6 +570,7 @@ function start(file) {
 		if (codeMatch) {
 			const code = codeMatch[1].trim();
 			const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
+			currentBotPhone = activePhone; // keep backup watcher in sync with actual phone
 			const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(code)}`;
 
 			latestAuthInfo = {
@@ -693,30 +696,46 @@ function restart() {
 }
 
 async function restoreSession() {
-  console.log(`☁️ Restoring session for ${BOT_PHONE} from Supabase...`);
+  // Try all possible phone formats: with/without country code, to find the stored session
+  const phone = BOT_PHONE;
+  const phoneVariants = [phone];
+  // Add variant without leading country code digits (e.g. 212XXXXXXXXX → 0XXXXXXXXX)
+  if (phone.startsWith('212') && phone.length >= 11) phoneVariants.push('0' + phone.slice(3));
+  if (phone.startsWith('0') && phone.length >= 9)   phoneVariants.push('212' + phone.slice(1));
+  // Also try the most recently seen pairing phone
+  if (currentBotPhone && !phoneVariants.includes(currentBotPhone)) phoneVariants.push(currentBotPhone);
+
+  console.log(`☁️ Restoring session from Supabase (trying: ${phoneVariants.join(', ')})...`);
+
   try {
-    const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${BOT_PHONE}&select=session_data,phone_number,status&limit=1`, {
-      headers: {
-        'apikey': SB_KEY,
-        'Authorization': 'Bearer ' + SB_KEY
-      }
-    });
+    // Fetch all sessions ordered by most recent, then match any variant
+    const res = await fetch(
+      `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number,status&order=updated_at.desc&limit=10`,
+      { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+    );
     if (!res.ok) {
       console.log('⚠️ Failed to query Supabase for session restoration:', await res.text());
       return;
     }
-    const data = await res.json();
-    if (data && data[0] && data[0].session_data && data[0].status !== 'logged_out') {
-      const buffer = Buffer.from(data[0].session_data, 'base64');
+    const rows = await res.json();
+    // Find the best matching row: prefer exact phone match with valid session
+    const row = rows.find(r =>
+      r.session_data && r.status !== 'logged_out' &&
+      phoneVariants.some(v => r.phone_number === v)
+    ) || rows.find(r => r.session_data && r.status === 'connected');
+
+    if (row && row.session_data) {
+      const buffer = Buffer.from(row.session_data, 'base64');
       if (buffer.length > 5000) {
         mkdirSync(join(__dirname, 'sessions'), { recursive: true });
         writeFileSync(join(__dirname, 'sessions', 'auth.db'), buffer);
-        console.log(`✅ Restored WhatsApp session for ${data[0].phone_number} from Supabase successfully!`);
+        currentBotPhone = row.phone_number; // sync to the actually restored phone
+        console.log(`✅ Restored WhatsApp session for ${row.phone_number} from Supabase (${Math.round(buffer.length/1024)}KB)`);
       } else {
-        console.log('ℹ️ Supabase session file is empty or too small, skipping restoration.');
+        console.log('ℹ️ Supabase session too small to restore, skipping.');
       }
     } else {
-      console.log(`ℹ️ No valid active session found for ${BOT_PHONE} in Supabase.`);
+      console.log(`ℹ️ No valid active session found in Supabase.`);
     }
   } catch (err) {
     console.error('❌ Error restoring session from Supabase:', err.message);
@@ -751,7 +770,7 @@ function startBackupWatcher() {
         const base64 = content.toString('base64');
         
         const payload = {
-          phone_number: BOT_PHONE,
+          phone_number: currentBotPhone, // use real connected phone, not startup default
           session_data: base64,
           pairing_code: null,
           status: 'connected',
