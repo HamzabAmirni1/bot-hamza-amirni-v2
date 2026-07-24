@@ -256,7 +256,17 @@ http.createServer(async (req, res) => {
         req.on('end', async () => {
           try {
             const payload = JSON.parse(body);
-            const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+            const rawPhone = payload.phone_number || payload.pairingNumber;
+            if (!rawPhone) throw new Error('رقم الهاتف مطلوب');
+            const cleanPhone = rawPhone.toString().replace(/[^0-9]/g, '');
+            process.env.PAIRING_NUMBER = cleanPhone;
+            global.pairingNumber = cleanPhone;
+
+            // 1. Delete local auth.db to start fresh pairing for this number
+            try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
+
+            // 2. Register request in Supabase
+            await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
               method: 'POST',
               headers: {
                 'apikey': SB_KEY,
@@ -264,10 +274,26 @@ http.createServer(async (req, res) => {
                 'Content-Type': 'application/json',
                 'Prefer': 'resolution=merge-duplicates'
               },
-              body: JSON.stringify(payload)
+              body: JSON.stringify({
+                phone_number: cleanPhone,
+                pairing_code: null,
+                qr_code: null,
+                status: 'requesting',
+                updated_at: new Date().toISOString()
+              })
             });
+
+            // 3. Restart worker to initiate pairing/QR generation for cleanPhone
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
+            res.end(JSON.stringify({ success: true, phone_number: cleanPhone }));
+
+            setTimeout(() => {
+              console.log(`📱 Requesting pairing/QR code for phone: ${cleanPhone}. Restarting bot...`);
+              botConnected = false;
+              if (worker) { try { worker.terminate(); } catch {} worker = null; }
+              running = false;
+              setTimeout(() => start('main.js'), 2000);
+            }, 500);
           } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
@@ -325,6 +351,7 @@ http.createServer(async (req, res) => {
       // ── POST /api/resetsession — clear session & restart bot ──
       if (endpoint === 'resetsession' && req.method === 'POST') {
         try {
+          const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
           // 1. Delete local auth.db file
           try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
           // 2. Clear session in Supabase
@@ -337,9 +364,10 @@ http.createServer(async (req, res) => {
               'Prefer': 'resolution=merge-duplicates'
             },
             body: JSON.stringify({
-              phone_number: BOT_PHONE,
+              phone_number: activePhone,
               session_data: null,
               pairing_code: null,
+              qr_code: null,
               status: 'logged_out',
               updated_at: new Date().toISOString()
             })
@@ -348,7 +376,8 @@ http.createServer(async (req, res) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, message: 'Session cleared. Bot restarting...' }));
           setTimeout(() => {
-            console.log('🔄 Manual session reset requested from dashboard. Restarting bot...');
+            console.log(`🔄 Manual session reset requested for ${activePhone}. Restarting bot...`);
+            botConnected = false;
             if (worker) { try { worker.terminate(); } catch {} worker = null; }
             running = false;
             setTimeout(() => start('main.js'), 2000);
@@ -360,15 +389,16 @@ http.createServer(async (req, res) => {
         return;
       }
 
-      // ── GET /api/pairingcode — get current pairing code ──────
+      // ── GET /api/pairingcode — get current pairing code & QR ──
       if (endpoint === 'pairingcode' && req.method === 'GET') {
         try {
-          const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${BOT_PHONE}&select=pairing_code,status,updated_at&limit=1`, {
+          const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
+          const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${activePhone}&select=pairing_code,qr_code,status,updated_at&limit=1`, {
             headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
           });
           const data = await fetchRes.json();
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(data[0] || { pairing_code: null, status: 'unknown' }));
+          res.end(JSON.stringify(data[0] || { pairing_code: null, qr_code: null, status: 'unknown' }));
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: err.message }));
@@ -503,12 +533,15 @@ function start(file) {
 		const codeMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9-]{8,10})/i);
 		if (codeMatch) {
 			const code = codeMatch[1].trim();
-			console.log(`\n📡 Captured Pairing Code: ${code} (Phone: ${BOT_PHONE}). Syncing to Supabase...`);
+			const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
+			const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(code)}`;
+			console.log(`\n📡 Captured Pairing Code: ${code} (Phone: ${activePhone}). Syncing to Supabase...`);
 			console.log(`⏳ Code valid for ~3 minutes — will auto-renew if not connected.`);
 			
 			const payload = {
-				phone_number: BOT_PHONE,
+				phone_number: activePhone,
 				pairing_code: code,
+				qr_code: qrImageUrl,
 				status: 'pending',
 				updated_at: new Date().toISOString()
 			};

@@ -771,11 +771,20 @@
           </div>
           <div id="live-code-status" style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px;">يتجدد الكود تلقائياً كل 3 دقائق</div>
           <div id="pair-code-display" style="display:none;"></div>
-          <button onclick="forceNewCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-            🔄 توليد كود جديد الآن
+          
+          <button onclick="forceNewCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;margin-bottom:16px;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            🔄 تجديد كود الرقم الحالي
           </button>
-          <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">
-            ⚡ الكود يتجدد تلقائياً — لا تحتاج لفعل شيء
+
+          <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px;">
+            <div style="text-align:right;margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:700;color:var(--text);">📱 ربط رقم جديد آخر عبر الموقع:</label>
+              <div style="font-size:10px;color:var(--text-muted);">أدخل الرقم الدولي بدون + توليد كود & QR له</div>
+            </div>
+            <input id="pair-phone-input" type="tel" class="fi" placeholder="رقم الهاتف (مثال: 212624855939)" style="direction:ltr;text-align:left;margin-bottom:10px;" />
+            <button onclick="requestPairCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--purple),#6b46c1);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              📱 طلب ربط هذا الرقم الجديد
+            </button>
           </div>
         </div>
 
@@ -1884,77 +1893,63 @@ function switchPairTab(tab) {
 }
 
 async function requestPairCode() {
-  const phone = document.getElementById('pair-phone-input').value.trim().replace(/\D/g,'');
+  const inputEl = document.getElementById('pair-phone-input');
+  const phone = inputEl ? inputEl.value.trim().replace(/\D/g,'') : '';
   if (!phone || phone.length < 10) {
-    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة', 'err');
+    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة (مثال: 212624855939)', 'err');
     return;
   }
-  const display = document.getElementById('pair-code-display');
-  display.innerHTML = `<div class="sw"><div class="sp"></div></div>`;
+  if (!confirm(`📱 هل تريد ربط الرقم الجديد ${phone} بالبوت؟`)) return;
+  toast(`📡 جاري طلب ربط الرقم ${phone}...`, 'inf');
   
   try {
-    // Store the request in Supabase so the bot can generate the code for this number
-    const payload = {
-      phone_number: phone,
-      pairing_code: null,
-      status: 'requesting',
-      updated_at: new Date().toISOString()
-    };
     const res = await fetch('/api/requestpair', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ phone_number: phone })
     });
-    if (!res.ok) throw new Error(res.statusText);
-    toast('📡 تم إرسال الطلب — انتظر ظهور الكود...', 'inf');
-    
-    // Poll for the code via local API
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
-      if (attempts > 24) { // 2 min max
-        clearInterval(poll);
-        display.innerHTML = `<div style="color:var(--red);font-size:13px;">⏱️ انتهت المهلة. أعد المحاولة.</div>`;
-        return;
-      }
-      try {
-        const sRes = await fetch('/api/sessions');
-        const sData = await sRes.json();
-        const match = sData.find(s => s.phone_number === phone);
-        if (match && match.pairing_code && match.status === 'pending') {
-          clearInterval(poll);
-          const code = match.pairing_code;
-          display.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-              <div style="font-size:11px;color:var(--text-muted);">رمز إقران واتساب</div>
-              <div style="font-size:38px;font-weight:900;letter-spacing:5px;color:var(--accent);text-shadow:0 0 20px rgba(37,211,102,0.4);font-family:monospace;">${code}</div>
-              <div style="font-size:11px;color:var(--yellow);"><i class="fas fa-clock"></i> ادخله في واتساب خلال دقيقتين</div>
-            </div>
-          `;
-          toast('✅ ظهر كود الإقران! أدخله في واتساب الآن', 'ok');
-        }
-      } catch(_) {}
-    }, 5000);
+    const data = await res.json();
+    if (data.success) {
+      currentLiveCode = '';
+      toast(`✅ تم إرسال طلب الربط للرقم ${phone}! البوت يجري تجهيز الكود والـ QR...`, 'ok');
+      document.getElementById('live-code-value').textContent = '⏳';
+      document.getElementById('live-code-value').style.fontSize = '32px';
+      document.getElementById('live-code-timer').textContent = 'جاري التوليد للرقم الجديد...';
+      setTimeout(() => {
+        loadLiveCode();
+        loadQRCode();
+      }, 8000);
+    } else {
+      toast('❌ فشل: ' + (data.error || 'خطأ غير معروف'), 'err');
+    }
   } catch(e) {
-    display.innerHTML = `<div style="color:var(--red);font-size:13px;">❌ ${e.message}</div>`;
-    toast('❌ فشل طلب الكود: ' + e.message, 'err');
+    toast('❌ خطأ في الاتصال: ' + e.message, 'err');
   }
 }
 
 async function loadQRCode() {
   const display = document.getElementById('pair-qr-display');
+  if (!display) return;
   display.innerHTML = `<div class="sw"><div class="sp"></div></div><div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>`;
   try {
-    const { data } = await sb.from('whatsapp_auth').select('qr_code,status').order('updated_at',{ascending:false}).limit(1);
-    const session = data && data[0];
+    const res = await fetch('/api/pairingcode');
+    if (!res.ok) throw new Error('فشل جلب الرمز');
+    const session = await res.json();
     if (session && session.status === 'connected') {
       display.innerHTML = `<div style="font-size:50px;">🟢</div><div style="font-size:14px;font-weight:700;color:var(--accent);">البوت متصل بنجاح!</div>`;
       return;
     }
-    if (session && session.qr_code) {
-      display.innerHTML = `<img src="${session.qr_code}" style="width:200px;height:200px;border-radius:12px;border:2px solid var(--accent);" />`;
+    const qrUrl = session?.qr_code || (session?.pairing_code ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(session.pairing_code)}` : null);
+    if (qrUrl) {
+      display.innerHTML = `
+        <div style="background:#fff;padding:14px;border-radius:16px;box-shadow:0 0 25px rgba(37,211,102,0.35);display:inline-block;margin-bottom:12px;">
+          <img src="${qrUrl}" style="width:210px;height:210px;display:block;border-radius:8px;" alt="QR Code" />
+        </div>
+        <div style="font-size:13px;color:var(--accent);font-weight:700;">📷 امسح الرمز بواسطة كاميرا واتساب</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">افتح واتساب ➔ الأجهزة المرتبطة ➔ ربط جهاز</div>
+      `;
     } else {
-      display.innerHTML = `<div style="font-size:40px;">📵</div><div style="font-size:12px;color:var(--text-muted);">رمز QR غير متاح حالياً.<br>استخدم كود الإقران بدلاً.</div>`;
+      display.innerHTML = `<div style="font-size:40px;">📵</div><div style="font-size:12px;color:var(--text-muted);">جاري توليد رمز QR...<br>انتظر ثوانٍ قليلة.</div>`;
     }
   } catch(e) {
     display.innerHTML = `<div style="color:var(--red);font-size:12px;">❌ ${e.message}</div>`;
