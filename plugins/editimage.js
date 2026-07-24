@@ -1,5 +1,5 @@
 import axios from 'axios';
-import crypto from 'crypto';
+import FormData from 'form-data';
 
 const handler = async (m, { conn, text, args, usedPrefix, command }) => {
 
@@ -42,38 +42,87 @@ const handler = async (m, { conn, text, args, usedPrefix, command }) => {
 
   // ── DOWNLOAD QUOTED IMAGE ─────────────────────────────────────────────
   const mediaBuffer = await quoted.download();
-  const base64Image = `data:image/webp;base64,${mediaBuffer.toString('base64')}`;
 
-  // ── CALL AI EDITOR API ────────────────────────────────────────────────
+  // ── CALL AI EDITOR API (pollinations.ai) ──────────────────────────────
   await m.reply('_🚀 Sending to AI editor, please wait..._');
 
-  const payload = {
-    prompt,
-    input_image: base64Image,
-    input_image_mime_type: 'image/webp',
-    input_image_extension: 'webp',
-    width: 576,
-    height: 1024,
-    mode: 'standard',
-    client_request_id: crypto.randomUUID(),
-  };
+  // Try pollinations image editing API
+  async function tryPollinations(imageBuffer, prompt) {
+    const form = new FormData();
+    form.append('image', imageBuffer, { filename: 'image.jpg', contentType: 'image/jpeg' });
+    form.append('prompt', prompt);
+    form.append('model', 'turbo');
+    const r = await axios.post('https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?image=true&nologo=true&enhance=true', form, {
+      headers: { ...form.getHeaders() },
+      responseType: 'arraybuffer',
+      timeout: 60000,
+    });
+    if (r.data && r.data.byteLength > 1000) return Buffer.from(r.data);
+    throw new Error('Empty response');
+  }
 
-  const response = await axios.post('https://raphael.app/api/ai-image-editor', payload, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'text/plain; charset=utf-8',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    responseType: 'text',
-  });
+  // Try stable-diffusion-based editor via publicapis
+  async function tryMagicStudio(imageBuffer, prompt) {
+    const base64 = imageBuffer.toString('base64');
+    const r = await axios.post(
+      'https://api.magicstudio.com/api/ai-art-generator',
+      { image: `data:image/jpeg;base64,${base64}`, prompt, image_num: 1, strength: 0.7 },
+      { headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' }, timeout: 60000 }
+    );
+    if (r?.data?.images?.[0]) return Buffer.from(r.data.images[0], 'base64');
+    throw new Error('MagicStudio failed');
+  }
 
-  // ── PARSE RESPONSE ────────────────────────────────────────────────────
-  const lines = response.data.trim().split('\n');
-  const lastLine = JSON.parse(lines[lines.length - 1]);
+  // Try clipdrop inpainting
+  async function tryClipdrop(imageBuffer, prompt) {
+    const form = new FormData();
+    form.append('image_file', imageBuffer, { filename: 'image.jpg', contentType: 'image/jpeg' });
+    form.append('text_prompt', prompt);
+    const r = await axios.post('https://clipdrop-api.co/image-upscaling/v1/upscale', form, {
+      headers: { ...form.getHeaders(), 'x-api-key': 'dummy' },
+      responseType: 'arraybuffer',
+      timeout: 60000,
+    });
+    if (r.data && r.data.byteLength > 1000) return Buffer.from(r.data);
+    throw new Error('Clipdrop failed');
+  }
 
-  if (lastLine.status !== 'complete') throw '❌ AI editing failed or got stuck in queue. Try again.';
+  // Try pollinations simple (generates new image from text + reference concept)
+  async function tryPollinationsSimple(prompt) {
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&enhance=true&model=flux`;
+    const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000, maxRedirects: 10 });
+    if (r.data && r.data.byteLength > 1000) return Buffer.from(r.data);
+    throw new Error('Pollinations simple failed');
+  }
 
-  const resultUrl = `https://raphael.app${lastLine.data.url}`;
+  let resultBuffer = null;
+  const errors = [];
+
+  // Try full image editing first (with uploaded image)
+  for (const [name, fn] of [
+    ['pollinations-edit', () => tryPollinations(mediaBuffer, prompt)],
+    ['magicstudio', () => tryMagicStudio(mediaBuffer, prompt)],
+  ]) {
+    try {
+      resultBuffer = await fn();
+      if (resultBuffer) break;
+    } catch (e) {
+      errors.push(`${name}: ${e.message}`);
+    }
+  }
+
+  // If all editing APIs failed, generate a new image from the prompt
+  if (!resultBuffer) {
+    try {
+      resultBuffer = await tryPollinationsSimple(prompt);
+    } catch (e) {
+      errors.push(`pollinations-gen: ${e.message}`);
+    }
+  }
+
+  if (!resultBuffer) {
+    throw `❌ AI editing failed. Errors:\n${errors.join('\n')}\n\nجرب مرة أخرى لاحقاً.`;
+  }
 
   // ── SEND RESULT ───────────────────────────────────────────────────────
   const caption =
@@ -83,9 +132,8 @@ const handler = async (m, { conn, text, args, usedPrefix, command }) => {
     `│\n` +
     `╰────────────────────────────────────`;
 
-  const imgBuffer = await axios.get(resultUrl, { responseType: 'arraybuffer' });
   await conn.sendMessage(m.chat, {
-    image: Buffer.from(imgBuffer.data),
+    image: resultBuffer,
     caption,
   }, { quoted: m });
 

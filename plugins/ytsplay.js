@@ -56,6 +56,21 @@ const HEADERS = {
 	'Accept': 'application/json, text/plain, */*'
 };
 
+// Resolve final URL (follows 302 redirects)
+async function resolveFinalUrl(url) {
+	try {
+		const res = await axios.head(url, { maxRedirects: 10, timeout: 15000, headers: HEADERS });
+		return res.request?.res?.responseUrl || res.config?.url || url;
+	} catch (e) {
+		// if HEAD fails, try GET with maxRedirects
+		try {
+			const res2 = await axios.get(url, { maxRedirects: 10, timeout: 15000, responseType: 'stream', headers: HEADERS });
+			res2.data.destroy();
+			return res2.request?.res?.responseUrl || url;
+		} catch { return url; }
+	}
+}
+
 async function ytmp4Vreden(url) {
 	const r = await axios.get(
 		`https://api.vreden.web.id/api/v1/download/youtube/video?url=${encodeURIComponent(url)}&quality=720`,
@@ -101,6 +116,18 @@ async function ytmp4Yupra(url) {
 	if (r?.data?.success && r?.data?.data?.download_url)
 		return { download: r.data.data.download_url, title: r.data.data.title };
 	throw new Error('Yupra mp4 failed');
+}
+
+async function ytmp4Yt1s(url) {
+	const id = (url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
+	if (!id) throw new Error('Invalid YouTube URL');
+	const headers2 = { 'Content-Type': 'application/x-www-form-urlencoded', 'referer': 'https://yt1s.io/', 'User-Agent': 'Mozilla/5.0' };
+	const r = await axios.post('https://yt1s.io/api/ajaxSearch/index', `q=https://www.youtube.com/watch?v=${id}&vt=home`, { headers: headers2, timeout: 15000 });
+	if (r?.data?.links?.mp4) {
+		const q = Object.values(r.data.links.mp4).find(x => x.size && x.url) || Object.values(r.data.links.mp4)[0];
+		if (q?.url) return { download: q.url, title: r.data.title || 'Video' };
+	}
+	throw new Error('yt1s failed');
 }
 
 async function ytmp4Savetube(url, quality = '720') {
@@ -357,7 +384,7 @@ const handler = async (m, { conn, text, command }) => {
 
 		// Try video downloaders in fallback order
 		let videoData = null;
-		for (const fn of [ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra]) {
+		for (const fn of [ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s]) {
 			try {
 				videoData = await fn(videoUrl);
 				if (videoData?.download) break;
@@ -371,9 +398,11 @@ const handler = async (m, { conn, text, command }) => {
 			return m.reply('❌ فشل تحميل الفيديو من جميع المصادر. حاول مرة أخرى لاحقاً.');
 		}
 
+		// Resolve any 302 redirects before sending to Baileys
+		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
 		await conn.sendMessage(m.chat, {
-			video: { url: videoData.download },
+			video: { url: finalVideoUrl },
 			mimetype: 'video/mp4',
 			fileName: `${vidTitle}.mp4`,
 			caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirini hamza*`
