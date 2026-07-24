@@ -2,6 +2,7 @@ let handler = (m) => m;
 
 handler.before = async function (m) {
 	let user = db.data.users[m.sender];
+	if (!user) return;
 
 	//Sword
 	if (user.sword > 0) {

@@ -13,6 +13,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
 const BOT_PHONE = (process.env.PAIRING_NUMBER || '212612030829').toString().replace(/[^0-9]/g, '');
 
+let latestAuthInfo = {
+  pairing_code: null,
+  qr_code: null,
+  phone_number: BOT_PHONE,
+  status: 'unknown',
+  updated_at: null
+};
+
 // Health check & API dashboard server for Koyeb
 const PORT = process.env.PORT || 8000;
 http.createServer(async (req, res) => {
@@ -262,10 +270,18 @@ http.createServer(async (req, res) => {
             process.env.PAIRING_NUMBER = cleanPhone;
             global.pairingNumber = cleanPhone;
 
+            latestAuthInfo = {
+              pairing_code: null,
+              qr_code: null,
+              phone_number: cleanPhone,
+              status: 'requesting',
+              updated_at: new Date().toISOString()
+            };
+
             // 1. Delete local auth.db to start fresh pairing for this number
             try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
 
-            // 2. Register request in Supabase
+            // 2. Register request in Supabase (NO qr_code column)
             await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
               method: 'POST',
               headers: {
@@ -277,7 +293,6 @@ http.createServer(async (req, res) => {
               body: JSON.stringify({
                 phone_number: cleanPhone,
                 pairing_code: null,
-                qr_code: null,
                 status: 'requesting',
                 updated_at: new Date().toISOString()
               })
@@ -352,9 +367,16 @@ http.createServer(async (req, res) => {
       if (endpoint === 'resetsession' && req.method === 'POST') {
         try {
           const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
+          latestAuthInfo = {
+            pairing_code: null,
+            qr_code: null,
+            phone_number: activePhone,
+            status: 'logged_out',
+            updated_at: new Date().toISOString()
+          };
           // 1. Delete local auth.db file
           try { if (existsSync(dbPath)) { const { unlinkSync } = await import('fs'); unlinkSync(dbPath); } } catch (_) {}
-          // 2. Clear session in Supabase
+          // 2. Clear session in Supabase (NO qr_code column)
           await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
             method: 'POST',
             headers: {
@@ -367,7 +389,6 @@ http.createServer(async (req, res) => {
               phone_number: activePhone,
               session_data: null,
               pairing_code: null,
-              qr_code: null,
               status: 'logged_out',
               updated_at: new Date().toISOString()
             })
@@ -393,12 +414,21 @@ http.createServer(async (req, res) => {
       if (endpoint === 'pairingcode' && req.method === 'GET') {
         try {
           const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
-          const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${activePhone}&select=pairing_code,qr_code,status,updated_at&limit=1`, {
+          if (latestAuthInfo.pairing_code && latestAuthInfo.phone_number === activePhone) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(latestAuthInfo));
+            return;
+          }
+          const fetchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${activePhone}&select=pairing_code,status,updated_at&limit=1`, {
             headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
           });
           const data = await fetchRes.json();
+          const info = data && data[0] ? data[0] : { pairing_code: null, status: 'unknown' };
+          if (info.pairing_code) {
+            info.qr_code = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(info.pairing_code)}`;
+          }
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(data[0] || { pairing_code: null, qr_code: null, status: 'unknown' }));
+          res.end(JSON.stringify(info));
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: err.message }));
@@ -535,13 +565,22 @@ function start(file) {
 			const code = codeMatch[1].trim();
 			const activePhone = (process.env.PAIRING_NUMBER || BOT_PHONE).toString().replace(/[^0-9]/g, '');
 			const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(code)}`;
+
+			latestAuthInfo = {
+				pairing_code: code,
+				qr_code: qrImageUrl,
+				phone_number: activePhone,
+				status: 'pending',
+				updated_at: new Date().toISOString()
+			};
+
 			console.log(`\n📡 Captured Pairing Code: ${code} (Phone: ${activePhone}). Syncing to Supabase...`);
 			console.log(`⏳ Code valid for ~3 minutes — will auto-renew if not connected.`);
 			
+			// Send valid schema columns to Supabase (NO qr_code column)
 			const payload = {
 				phone_number: activePhone,
 				pairing_code: code,
-				qr_code: qrImageUrl,
 				status: 'pending',
 				updated_at: new Date().toISOString()
 			};
