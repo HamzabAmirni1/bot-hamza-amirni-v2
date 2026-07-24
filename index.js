@@ -503,7 +503,7 @@ function start(file) {
 		if (codeMatch) {
 			const code = codeMatch[1].trim();
 			console.log(`\n📡 Captured Pairing Code: ${code}. Syncing to Supabase...`);
-			console.log(`⏳ Code valid for ~55s — will auto-renew if not connected.`);
+			console.log(`⏳ Code valid for ~3 minutes — will auto-renew if not connected.`);
 			
 			const payload = {
 				phone_number: '212612030829',
@@ -536,7 +536,7 @@ function start(file) {
 					running = false;
 					setTimeout(() => start('main.js'), 2000);
 				}
-			}, 55000); // 55 seconds
+			}, 180000); // 3 minutes — gives user enough time to enter code
 		}
 	});
 
