@@ -416,6 +416,27 @@ function start(file) {
 			conflictCount = 0;
 			if (conflictTimer) { clearTimeout(conflictTimer); conflictTimer = null; }
 		}
+		// ── Handle Session Logged Out ────────────────────────────────────
+		if (chunkStr.toLowerCase().includes('session logged out')) {
+			console.log('⚠️ Session logged out detected! Clearing invalid session from Supabase...');
+			try { if (existsSync(dbPath)) unlinkSync(dbPath); } catch (_) {}
+			fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth', {
+				method: 'POST',
+				headers: {
+					'apikey': SB_KEY,
+					'Authorization': 'Bearer ' + SB_KEY,
+					'Content-Type': 'application/json',
+					'Prefer': 'resolution=merge-duplicates'
+				},
+				body: JSON.stringify({
+					phone_number: '212612030829',
+					session_data: null,
+					pairing_code: null,
+					status: 'logged_out',
+					updated_at: new Date().toISOString()
+				})
+			}).catch(() => {});
+		}
 		// ────────────────────────────────────────────────────────────────
 
 		
@@ -525,7 +546,7 @@ function restart() {
 async function restoreSession() {
   console.log('☁️ Restoring session from Supabase...');
   try {
-    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number&order=updated_at.desc&limit=1', {
+    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number,status&order=updated_at.desc&limit=1', {
       headers: {
         'apikey': SB_KEY,
         'Authorization': 'Bearer ' + SB_KEY
@@ -536,13 +557,17 @@ async function restoreSession() {
       return;
     }
     const data = await res.json();
-    if (data && data[0] && data[0].session_data) {
+    if (data && data[0] && data[0].session_data && data[0].status !== 'logged_out') {
       const buffer = Buffer.from(data[0].session_data, 'base64');
-      mkdirSync(join(__dirname, 'sessions'), { recursive: true });
-      writeFileSync(join(__dirname, 'sessions', 'auth.db'), buffer);
-      console.log(`✅ Restored WhatsApp session for ${data[0].phone_number} from Supabase successfully!`);
+      if (buffer.length > 5000) {
+        mkdirSync(join(__dirname, 'sessions'), { recursive: true });
+        writeFileSync(join(__dirname, 'sessions', 'auth.db'), buffer);
+        console.log(`✅ Restored WhatsApp session for ${data[0].phone_number} from Supabase successfully!`);
+      } else {
+        console.log('ℹ️ Supabase session file is empty or too small, skipping restoration.');
+      }
     } else {
-      console.log('ℹ️ No previous session found in Supabase.');
+      console.log('ℹ️ No valid active session found in Supabase.');
     }
   } catch (err) {
     console.error('❌ Error restoring session from Supabase:', err.message);
@@ -573,7 +598,7 @@ function startBackupWatcher() {
       try {
         if (!existsSync(dbPath)) return;
         const content = readFileSync(dbPath);
-        if (content.length === 0) return; // don't backup empty files
+        if (content.length < 5000) return; // don't backup empty/corrupt files (<5KB)
         const base64 = content.toString('base64');
         
         const payload = {
