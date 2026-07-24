@@ -792,17 +792,8 @@
         <div id="pair-panel-wa" class="card" style="padding:28px;text-align:center;">
           <div class="pairing-icon"><i class="fab fa-whatsapp" style="font-size: 40px; color: var(--accent);"></i></div>
           <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط واتساب جديد</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل الرقم الدولي بدون + لتلقي كود الإقران أو امسح الـ QR على هاتفك</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل رقمك الدولي بدون + لتلقي كود الإقران وتوصيل البوت</div>
 
-          <!-- Connection Mode Sub-Tabs -->
-          <div style="display:flex;gap:8px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:20px;">
-            <button id="wa-mode-pair" onclick="switchWAMode('pair')" style="flex:1;padding:10px 14px;border-radius:9px;border:none;background:var(--accent);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
-              🔑 كود الإقران
-            </button>
-            <button id="wa-mode-qr" onclick="switchWAMode('qr')" style="flex:1;padding:10px 14px;border-radius:9px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
-              📷 رمز QR مباشرة
-            </button>
-          </div>
 
           <!-- Pairing Code Mode Container -->
           <div id="wa-input-pair-container">
@@ -833,15 +824,9 @@
             </div>
           </div>
 
-          <!-- QR Code Mode Container -->
+          <!-- QR Mode hidden - bot uses pairing code only -->
           <div id="wa-input-qr-container" style="display:none;">
-            <div id="pair-qr-display" style="min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
-              <div class="sw"><div class="sp"></div></div>
-              <div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">
-              <i class="fas fa-sync fa-spin"></i> يتجدد تلقائياً كل 5 ثوانٍ
-            </div>
+            <div id="pair-qr-display"></div>
           </div>
         </div>
       </div>
