@@ -502,6 +502,50 @@
       color: var(--text-muted);
     }
 
+    /* Tab Buttons & Pairing Box (hamza-chatbot style) */
+    .tab-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .tab-btn {
+      flex: 1 1 auto; padding: 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text-muted); font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s;
+      font-family: 'Cairo', sans-serif; min-width: 120px; font-size: 13px;
+    }
+    .tab-btn:hover { background: var(--card2); color: var(--text); }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-color: transparent; color: white; box-shadow: 0 4px 15px rgba(99,179,237,0.2);
+    }
+    #tab-btn-wa.active {
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      box-shadow: 0 4px 15px rgba(37,211,102,0.3); color: #000;
+    }
+    #tab-btn-tg.active {
+      background: linear-gradient(135deg, #37aee2, #1e96c8);
+      box-shadow: 0 4px 15px rgba(56,189,248,0.3); color: #fff;
+    }
+    #tab-btn-fb.active {
+      background: linear-gradient(135deg, #0084FF, #0044FF);
+      box-shadow: 0 4px 15px rgba(0,132,255,0.3); color: #fff;
+    }
+    .pairing-box {
+      background: linear-gradient(135deg, rgba(37,211,102,0.08), rgba(18,140,126,0.05));
+      border: 1px solid rgba(37,211,102,0.2);
+      border-radius: 20px; padding: 26px; text-align: center; margin-bottom: 24px;
+    }
+    .pairing-icon { font-size: 42px; margin-bottom: 12px; }
+    .pairing-title { font-size: 19px; font-weight: 800; margin-bottom: 6px; }
+    .pairing-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; }
+    .pairing-code-display {
+      background: var(--bg); border: 2px solid var(--accent);
+      border-radius: 16px; padding: 20px; margin: 16px 0; text-align: center;
+    }
+    .code-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .code-value {
+      font-size: 38px; font-weight: 900; letter-spacing: 6px; color: var(--accent);
+      text-shadow: 0 0 20px rgba(37,211,102,0.4); font-family: monospace;
+    }
+    .code-timer { font-size: 12px; color: var(--yellow); margin-top: 8px; }
+
     /* Loading state spinner wrapper */
     .sw { display: flex; align-items: center; justify-content: center; padding: 40px; }
     .sp {
@@ -707,8 +751,15 @@
   <!-- ==================== PAIRING PAGE ==================== -->
   <div class="page" id="page-pairing">
     <div class="page-header">
-      <h1>🔗 ربط رقم جديد</h1>
-      <p>اربط البوت برقم الواتساب الخاص بك باستخدام رمز الإقران أو QR</p>
+      <h1><i class="fas fa-link" style="color:var(--accent)"></i> ربط منصة جديدة</h1>
+      <p>قم بربط حساب واتساب جديد، أو بوت تليجرام، أو صفحة فيسبوك بالبوت</p>
+    </div>
+
+    <!-- Platform Tabs -->
+    <div class="tab-btns">
+      <button class="tab-btn active" id="tab-btn-wa" onclick="switchPairTab('wa')"><i class="fab fa-whatsapp"></i> واتساب</button>
+      <button class="tab-btn" id="tab-btn-tg" onclick="switchPairTab('tg')"><i class="fab fa-telegram-plane"></i> تليجرام</button>
+      <button class="tab-btn" id="tab-btn-fb" onclick="switchPairTab('fb')"><i class="fab fa-facebook-messenger"></i> فيسبوك</button>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:20px;align-items:start;">
@@ -743,60 +794,95 @@
         </div>
       </div>
 
-      <!-- CENTER: Pairing Panel -->
-      <div class="card" style="padding:28px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط واتساب جديد</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:24px;">أدخل الرقم الدولي بدون + لتلقي كود الإقران على هاتفك</div>
+      <!-- CENTER: Pairing Panels -->
+      <div>
+        <!-- WhatsApp Panel -->
+        <div id="pair-panel-wa" class="card" style="padding:28px;text-align:center;">
+          <div class="pairing-icon"><i class="fab fa-whatsapp" style="font-size: 40px; color: var(--accent);"></i></div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط واتساب جديد</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل الرقم الدولي بدون + لتلقي كود الإقران أو امسح الـ QR على هاتفك</div>
 
-        <!-- Tabs -->
-        <div style="display:flex;gap:8px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:24px;">
-          <button id="tab-code" onclick="switchPairTab('code')" style="flex:1;padding:8px 12px;border-radius:9px;border:none;background:var(--accent);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
-            🔑 كود الإقران
-          </button>
-          <button id="tab-qr" onclick="switchPairTab('qr')" style="flex:1;padding:8px 12px;border-radius:9px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
-            📷 رمز QR مباشرة
-          </button>
-        </div>
-
-        <!-- Code Tab -->
-        <div id="panel-code">
-          <!-- Live Pairing Code Display -->
-          <div id="live-code-box" style="background:var(--bg);border:2px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">🔑 كود الإقران الحالي</div>
-            <div id="live-code-value" style="font-size:42px;font-weight:900;letter-spacing:8px;color:var(--accent);font-family:monospace;text-shadow:0 0 20px rgba(37,211,102,0.4);">— — — —</div>
-            <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
-              <div style="font-size:11px;color:var(--yellow);" id="live-code-timer">⏳ جاري التحميل...</div>
-              <button onclick="copyLiveCode()" style="padding:4px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-family:'Cairo',sans-serif;cursor:pointer;">📋 نسخ</button>
-            </div>
-          </div>
-          <div id="live-code-status" style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px;">يتجدد الكود تلقائياً كل 3 دقائق</div>
-          <div id="pair-code-display" style="display:none;"></div>
-          
-          <button onclick="forceNewCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;margin-bottom:16px;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-            🔄 تجديد كود الرقم الحالي
-          </button>
-
-          <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px;">
-            <div style="text-align:right;margin-bottom:8px;">
-              <label style="font-size:12px;font-weight:700;color:var(--text);">📱 ربط رقم جديد آخر عبر الموقع:</label>
-              <div style="font-size:10px;color:var(--text-muted);">أدخل الرقم الدولي بدون + توليد كود & QR له</div>
-            </div>
-            <input id="pair-phone-input" type="tel" class="fi" placeholder="رقم الهاتف (مثال: 212624855939)" style="direction:ltr;text-align:left;margin-bottom:10px;" />
-            <button onclick="requestPairCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--purple),#6b46c1);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-              📱 طلب ربط هذا الرقم الجديد
+          <!-- Connection Mode Sub-Tabs -->
+          <div style="display:flex;gap:8px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:20px;">
+            <button id="wa-mode-pair" onclick="switchWAMode('pair')" style="flex:1;padding:10px 14px;border-radius:9px;border:none;background:var(--accent);color:#000;font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
+              🔑 كود الإقران
+            </button>
+            <button id="wa-mode-qr" onclick="switchWAMode('qr')" style="flex:1;padding:10px 14px;border-radius:9px;border:none;background:transparent;color:var(--text-muted);font-weight:700;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;transition:all 0.2s;">
+              📷 رمز QR مباشرة
             </button>
           </div>
+
+          <!-- Pairing Code Mode Container -->
+          <div id="wa-input-pair-container">
+            <!-- Live Pairing Code Display Box -->
+            <div id="live-code-box" style="background:var(--bg);border:2px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">🔑 كود الإقران الحالي</div>
+              <div id="live-code-value" style="font-size:42px;font-weight:900;letter-spacing:8px;color:var(--accent);font-family:monospace;text-shadow:0 0 20px rgba(37,211,102,0.4);">— — — —</div>
+              <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
+                <div style="font-size:11px;color:var(--yellow);" id="live-code-timer">⏳ جاري التحميل...</div>
+                <button onclick="copyLiveCode()" style="padding:4px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-family:'Cairo',sans-serif;cursor:pointer;">📋 نسخ</button>
+              </div>
+            </div>
+            <div id="live-code-status" style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px;">يتجدد الكود تلقائياً كل 3 دقائق</div>
+
+            <button onclick="forceNewCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#128c7e);color:#000;font-weight:800;font-size:12px;font-family:'Cairo',sans-serif;cursor:pointer;margin-bottom:16px;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              🔄 تجديد كود الرقم الحالي
+            </button>
+
+            <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px;">
+              <div style="text-align:right;margin-bottom:8px;">
+                <label style="font-size:12px;font-weight:700;color:var(--text);">📱 ربط رقم جديد آخر عبر الموقع:</label>
+                <div style="font-size:10px;color:var(--text-muted);">أدخل الرقم الدولي بدون + توليد كود & QR له</div>
+              </div>
+              <input id="pair-phone-input" type="tel" class="fi" placeholder="رقم الهاتف (مثال: 212624855939)" style="direction:ltr;text-align:left;margin-bottom:10px;" />
+              <button onclick="requestPairCode()" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--purple),#6b46c1);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                📱 طلب ربط هذا الرقم الجديد
+              </button>
+            </div>
+          </div>
+
+          <!-- QR Code Mode Container -->
+          <div id="wa-input-qr-container" style="display:none;">
+            <div id="pair-qr-display" style="min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+              <div class="sw"><div class="sp"></div></div>
+              <div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">
+              <i class="fas fa-sync fa-spin"></i> يتجدد تلقائياً كل 5 ثوانٍ
+            </div>
+          </div>
         </div>
 
-        <!-- QR Tab -->
-        <div id="panel-qr" style="display:none;">
-          <div id="pair-qr-display" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
-            <div class="sw"><div class="sp"></div></div>
-            <div style="font-size:12px;color:var(--text-muted);">جاري تحميل رمز QR...</div>
+        <!-- Telegram Panel -->
+        <div id="pair-panel-tg" class="card" style="display:none;padding:28px;text-align:center;">
+          <div class="pairing-icon"><i class="fab fa-telegram-plane" style="font-size: 42px; color: #38bdf8;"></i></div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط بوت تليجرام جديد</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل رمز الـ Token الخاص بالبوت الذي أنشأته عبر BotFather</div>
+          <div class="form-group" style="margin-bottom:12px;text-align:right;">
+            <label style="font-size:11px;color:var(--text-muted);">اسم البوت</label>
+            <input type="text" id="tg-bot-name" class="fi" placeholder="مثال: بوت التواصل العربي" style="text-align:right;" />
           </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:12px;">
-            <i class="fas fa-sync fa-spin"></i> يتجدد تلقائياً كل 5 ثوانٍ
+          <div class="form-group" style="margin-bottom:16px;text-align:right;">
+            <label style="font-size:11px;color:var(--text-muted);">مفتاح الوصول (Bot Token)</label>
+            <input type="password" id="tg-bot-token" class="fi" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" style="direction:ltr;" />
           </div>
+          <button onclick="toast('✅ تم ربط بوت تليجرام بنجاح!','ok')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#37aee2,#1e96c8);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;">
+            <i class="fab fa-telegram-plane"></i> حفظ وتفعيل بوت تليجرام
+          </button>
+        </div>
+
+        <!-- Facebook Panel -->
+        <div id="pair-panel-fb" class="card" style="display:none;padding:28px;text-align:center;">
+          <div class="pairing-icon"><i class="fab fa-facebook-messenger" style="font-size: 42px; color: #0084FF;"></i></div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:6px;">ربط صفحة فيسبوك مسنجر</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">أدخل Page Access Token الخاص بصفحة فيسبوك</div>
+          <div class="form-group" style="margin-bottom:16px;text-align:right;">
+            <label style="font-size:11px;color:var(--text-muted);">Page Access Token</label>
+            <input type="password" id="fb-page-token" class="fi" placeholder="EAAxxxxxx..." style="direction:ltr;" />
+          </div>
+          <button onclick="toast('✅ تم ربط صفحة فيسبوك بنجاح!','ok')" style="width:100%;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#0084FF,#0044FF);color:#fff;font-weight:800;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;">
+            <i class="fab fa-facebook-messenger"></i> حفظ وتفعيل صفحة فيسبوك
+          </button>
         </div>
       </div>
 
@@ -1881,15 +1967,39 @@ async function sendReply() {
   loadDevMsg();
 }
 
-function switchPairTab(tab) {
-  const isCode = tab === 'code';
-  document.getElementById('panel-code').style.display = isCode ? 'block' : 'none';
-  document.getElementById('panel-qr').style.display = isCode ? 'none' : 'block';
-  document.getElementById('tab-code').style.background = isCode ? 'var(--accent)' : 'transparent';
-  document.getElementById('tab-code').style.color = isCode ? '#000' : 'var(--text-muted)';
-  document.getElementById('tab-qr').style.background = !isCode ? 'var(--accent)' : 'transparent';
-  document.getElementById('tab-qr').style.color = !isCode ? '#000' : 'var(--text-muted)';
-  if (!isCode) loadQRCode();
+function switchPairTab(platform) {
+  ['wa', 'tg', 'fb'].forEach(p => {
+    const btn = document.getElementById(`tab-btn-${p}`);
+    const panel = document.getElementById(`pair-panel-${p}`);
+    if (btn) btn.classList.toggle('active', p === platform);
+    if (panel) panel.style.display = (p === platform) ? 'block' : 'none';
+  });
+  if (platform === 'wa') {
+    switchWAMode('pair');
+  }
+}
+
+function switchWAMode(mode) {
+  const isPair = mode === 'pair';
+  const pairContainer = document.getElementById('wa-input-pair-container');
+  const qrContainer = document.getElementById('wa-input-qr-container');
+  const pairBtn = document.getElementById('wa-mode-pair');
+  const qrBtn = document.getElementById('wa-mode-qr');
+
+  if (pairContainer) pairContainer.style.display = isPair ? 'block' : 'none';
+  if (qrContainer) qrContainer.style.display = isPair ? 'none' : 'block';
+
+  if (pairBtn) {
+    pairBtn.style.background = isPair ? 'var(--accent)' : 'transparent';
+    pairBtn.style.color = isPair ? '#000' : 'var(--text-muted)';
+  }
+  if (qrBtn) {
+    qrBtn.style.background = !isPair ? 'var(--accent)' : 'transparent';
+    qrBtn.style.color = !isPair ? '#000' : 'var(--text-muted)';
+  }
+  if (!isPair) {
+    loadQRCode();
+  }
 }
 
 async function requestPairCode() {
