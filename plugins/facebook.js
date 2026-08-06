@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ─── API 1: cobalt.tools ────────────────────────────────────────────────────
 async function cobaltFB(url) {
@@ -179,20 +180,39 @@ Download any Facebook video or reel with ease!
   );
 
   try {
-    await conn.sendMessage(m.chat, {
-      video: { url: videoUrl },
-      caption,
-      mimetype: 'video/mp4'
+    const { videoMessage } = await generateWAMessageContent({ video: { url: videoUrl } }, { upload: conn.waUploadToServer });
+    const buttons = [
+      {
+        "name": "quick_reply",
+        "buttonParamsJson": JSON.stringify({ display_text: t("🎵 Extract Audio MP3", "🎵 تحويل إلى صوت MP3", "🎵 ردها صوت MP3"), id: `.tomp3` })
+      },
+      {
+        "name": "cta_url",
+        "buttonParamsJson": JSON.stringify({ display_text: t("🔗 Open Video", "🔗 فتح الفيديو", "🔗 فتح الفيديو"), url: videoUrl })
+      }
+    ];
+
+    const botMsg = generateWAMessageFromContent(m.chat, {
+      interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+        body: proto.Message.InteractiveMessage.Body.create({ text: caption }),
+        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
+        header: proto.Message.InteractiveMessage.Header.create({
+          hasMediaAttachment: true,
+          videoMessage
+        }),
+        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+      })
     }, { quoted: m });
+
+    await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
     await m.react('✅');
   } catch (e) {
-    // Fallback: send as document
+    // Fallback: send directly
     try {
       await conn.sendMessage(m.chat, {
-        document: { url: videoUrl },
-        mimetype: 'video/mp4',
-        fileName: 'facebook_video.mp4',
-        caption
+        video: { url: videoUrl },
+        caption,
+        mimetype: 'video/mp4'
       }, { quoted: m });
       await m.react('✅');
     } catch {

@@ -1,105 +1,31 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import crypto from 'crypto';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
-const handler = async (m, { conn, text, usedPrefix, command }) => {
-  let user = global.db.data.users[m.sender] || {};
-  let lang = user.language || 'darija';
-  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : da;
+// ============================================================
+// AI Image Editing, Background Removal & Colorizing Plugin
+// Commands: .editimage / .removebg / .nobg / .photo2anime / .colorize
+// ============================================================
 
-  const isRemoveBgCmd = /^(removebg|nobg|rmbg)$/i.test(command);
+async function tryRemoveBgAPI(imageBuffer) {
+  try {
+    const form = new FormData();
+    form.append("file", imageBuffer, { filename: "image.jpg", contentType: "image/jpeg" });
+    const res = await axios.post("https://loadbalancer.dalliegenerator.app/images/remove-bg", form, {
+      headers: form.getHeaders(),
+      timeout: 30000
+    });
+    const base64Str = res.data?.image_base64 || res.data?.image_base64_encoded;
+    if (base64Str) return Buffer.from(base64Str, 'base64');
+    return null;
+  } catch (_) { return null; }
+}
 
-  // ── GUIDE ────────────────────────────────────────────────────────────
-  if (!text?.trim() && !m.quoted && !isRemoveBgCmd) {
-    return m.reply(
-      t(
-`╭─「 *AI IMAGE EDITOR* 」─────────────
-│
-│  AI Image Editing & Enhancements
-│
-├─「 *How to Use* 」
-│  • Send or reply to an image with:
-← ${usedPrefix}${command} <description>
-│  • Remove background: ${usedPrefix}removebg
-│
-├─「 *Examples* 」
-← ${usedPrefix}${command} remove background
-← ${usedPrefix}${command} make him wear a red hat
-← ${usedPrefix}${command} change background to beach
-← ${usedPrefix}${command} make it look like anime
-│
-╰────────────────────────────────────`,
-
-`╭─「 *معدّل الصور بالذكاء الاصطناعي* 」─────────────
-│
-│  التعديل على الصور بواسطة الذكاء الاصطناعي
-│
-├─「 *طريقة الاستخدام* 」
-│  • أرسل أو رُد على صورة مع:
-← ${usedPrefix}${command} <التعديل المطلوب>
-│  • إزالة الخلفية:
-← ${usedPrefix}removebg
-│
-├─「 *أمثلة* 」
-← ${usedPrefix}${command} remove background
-← ${usedPrefix}${command} اجعله يرتدي قبعة حمراء
-← ${usedPrefix}${command} غيّر الخلفية إلى شاطئ
-← ${usedPrefix}${command} حوّلها إلى نمط أنمي
-│
-╰────────────────────────────────────`,
-
-`╭─「 *معدّل الصور بالذكاء الاصطناعي* 」─────────────
-│
-│  تعديل الصور بالذكاء الاصطناعي بنقرة واحدة
-│
-├─「 *طريقة الاستخدام* 」
-│  • صيفط ولا ريبوندي على صورة مع:
-← ${usedPrefix}${command} <التعديل اللي بغيتي>
-│  • تحييد الخلفية:
-← ${usedPrefix}removebg
-│
-├─「 *أمثلة* 」
-← ${usedPrefix}${command} remove background
-← ${usedPrefix}${command} لبسو طاقية حمرا
-← ${usedPrefix}${command} بدّل الخلفية بالبحر
-← ${usedPrefix}${command} ردها أنمي
-│
-╰────────────────────────────────────`
-      )
-    );
-  }
-
-  // ── VALIDATE IMAGE ───────────────────────────────────────────────────
-  const quoted = m.quoted ? m.quoted : m;
-  const mime = (quoted.msg || quoted).mimetype || '';
-  if (!mime.startsWith('image/')) throw t('❌ Please reply to an image.', '❌ يرجى الرد على صورة (image).', '❌ ريبوندي على شي تصويرة أ عشيري.');
-
-  let prompt = text?.trim() || '';
-  if (isRemoveBgCmd) {
-    prompt = 'remove background';
-  } else if (!prompt) {
-    throw t(
-      '❌ Please describe the edit.\n\nExample:\n.editimage make him wear sunglasses',
-      '❌ يرجى كتابة التعديل المطلوب.\n\n*مثال:*\n← .editimage make him wear sunglasses',
-      '❌ كتب شنو بغيتي تبدل فالتصويرة.\n\n*مثال:*\n← .editimage make him wear sunglasses'
-    );
-  }
-
-  await m.reply(t('_🎨 Downloading and processing image..._', '_🎨 جاري تحميل ومعالجة صورتك الأصلية..._', '_🎨 كنهبطو التصويرة ونعدلو عليها..._'));
-
-  // 1. Download Quoted Image
-  const mediaBuffer = await quoted.download();
-  if (!mediaBuffer || mediaBuffer.length < 100) {
-    throw t('❌ Failed to download image from WhatsApp.', '❌ فشل تحميل الصورة من واتساب.', '❌ ما قدرناش ننزلوا التصويرة من واتساب.');
-  }
-
-  const base64Image = `data:image/webp;base64,${mediaBuffer.toString('base64')}`;
-
-  await m.reply(t('_🚀 Sending image to AI for editing..._', '_🚀 جاري إرسال الصورة للذكاء الاصطناعي للتعديل عليها..._', '_🚀 صيفطنا التصويرة للذكاء الاصطناعي يقادها..._'));
-
-  // ── RAPHAEL AI EDITOR (from gaff-ai-master) ───────────────────────────
-  async function tryRaphael(base64Img, prt) {
+async function tryRaphaelEdit(base64Img, prompt) {
+  try {
     const payload = {
-      prompt: prt,
+      prompt,
       input_image: base64Img,
       input_image_mime_type: 'image/webp',
       input_image_extension: 'webp',
@@ -112,7 +38,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'text/plain; charset=utf-8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0'
       },
       responseType: 'text',
       timeout: 60000,
@@ -125,41 +51,100 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       const imgBuffer = await axios.get(resultUrl, { responseType: 'arraybuffer', timeout: 30000 });
       if (imgBuffer.data && imgBuffer.data.byteLength > 1000) return Buffer.from(imgBuffer.data);
     }
-    throw new Error(lastLine.message || 'فشل التعديل بالسيرفر الرئيسي');
+    return null;
+  } catch (_) { return null; }
+}
+
+const handler = async (m, { conn, text, usedPrefix, command }) => {
+  let user = global.db.data.users[m.sender] || {};
+  let lang = user.language || 'darija';
+  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : (da || ar);
+
+  const isRemoveBg = /^(removebg|nobg|rmbg|حيد_الخلفية)$/i.test(command);
+  const isColorize = /^(colorize|color|تلوين)$/i.test(command);
+
+  const quoted = m.quoted ? m.quoted : m;
+  const mime = (quoted.msg || quoted).mimetype || '';
+
+  // ── GUIDE ────────────────────────────────────────────────────────────
+  if (!/image/.test(mime)) {
+    return m.reply(
+      t(
+        `🎨 *AI Photo Editor & Remover*\n\nSend or reply to an image with:\n← \`${usedPrefix}editimage <prompt>\` (e.g. make him anime)\n← \`${usedPrefix}removebg\` (Remove image background)\n← \`${usedPrefix}hd\` (HD Upscale)\n\n⚡ *bot amirni hamza*`,
+        `🎨 *معدل الصور بالذكاء الاصطناعي*\n\nأرسل أو رد على صورة مع:\n← \`${usedPrefix}editimage <التعديل>\` (مثال: اجعله أنمي)\n← \`${usedPrefix}removebg\` (إزالة خلفية الصورة)\n← \`${usedPrefix}hd\` (تحسين الجودة)\n\n⚡ *bot amirni hamza*`,
+        `🎨 *معدل الصور بالذكاء الاصطناعي*\n\nصيفط ولا ريبوندي على صورة مع:\n← \`${usedPrefix}editimage <التعديل>\` (مثال: ردو أنمي)\n← \`${usedPrefix}removebg\` (حيد الخلفية)\n← \`${usedPrefix}hd\` (زيادة الجودة)\n\n⚡ *bot amirni hamza*`
+      )
+    );
+  }
+
+  await m.react('⏳');
+  const mediaBuffer = await quoted.download();
+  if (!mediaBuffer || mediaBuffer.length < 100) {
+    await m.react('❌');
+    throw t('❌ Failed to download image.', '❌ فشل تحميل الصورة.', '❌ ما قدرناش نهبطو الصورة.');
   }
 
   let resultBuffer = null;
-  const errors = [];
+  let statusText = '';
 
-  try {
-    resultBuffer = await tryRaphael(base64Image, prompt);
-  } catch (e) {
-    errors.push('raphael: ' + e.message);
+  if (isRemoveBg) {
+    await m.reply(t('✂️ Removing background...', '✂️ جاري إزالة الخلفية...', '✂️ كينحيدو الخلفية...'));
+    resultBuffer = await tryRemoveBgAPI(mediaBuffer);
+    if (!resultBuffer) {
+      // Fallback
+      resultBuffer = await tryRaphaelEdit(`data:image/webp;base64,${mediaBuffer.toString('base64')}`, 'remove background isolate main subject on clean transparent or plain background');
+    }
+    statusText = t('✂️ Background removed successfully!', '✂️ تم إزالة الخلفية بنجاح!', '✂️ حيدنا الخلفية بنجاح!');
+  } else {
+    const prompt = (text || '').trim() || 'make it vibrant digital art anime style high resolution';
+    await m.reply(t('🎨 Editing photo with AI...', '🎨 جاري تعديل الصورة بالذكاء الاصطناعي...', '🎨 كنهبطو الصورة ونعدلو عليها بالذكاء الاصطناعي...'));
+    resultBuffer = await tryRaphaelEdit(`data:image/webp;base64,${mediaBuffer.toString('base64')}`, prompt);
+    statusText = t(`🎨 Photo edited: "${prompt}"`, `🎨 تم تعديل الصورة: "${prompt}"`, `🎨 تعدلات الصورة بنجاح!`);
   }
 
   if (!resultBuffer) {
-    throw `❌ فشل التعديل على صورتك الأصلية.\nالأسباب:\n${errors.join('\n')}\n\nيرجى المحاولة مرة أخرى بصورة أخرى أو أمر مختلف.`;
+    await m.react('❌');
+    return m.reply(t('❌ Editing failed. Please try another image or command!', '❌ فشل التعديل. جرب صورة أخرى أو أمراً مختلفاً!', '❌ ما نجحش التعديل. جرب صورة أخرى!'));
   }
 
-  // ── SEND RESULT ───────────────────────────────────────────────────────
-  const caption =
-    `╭─「 *AI Image Editor* 」─────────────\n` +
-    `│\n` +
-    `│  ✏️ Prompt : ${prompt}\n` +
-    `│  📷 Status : تم التعديل على صورتك الأصلية بنجاح ✅\n` +
-    `│\n` +
-    `╰────────────────────────────────────`;
+  const caption = `${statusText}\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`;
 
-  await conn.sendMessage(m.chat, {
-    image: resultBuffer,
-    caption,
-  }, { quoted: m });
+  try {
+    const { imageMessage } = await generateWAMessageContent({ image: resultBuffer }, { upload: conn.waUploadToServer });
+    const buttons = [
+      {
+        "name": "quick_reply",
+        "buttonParamsJson": JSON.stringify({ display_text: t("🖼️ HD Upscale", "🖼️ تحسين الجودة HD", "🖼️ زيادة الجودة HD"), id: `.hd` })
+      },
+      {
+        "name": "quick_reply",
+        "buttonParamsJson": JSON.stringify({ display_text: t("✂️ Remove BG", "✂️ إزالة الخلفية", "✂️ حيد الخلفية"), id: `.removebg` })
+      }
+    ];
 
+    const botMsg = generateWAMessageFromContent(m.chat, {
+      interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+        body: proto.Message.InteractiveMessage.Body.create({ text: caption }),
+        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
+        header: proto.Message.InteractiveMessage.Header.create({
+          hasMediaAttachment: true,
+          imageMessage
+        }),
+        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
+      })
+    }, { quoted: m });
+
+    await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
+    await m.react('✅');
+  } catch (e) {
+    await conn.sendFile(m.chat, resultBuffer, 'edited.png', caption, m);
+    await m.react('✅');
+  }
 };
 
-handler.help = ['editimage', 'removebg'];
-handler.command = ['editimage', 'removebg', 'nobg', 'rmbg'];
+handler.help = ['editimage <prompt>', 'removebg', 'nobg'];
 handler.tags = ['ai', 'editor'];
+handler.command = /^(editimage|imgedit|removebg|nobg|rmbg|حيد_الخلفية)$/i;
 handler.limit = true;
 
 export default handler;

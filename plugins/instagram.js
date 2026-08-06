@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ─── API 1: cobalt.tools (free, best quality) ──────────────────────────────
 async function cobaltDownload(url) {
