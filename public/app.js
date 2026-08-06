@@ -114,16 +114,17 @@ function goPage(id, el) {
   localStorage.setItem('active_page', id);
 
   // Trigger page specific loaders
-  if (id === 'aichat')   loadAI();
-  if (id === 'devmsg')   { loadDevMsg(); loadBroadcastHistory(); loadBcUserCount(); }
-  if (id === 'sessions')  { loadBotStatus(); loadAuth(); }
-  if (id === 'adminmode') { loadBotMode(); }
-  if (id === 'errors')   loadErrors();
-  if (id === 'commands') renderCmds();
-  if (id === 'settings') loadCfgForm();
-  if (id === 'botusers') loadBotUsers(1);
-  if (id === 'botdetails') loadBotDetailsPage();
-  if (id === 'dashboard'|| id === 'mainbot') loadStats();
+  if (id === 'aichat')      loadAI();
+  if (id === 'devmsg')      { loadDevMsg(); loadBroadcastHistory(); loadBcUserCount(); }
+  if (id === 'sessions')    { loadBotStatus(); loadAuth(); }
+  if (id === 'adminmode')   { loadBotMode(); }
+  if (id === 'errors')      loadErrors();
+  if (id === 'commands')    renderCmds();
+  if (id === 'settings')    loadCfgForm();
+  if (id === 'botusers')    loadBotUsers(1);
+  if (id === 'botdetails')  loadBotDetailsPage();
+  if (id === 'access-req')  loadAccessRequests();
+  if (id === 'dashboard' || id === 'mainbot') loadStats();
 }
 
 // ── Toast Notifications ────────────────────────────────────────────────────────
@@ -1554,3 +1555,81 @@ async function bdSendMsg(toPhone, fromBotPhone) {
   }
 }
 
+// ── Load Access Requests (Admin) ───────────────────────────────────────────────
+async function loadAccessRequests() {
+  const wrap = document.getElementById('access-req-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="sw"><div class="sp"></div></div>';
+  try {
+    const res = await fetch('/api/access-requests');
+    const rows = await res.json();
+    if (!rows || !rows.length) {
+      wrap.innerHTML = empty('fas fa-inbox', 'لا توجد طلبات دخول بعد');
+      return;
+    }
+
+    const statusBadge = (s) => {
+      if (s === 'approved') return `<span class="sbar success" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">✅ موافق عليه</span>`;
+      if (s === 'rejected') return `<span class="sbar error" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">❌ مرفوض</span>`;
+      return `<span class="sbar warn" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">⏳ قيد المراجعة</span>`;
+    };
+
+    wrap.innerHTML = rows.map(r => `
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;gap:16px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.15));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👤</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;margin-bottom:6px">${r.name || '—'}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text2);margin-bottom:10px">
+              <span><i class="fas fa-phone"></i> ${r.phone || '—'}</span>
+              <span><i class="fas fa-clock"></i> ${r.created_at ? new Date(r.created_at).toLocaleString('ar') : '—'}</span>
+              ${statusBadge(r.status)}
+            </div>
+            ${r.reason ? `<div style="font-size:12px;color:var(--text2);font-style:italic;margin-bottom:12px">"${r.reason}"</div>` : ''}
+            ${r.status === 'approved' && r.username ? `
+              <div style="background:rgba(16,185,129,0.07);border:1px dashed rgba(16,185,129,0.3);border-radius:9px;padding:10px 14px;font-size:12px;margin-bottom:12px;font-family:monospace">
+                👤 المستخدم: <strong style="color:#10b981">${r.username}</strong> &nbsp;|&nbsp; 🔑 كلمة السر: <strong style="color:#10b981">${r.password}</strong>
+              </div>` : ''}
+            ${r.status === 'pending' ? `
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-g sm" onclick="handleAccessReq('${r.id}','approve')"><i class="fas fa-check"></i> موافقة وإنشاء حساب</button>
+                <button class="btn btn-danger sm" onclick="handleAccessReq('${r.id}','reject')"><i class="fas fa-times"></i> رفض</button>
+              </div>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Update pending badge count in sidebar
+    const pending = rows.filter(r => r.status === 'pending').length;
+    const badge = document.getElementById('req-badge');
+    if (badge) {
+      badge.textContent = pending;
+      badge.style.display = pending > 0 ? 'inline-block' : 'none';
+    }
+  } catch (err) {
+    wrap.innerHTML = `<div class="sbar error">❌ خطأ في تحميل الطلبات: ${err.message}</div>`;
+  }
+}
+
+async function handleAccessReq(id, action) {
+  const label = action === 'approve' ? 'الموافقة على الطلب وإنشاء حساب تلقائي' : 'رفض الطلب';
+  const ok = await showConfirm({ title: label, text: 'هل أنت متأكد؟', confirmText: label, isDanger: action === 'reject' });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/access-requests', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(action === 'approve' ? '✅ تمت الموافقة وإنشاء الحساب' : '✅ تم الرفض', 'ok');
+      loadAccessRequests();
+    } else {
+      toast('❌ ' + (d.error || 'خطأ'), 'err');
+    }
+  } catch (err) {
+    toast('❌ ' + err.message, 'err');
+  }
+}

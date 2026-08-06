@@ -958,7 +958,6 @@
       if (typeof _origGoPage === 'function') _origGoPage(page, el);
       const bnItem = document.querySelector(`.bn-item[data-page="${page}"]`);
       if (bnItem) setBnActive(bnItem);
-      if (page === 'access-req') loadAccessRequests();
     };
   </script>
 
