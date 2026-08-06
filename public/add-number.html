@@ -482,11 +482,17 @@
         <!-- Pairing Code Result -->
         <div id="pairing-result" style="display:none;">
           <div class="pairing-code-box">
-            <div class="code-label">كود الربط الخاص بك</div>
+            <div class="code-label">🔑 كود الربط الخاص بك</div>
             <span class="code-digits" id="code-value">----</span>
-            <div class="code-steps">
-              افتح واتساب → الإعدادات → <strong>الأجهزة المرتبطة</strong><br/>
-              اضغط <strong>ربط جهاز</strong> ثم أدخل الكود أعلاه
+            <button class="copy-btn" id="copy-code-btn" onclick="copyPairingCode()" style="margin: 12px auto; display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(37,211,102,0.2); border: 1px solid var(--accent); color: var(--accent); padding: 8px 20px; border-radius: 99px; font-weight: 700; font-family: 'Cairo', sans-serif; cursor: pointer; transition: all 0.3s;">
+              <i class="fas fa-copy"></i> نسخ الكود
+            </button>
+            <div class="code-steps" style="margin-top: 14px; text-align: right; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 12px; font-size: 13px; line-height: 1.8;">
+              <div style="color: var(--accent); font-weight: 700; margin-bottom: 6px;">📱 خطوات إدخال الكود في واتساب:</div>
+              1️⃣ افتح تطبيق <strong>واتساب</strong> على هاتفك<br/>
+              2️⃣ اذهب إلى <strong>الإعدادات ⚙️ ← الأجهزة المرتبطة</strong><br/>
+              3️⃣ اضغط <strong>ربط جهاز</strong> ثم اختر <strong>"الربط برقم الهاتف"</strong><br/>
+              4️⃣ أدخل الكود أعلاه المكون من 8 حروف/أرقام
             </div>
           </div>
         </div>
@@ -509,7 +515,7 @@
           <li><span class="step-num">1</span>أدخل رقم واتساب مع رمز البلد (مثال: 212624855939)</li>
           <li><span class="step-num">2</span>اضغط "طلب كود الربط"</li>
           <li><span class="step-num">3</span>افتح تطبيق واتساب على هاتفك</li>
-          <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز</li>
+          <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز ← الربط برقم الهاتف</li>
           <li><span class="step-num">5</span>أدخل الكود المكون من 8 أرقام</li>
         </ol>
       </div>
@@ -521,7 +527,7 @@
           <li><span class="step-num">2</span>اضغط "طلب QR Code"</li>
           <li><span class="step-num">3</span>افتح تطبيق واتساب على هاتفك</li>
           <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز</li>
-          <li><span class="step-num">5</span>امسح رمز QR المعروض (صالح لمدة 60 ثانية)</li>
+          <li><span class="step-num">5</span>امسح رمز QR أو ادخل الكود الظاهر</li>
         </ol>
       </div>
 
@@ -534,6 +540,18 @@
   </div>
 
   <script>
+    function copyPairingCode() {
+      const code = document.getElementById('code-value').textContent.replace(/\s+/g, '');
+      if (!code || code === '----') return;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copy-code-btn');
+        btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fas fa-copy"></i> نسخ الكود';
+        }, 2000);
+      }).catch(() => {});
+    }
+
     // ── Particles ──────────────────────────────────────────────────────────────
     (function() {
       const container = document.getElementById('particles');
@@ -585,10 +603,10 @@
 
       const btn = document.getElementById('connect-btn');
       btn.disabled = true;
-      stopQrTimers();
 
       document.getElementById('pairing-result').style.display = 'none';
       document.getElementById('qr-result').style.display = 'none';
+      stopQrTimers();
 
       if (currentMode === 'pair') {
         await requestPairingCode(phone);
@@ -601,9 +619,9 @@
 
     // ── Request Pairing Code ──────────────────────────────────────────────────
     async function requestPairingCode(phone) {
-      showStatus('loading', 'جاري طلب كود الربط...');
+      showStatus('loading', 'جاري التواصل مع السيرفر...');
       try {
-        const res = await fetch('/api/set-phone', {
+        const res = await fetch('/api/requestpair', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone_number: phone })
@@ -641,7 +659,8 @@
 
         if (data.pairing_code) {
           showStatus('success', '✅ تم توليد الكود بنجاح!');
-          const formatted = data.pairing_code.replace(/(.{4})(.{4})/, '$1 - $2');
+          const rawCode = data.pairing_code.replace(/[^A-Z0-9]/gi, '');
+          const formatted = rawCode.length === 8 ? `${rawCode.slice(0,4)} - ${rawCode.slice(4)}` : data.pairing_code;
           document.getElementById('code-value').textContent = formatted;
           document.getElementById('pairing-result').style.display = 'block';
           document.getElementById('result-section').classList.add('visible');
@@ -657,9 +676,9 @@
 
     // ── Request QR Code ───────────────────────────────────────────────────────
     async function requestQR(phone) {
-      showStatus('loading', 'جاري طلب وتوليد رمز QR... انتظر 10 ثوانٍ');
+      showStatus('loading', 'جاري طلب الكود والاتصال بالسيرفر...');
       try {
-        const res = await fetch('/api/set-phone', {
+        const res = await fetch('/api/requestpair', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone_number: phone })
