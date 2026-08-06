@@ -44,9 +44,9 @@ let handler = async (m, { command, text, conn }) => {
 
 		if (!newMode || !VALID_MODES.includes(newMode)) {
 			return m.reply(t(
-				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🌍 *public* — Everyone can use the bot\n🔒 *private* — DMs only\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n\n📌 Current mode: *${settings.botMode || 'admin'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🌍 *public* — للجميع\n🔒 *private* — رسائل خاصة فقط\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n\n📌 الوضع الحالي: *${settings.botMode || 'admin'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🌍 *public* — للجميع\n🔒 *private* — رسائل خاصة غير\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n\n📌 الوضع دابا: *${settings.botMode || 'admin'}*`
+				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🌍 *public* — Everyone can use the bot\n🔒 *private* — DMs only\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n\n📌 Current mode: *${settings.botMode || 'public'}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🌍 *public* — للجميع\n🔒 *private* — رسائل خاصة فقط\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n\n📌 الوضع الحالي: *${settings.botMode || 'public'}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🌍 *public* — للجميع\n🔒 *private* — رسائل خاصة غير\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n\n📌 الوضع دابا: *${settings.botMode || 'public'}*`
 			));
 		}
 

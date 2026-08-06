@@ -48,7 +48,7 @@ export async function before(m) {
 	if (isOwner) return false;
 
 	const settings = global.db?.data?.settings || {};
-	const mode     = settings.botMode || 'admin';
+	const mode     = settings.botMode || 'public';
 	const admins   = Array.isArray(settings.botAdmins) ? settings.botAdmins : [];
 
 	const senderNum  = String(m.sender || '').replace(/[^0-9]/g, '');
