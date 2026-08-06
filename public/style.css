@@ -837,20 +837,21 @@ body {
 /* ════════════════════════════════════════════════════════════════
    MODALS & TOASTS
    ════════════════════════════════════════════════════════════════ */
-.modal {
+.mo, .modal {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 1000;
-  background: rgba(2, 6, 23, 0.75);
+  z-index: 9999;
+  background: rgba(2, 6, 23, 0.85);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   align-items: center;
   justify-content: center;
   padding: 20px;
 }
 
-.modal.show {
-  display: flex;
+.mo.show, .modal.show {
+  display: flex !important;
   animation: modalPop 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 

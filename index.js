@@ -519,7 +519,7 @@ ${reply_text}
         return;
       }
 
-      if (endpoint === 'requestpair' && req.method === 'POST') {
+      if ((endpoint === 'requestpair' || endpoint === 'set-phone') && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => { body += chunk; });
         req.on('end', async () => {
