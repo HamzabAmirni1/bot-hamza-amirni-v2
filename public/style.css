@@ -905,6 +905,47 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   MOBILE BOTTOM NAVIGATION
+   ════════════════════════════════════════════════════════════════ */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: rgba(15, 23, 42, 0.95);
+  border-top: 1px solid var(--border-subtle);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 9000;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 10px;
+}
+
+.bn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.bn-item i {
+  font-size: 18px;
+}
+
+.bn-item.active {
+  color: var(--green);
+}
+
+/* ════════════════════════════════════════════════════════════════
    RESPONSIVE MEDIA QUERIES (PC & Mobile Perfect Scaling)
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
@@ -967,6 +1008,10 @@ body {
 
   .stat-card {
     padding: 16px;
+  }
+
+  .bottom-nav {
+    display: flex !important;
   }
 
   .sv {
