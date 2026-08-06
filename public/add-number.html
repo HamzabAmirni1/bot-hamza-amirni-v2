@@ -657,46 +657,57 @@
 
     // ── Request QR Code ───────────────────────────────────────────────────────
     async function requestQR(phone) {
-      showStatus('loading', 'جاري توليد رمز QR...');
+      showStatus('loading', 'جاري طلب وتوليد رمز QR... انتظر 10 ثوانٍ');
       try {
         const res = await fetch('/api/set-phone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone_number: phone })
         });
-        await sleep(4000);
+        const data = await res.json();
+        if (data.error) {
+          showStatus('error', '❌ خطأ: ' + data.error);
+          return;
+        }
 
-        await loadQRCode(phone);
+        await pollForQRCode(phone);
       } catch (err) {
         showStatus('error', '❌ فشل الاتصال: ' + err.message);
       }
     }
 
-    async function loadQRCode(phone) {
+    async function pollForQRCode(phone, attempts = 0) {
+      if (attempts > 12) {
+        showStatus('error', '❌ انتهت مهلة توليد QR. أعد المحاولة!');
+        return;
+      }
+      await sleep(2500);
       try {
         const res = await fetch('/api/pairingcode?phone=' + phone);
         const data = await res.json();
 
         if (data.status === 'connected') {
-          showStatus('success', '✅ البوت متصل بالفعل!');
+          showStatus('success', '✅ البوت متصل بالفعل بهذا الرقم!');
           return;
         }
 
-        if (data.pairing_code) {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.pairing_code)}&bgcolor=0a0e1a&color=25d366&format=png`;
+        if (data.pairing_code || data.qr_code) {
+          const rawCode = data.pairing_code || data.qr_code;
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(rawCode)}&bgcolor=080c14&color=10b981&margin=10&format=png`;
+          
           document.getElementById('qr-img').src = qrUrl;
           document.getElementById('qr-result').style.display = 'block';
           document.getElementById('result-section').classList.add('visible');
-          showStatus('info', '📱 امسح QR الآن من تطبيق واتساب');
+          showStatus('info', '📱 امسح رمز QR أعلاه الآن من تطبيق واتساب (الأجهزة المرتبطة)');
 
-          // Countdown 60s
           startQRCountdown(60, phone);
           return;
         }
 
-        showStatus('error', '❌ لم يتم توليد QR بعد. حاول مرة أخرى!');
+        showStatus('loading', `جاري توليد رمز QR... (${attempts + 1}/12)`);
+        await pollForQRCode(phone, attempts + 1);
       } catch (err) {
-        showStatus('error', '❌ خطأ: ' + err.message);
+        showStatus('error', '❌ خطأ أثناء توليد QR: ' + err.message);
       }
     }
 
@@ -710,12 +721,12 @@
         remaining--;
         if (remaining <= 0) {
           clearInterval(qrCountdownTimer);
-          countdownEl.textContent = '⚠️ انتهت صلاحية الرمز — جاري التجديد...';
+          countdownEl.textContent = '⚠️ انتهت صلاحية الرمز — جاري إعادة التجديد...';
           const phone2 = document.getElementById('phone-input').value.replace(/[^0-9]/g, '');
-          loadQRCode(phone2);
+          requestQR(phone2);
           return;
         }
-        const color = remaining < 15 ? '#fc8181' : remaining < 30 ? '#f6c90e' : '#25d366';
+        const color = remaining < 15 ? '#fc8181' : remaining < 30 ? '#f6c90e' : '#10b981';
         countdownEl.style.color = color;
         countdownEl.textContent = `ينتهي الرمز خلال ${remaining} ثانية`;
       }, 1000);
