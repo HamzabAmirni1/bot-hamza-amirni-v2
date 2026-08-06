@@ -1003,6 +1003,171 @@ ${reply_text}
 
 
 
+      // ── POST /api/auth-login — username/password dashboard login ──
+      if (endpoint === 'auth-login' && req.method === 'POST') {
+        try {
+          const body = await new Promise((resolve) => {
+            let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d || '{}')));
+          });
+          const { username, password } = body;
+          if (!username || !password) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'بيانات ناقصة' }));
+            return;
+          }
+          // Check Supabase access_requests for approved user
+          const qRes = await fetch(
+            `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&status=eq.approved&select=id&limit=1`,
+            { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+          );
+          const rows = await qRes.json();
+          // Also allow master admin credentials from env
+          const masterUser = process.env.ADMIN_USER || 'admin';
+          const masterPass = process.env.ADMIN_PASS || 'hamza2026';
+          if ((rows && rows.length > 0) || (username === masterUser && password === masterPass)) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          } else {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'اسم المستخدم أو كلمة المرور خاطئة' }));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── GET /api/access-requests — check request by phone or get all ──
+      if (endpoint === 'access-requests' && req.method === 'GET') {
+        try {
+          const phone = req.url.split('phone=')[1]?.split('&')[0] || '';
+          if (phone) {
+            // Check single request by phone
+            const qRes = await fetch(
+              `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?phone=eq.${encodeURIComponent(phone)}&order=created_at.desc&limit=1`,
+              { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+            );
+            const rows = await qRes.json();
+            if (!rows || !rows.length) {
+              res.writeHead(404, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'not found' }));
+            } else {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(rows[0]));
+            }
+          } else {
+            // Get all requests (admin)
+            const qRes = await fetch(
+              'https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?select=*&order=created_at.desc&limit=100',
+              { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+            );
+            const rows = await qRes.json();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(Array.isArray(rows) ? rows : []));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── POST /api/access-requests — submit new request ──
+      if (endpoint === 'access-requests' && req.method === 'POST') {
+        try {
+          const body = await new Promise((resolve) => {
+            let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d || '{}')));
+          });
+          const { name, phone, reason } = body;
+          if (!name || !phone) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'الاسم والرقم مطلوبان' }));
+            return;
+          }
+          // Check if already requested
+          const checkRes = await fetch(
+            `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?phone=eq.${encodeURIComponent(phone)}&status=eq.pending&select=id&limit=1`,
+            { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+          );
+          const existing = await checkRes.json();
+          if (existing && existing.length > 0) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'طلبك قيد المراجعة بالفعل' }));
+            return;
+          }
+          // Insert new request
+          const insertRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests', {
+            method: 'POST',
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': 'Bearer ' + SB_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ name, phone, reason: reason || '', status: 'pending', created_at: new Date().toISOString() })
+          });
+          if (insertRes.ok || insertRes.status === 201) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          } else {
+            const errData = await insertRes.text();
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'فشل الحفظ: ' + errData }));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── PATCH /api/access-requests — approve or reject ──
+      if (endpoint === 'access-requests' && req.method === 'PATCH') {
+        try {
+          const body = await new Promise((resolve) => {
+            let d = ''; req.on('data', c => d += c); req.on('end', () => resolve(JSON.parse(d || '{}')));
+          });
+          const { id, action } = body; // action: 'approve' | 'reject'
+          if (!id || !action) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'id and action required' }));
+            return;
+          }
+          let updateData = { status: action === 'approve' ? 'approved' : 'rejected', updated_at: new Date().toISOString() };
+          if (action === 'approve') {
+            // Auto-generate credentials
+            const reqRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?id=eq.${id}&select=name,phone&limit=1`, {
+              headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+            });
+            const reqRows = await reqRes.json();
+            const reqRow = reqRows?.[0] || {};
+            const baseName = (reqRow.name || 'user').replace(/\s+/g, '').toLowerCase().substring(0, 10);
+            const randNum = Math.floor(1000 + Math.random() * 9000);
+            const randPass = Math.random().toString(36).substring(2, 8).toUpperCase() + randNum;
+            updateData.username = baseName + randNum;
+            updateData.password = randPass;
+          }
+          const patchRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/access_requests?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': 'Bearer ' + SB_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
+            body: JSON.stringify(updateData)
+          });
+          const updated = await patchRes.json();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, data: updated?.[0] || updateData }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Endpoint not found' }));
       return;
@@ -1013,9 +1178,15 @@ ${reply_text}
     }
   }
 
-  let filePath = join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
+  // Serve add-number.html for root '/' — pairing page for new users
+  let filePath;
+  if (req.url === '/') {
+    filePath = join(__dirname, 'public', 'add-number.html');
+  } else {
+    filePath = join(__dirname, 'public', req.url.split('?')[0]);
+  }
   if (!existsSync(filePath) || req.url.includes('..')) {
-    filePath = join(__dirname, 'public', 'index.html');
+    filePath = join(__dirname, 'public', 'add-number.html');
   }
   try {
     const data = readFileSync(filePath);

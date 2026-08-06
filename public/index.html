@@ -108,6 +108,12 @@
           <span class="nv-label">سجل الأخطاء</span>
         </div>
 
+        <div class="nv" onclick="goPage('access-req', this)">
+          <div class="nv-icon"><i class="fas fa-user-clock"></i></div>
+          <span class="nv-label">طلبات الدخول</span>
+          <span class="nv-badge" id="req-badge" style="display:none;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:2px 6px;margin-right:auto;">0</span>
+        </div>
+
         <div class="nv" onclick="goPage('commands', this)">
           <div class="nv-icon"><i class="fas fa-terminal"></i></div>
           <span class="nv-label">الأوامر المتاحة</span>
@@ -788,6 +794,20 @@
       </div>
     </div>
 
+    <!-- ════════════════ PAGE: ACCESS REQUESTS ════════════════ -->
+    <div class="page" id="page-access-req">
+      <div class="pg-head">
+        <div>
+          <h1>🔐 طلبات الدخول</h1>
+          <p>إدارة طلبات الأشخاص الذين يريدون الدخول للوحة التحكم</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadAccessRequests()"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+      <div id="access-req-wrap">
+        <div class="sbar info">⏳ جاري التحميل...</div>
+      </div>
+    </div>
+
   </main>
 
 
@@ -938,7 +958,52 @@
       if (typeof _origGoPage === 'function') _origGoPage(page, el);
       const bnItem = document.querySelector(`.bn-item[data-page="${page}"]`);
       if (bnItem) setBnActive(bnItem);
+      if (page === 'access-req') loadAccessRequests();
     };
   </script>
+
+  <!-- ── Access Requests Page ── -->
+  <style>
+    #page-access-req .req-card {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: border-color 0.3s;
+    }
+    #page-access-req .req-card:hover { border-color: rgba(16,185,129,0.3); }
+    #page-access-req .req-avatar {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.25), rgba(6,182,212,0.2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    #page-access-req .req-info { flex: 1; min-width: 0; }
+    #page-access-req .req-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    #page-access-req .req-meta { font-size: 12px; color: var(--text2,#94a3b8); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+    #page-access-req .req-reason { font-size: 12px; color: var(--text2,#94a3b8); font-style: italic; margin-bottom: 12px; }
+    #page-access-req .req-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    #page-access-req .req-badge-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    }
+    #page-access-req .badge-pending  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    #page-access-req .badge-approved { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    #page-access-req .badge-rejected { background: rgba(244,63,94,0.15);  color: #f87171; border: 1px solid rgba(244,63,94,0.3); }
+    #page-access-req .creds-inline {
+      background: rgba(16,185,129,0.07);
+      border: 1px dashed rgba(16,185,129,0.3);
+      border-radius: 9px; padding: 8px 12px;
+      font-size: 12px; color: var(--text2,#94a3b8);
+      margin-top: 8px; font-family: monospace;
+    }
+    #page-access-req .creds-inline strong { color: #10b981; }
+  </style>
+
 </body>
 </html>
