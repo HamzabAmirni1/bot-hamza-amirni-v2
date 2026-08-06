@@ -441,7 +441,7 @@
             type="tel"
             id="phone-input"
             class="phone-input"
-            placeholder="212612030829"
+            placeholder="212624855939"
             maxlength="15"
             inputmode="numeric"
           />
@@ -506,7 +506,7 @@
       <div class="instructions" id="instructions-pair">
         <h4><i class="fas fa-circle-info"></i> خطوات الربط بالكود</h4>
         <ol>
-          <li><span class="step-num">1</span>أدخل رقم واتساب مع رمز البلد (مثال: 212612030829)</li>
+          <li><span class="step-num">1</span>أدخل رقم واتساب مع رمز البلد (مثال: 212624855939)</li>
           <li><span class="step-num">2</span>اضغط "طلب كود الربط"</li>
           <li><span class="step-num">3</span>افتح تطبيق واتساب على هاتفك</li>
           <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز</li>
@@ -579,7 +579,7 @@
     async function startConnect() {
       const phone = document.getElementById('phone-input').value.replace(/[^0-9]/g, '');
       if (!phone || phone.length < 10) {
-        showStatus('error', '❌ أدخل رقم صحيح مع رمز البلد (مثال: 212612030829)');
+        showStatus('error', '❌ أدخل رقم صحيح مع رمز البلد (مثال: 212624855939)');
         return;
       }
 
