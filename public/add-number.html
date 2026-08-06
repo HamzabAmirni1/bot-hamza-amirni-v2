@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📱 ربط رقم جديد — BOT AMIRNI HAMZA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --card: #111827;
+      --border: rgba(37,211,102,0.2);
+      --accent: #25d366;
+      --accent2: #128c7e;
+      --blue: #63b3ed;
+      --purple: #9f7aea;
+      --red: #fc8181;
+      --yellow: #f6c90e;
+      --text: #e2e8f0;
+      --text-muted: #718096;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(37,211,102,0.10) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 80%, rgba(99,179,237,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 60% 10%, rgba(159,122,234,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* ── Particles ── */
+    .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .particle {
+      position: absolute;
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      0%   { transform: translateY(110vh); opacity: 0; }
+      10%  { opacity: 0.5; }
+      90%  { opacity: 0.2; }
+      100% { transform: translateY(-10vh); opacity: 0; }
+    }
+
+    /* ── Main Container ── */
+    .wrap {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header .logo {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 32px rgba(37,211,102,0.35);
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: linear-gradient(135deg, rgba(17,24,39,0.97), rgba(26,34,53,0.97));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      backdrop-filter: blur(20px);
+      box-shadow:
+        0 20px 50px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(37,211,102,0.05),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(30px) scale(0.97); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    /* ── Section Header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(37,211,102,0.12);
+    }
+    .section-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, rgba(37,211,102,0.2), rgba(18,140,126,0.2));
+      border: 1px solid rgba(37,211,102,0.25);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .section-title { font-size: 17px; font-weight: 700; }
+    .section-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Phone Input ── */
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .input-label i { color: var(--accent); }
+
+    .phone-wrap {
+      position: relative;
+    }
+    .phone-input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(37,211,102,0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-family: 'Cairo', sans-serif;
+      color: var(--text);
+      direction: ltr;
+      text-align: left;
+      transition: all 0.3s;
+      outline: none;
+    }
+    .phone-input::placeholder { color: var(--text-muted); font-size: 14px; }
+    .phone-input:focus {
+      border-color: var(--accent);
+      background: rgba(37,211,102,0.05);
+      box-shadow: 0 0 0 3px rgba(37,211,102,0.12);
+    }
+
+    /* ── Toggle Switch ── */
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 6px;
+      margin-bottom: 22px;
+      gap: 6px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-muted);
+      background: transparent;
+    }
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      box-shadow: 0 4px 16px rgba(37,211,102,0.3);
+    }
+    .mode-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+    }
+
+    /* ── Action Button ── */
+    .action-btn {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .btn-pair {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      box-shadow: 0 6px 24px rgba(37,211,102,0.3);
+    }
+    .btn-pair:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(37,211,102,0.4); }
+    .btn-pair:active { transform: translateY(0); }
+    .btn-pair:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Result Section ── */
+    .result-section {
+      display: none;
+      margin-top: 22px;
+      animation: fadeIn 0.4s ease;
+    }
+    .result-section.visible { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Pairing Code Display ── */
+    .pairing-code-box {
+      background: linear-gradient(135deg, rgba(37,211,102,0.1), rgba(18,140,126,0.08));
+      border: 2px dashed rgba(37,211,102,0.35);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .code-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .code-digits {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      direction: ltr;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .code-steps {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .code-steps strong { color: var(--accent); }
+
+    /* ── QR Code Display ── */
+    .qr-box {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .qr-box img {
+      width: 200px;
+      height: 200px;
+      border-radius: 12px;
+      border: 2px solid rgba(37,211,102,0.25);
+      margin-bottom: 12px;
+    }
+    .qr-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    #qr-countdown {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--yellow);
+      margin-top: 8px;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 14px;
+    }
+    .status-bar.info { background: rgba(99,179,237,0.12); border: 1px solid rgba(99,179,237,0.25); color: var(--blue); }
+    .status-bar.success { background: rgba(37,211,102,0.12); border: 1px solid rgba(37,211,102,0.25); color: var(--accent); }
+    .status-bar.error { background: rgba(252,129,129,0.12); border: 1px solid rgba(252,129,129,0.25); color: var(--red); }
+    .status-bar.loading { background: rgba(246,201,14,0.08); border: 1px solid rgba(246,201,14,0.2); color: var(--yellow); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Instructions ── */
+    .instructions {
+      background: rgba(159,122,234,0.08);
+      border: 1px solid rgba(159,122,234,0.2);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .instructions h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--purple);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .instructions ol {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .instructions li {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.5;
+    }
+    .instructions .step-num {
+      background: linear-gradient(135deg, var(--purple), #7c3aed);
+      color: #fff;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Back button ── */
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .back-link a {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+    .back-link a:hover { color: var(--accent); }
+
+    /* ── Pulse animation for QR ── */
+    .qr-pulse {
+      animation: qrPulse 2s ease-in-out infinite;
+    }
+    @keyframes qrPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37,211,102,0.0); }
+      50% { box-shadow: 0 0 0 8px rgba(37,211,102,0.15); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="wrap">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">📱</div>
+      <h1>ربط رقم واتساب جديد</h1>
+      <p>اربط البوت برقم جديد عبر الكود أو مسح QR</p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-icon">🔗</div>
+        <div>
+          <div class="section-title">ربط رقم جديد</div>
+          <div class="section-desc">أدخل رقم واتساب مع رمز البلد</div>
+        </div>
+      </div>
+
+      <!-- Phone Input -->
+      <div class="input-group">
+        <div class="input-label">
+          <i class="fas fa-phone"></i>
+          رقم واتساب (مع رمز البلد)
+        </div>
+        <div class="phone-wrap">
+          <input
+            type="tel"
+            id="phone-input"
+            class="phone-input"
+            placeholder="212612030829"
+            maxlength="15"
+            inputmode="numeric"
+          />
+        </div>
+      </div>
+
+      <!-- Mode Toggle Switch -->
+      <div class="input-label" style="margin-bottom: 10px;">
+        <i class="fas fa-toggle-on" style="color: var(--accent);"></i>
+        اختر طريقة الربط
+      </div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-pair-mode" onclick="setMode('pair')">
+          <i class="fas fa-key"></i>
+          كود الربط (Pairing Code)
+        </button>
+        <button class="mode-btn" id="btn-qr-mode" onclick="setMode('qr')">
+          <i class="fas fa-qrcode"></i>
+          مسح QR
+        </button>
+      </div>
+
+      <!-- Action Button -->
+      <button class="action-btn btn-pair" id="connect-btn" onclick="startConnect()">
+        <i class="fas fa-link" id="btn-icon"></i>
+        <span id="btn-text">طلب كود الربط</span>
+      </button>
+
+      <!-- Result Section -->
+      <div class="result-section" id="result-section">
+
+        <!-- Status -->
+        <div class="status-bar info" id="status-bar" style="display:none;">
+          <div class="spinner"></div>
+          <span id="status-msg">جاري الطلب...</span>
+        </div>
+
+        <!-- Pairing Code Result -->
+        <div id="pairing-result" style="display:none;">
+          <div class="pairing-code-box">
+            <div class="code-label">كود الربط الخاص بك</div>
+            <span class="code-digits" id="code-value">----</span>
+            <div class="code-steps">
+              افتح واتساب → الإعدادات → <strong>الأجهزة المرتبطة</strong><br/>
+              اضغط <strong>ربط جهاز</strong> ثم أدخل الكود أعلاه
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Code Result -->
+        <div id="qr-result" style="display:none;">
+          <div class="qr-box">
+            <img id="qr-img" src="" alt="QR Code" class="qr-pulse" />
+            <div class="qr-label">امسح هذا الرمز من تطبيق واتساب</div>
+            <div id="qr-countdown"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Instructions -->
+      <div class="instructions" id="instructions-pair">
+        <h4><i class="fas fa-circle-info"></i> خطوات الربط بالكود</h4>
+        <ol>
+          <li><span class="step-num">1</span>أدخل رقم واتساب مع رمز البلد (مثال: 212612030829)</li>
+          <li><span class="step-num">2</span>اضغط "طلب كود الربط"</li>
+          <li><span class="step-num">3</span>افتح تطبيق واتساب على هاتفك</li>
+          <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز</li>
+          <li><span class="step-num">5</span>أدخل الكود المكون من 8 أرقام</li>
+        </ol>
+      </div>
+
+      <div class="instructions" id="instructions-qr" style="display:none;">
+        <h4><i class="fas fa-circle-info"></i> خطوات المسح بـ QR</h4>
+        <ol>
+          <li><span class="step-num">1</span>أدخل رقم واتساب مع رمز البلد</li>
+          <li><span class="step-num">2</span>اضغط "طلب QR Code"</li>
+          <li><span class="step-num">3</span>افتح تطبيق واتساب على هاتفك</li>
+          <li><span class="step-num">4</span>اذهب لـ الإعدادات ← الأجهزة المرتبطة ← ربط جهاز</li>
+          <li><span class="step-num">5</span>امسح رمز QR المعروض (صالح لمدة 60 ثانية)</li>
+        </ol>
+      </div>
+
+    </div>
+
+    <!-- Back Link -->
+    <div class="back-link">
+      <a href="/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+    </div>
+  </div>
+
+  <script>
+    // ── Particles ──────────────────────────────────────────────────────────────
+    (function() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 18; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.cssText = `
+          left: ${Math.random() * 100}%;
+          animation-duration: ${6 + Math.random() * 8}s;
+          animation-delay: ${Math.random() * 6}s;
+          opacity: 0;
+          width: ${2 + Math.random() * 4}px;
+          height: ${2 + Math.random() * 4}px;
+        `;
+        container.appendChild(p);
+      }
+    })();
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let currentMode = 'pair';
+    let qrRefreshTimer = null;
+    let qrCountdownTimer = null;
+
+    // ── Mode Toggle ───────────────────────────────────────────────────────────
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-pair-mode').classList.toggle('active', mode === 'pair');
+      document.getElementById('btn-qr-mode').classList.toggle('active', mode === 'qr');
+
+      document.getElementById('instructions-pair').style.display = mode === 'pair' ? 'block' : 'none';
+      document.getElementById('instructions-qr').style.display = mode === 'qr' ? 'block' : 'none';
+      document.getElementById('btn-text').textContent = mode === 'pair' ? 'طلب كود الربط' : 'طلب QR Code';
+      document.getElementById('btn-icon').className = mode === 'pair' ? 'fas fa-key' : 'fas fa-qrcode';
+
+      // Reset results
+      document.getElementById('pairing-result').style.display = 'none';
+      document.getElementById('qr-result').style.display = 'none';
+      document.getElementById('status-bar').style.display = 'none';
+      stopQrTimers();
+    }
+
+    // ── Start Connect ─────────────────────────────────────────────────────────
+    async function startConnect() {
+      const phone = document.getElementById('phone-input').value.replace(/[^0-9]/g, '');
+      if (!phone || phone.length < 10) {
+        showStatus('error', '❌ أدخل رقم صحيح مع رمز البلد (مثال: 212612030829)');
+        return;
+      }
+
+      const btn = document.getElementById('connect-btn');
+      btn.disabled = true;
+      stopQrTimers();
+
+      document.getElementById('pairing-result').style.display = 'none';
+      document.getElementById('qr-result').style.display = 'none';
+
+      if (currentMode === 'pair') {
+        await requestPairingCode(phone);
+      } else {
+        await requestQR(phone);
+      }
+
+      btn.disabled = false;
+    }
+
+    // ── Request Pairing Code ──────────────────────────────────────────────────
+    async function requestPairingCode(phone) {
+      showStatus('loading', 'جاري طلب كود الربط...');
+      try {
+        const res = await fetch('/api/set-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone_number: phone })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showStatus('error', '❌ خطأ: ' + data.error);
+          return;
+        }
+
+        // Wait for pairing code to be generated (poll)
+        showStatus('loading', 'جاري توليد كود الربط... انتظر 10 ثوانٍ');
+        await pollForPairingCode(phone);
+
+      } catch (err) {
+        showStatus('error', '❌ فشل الاتصال بالسيرفر: ' + err.message);
+      }
+    }
+
+    async function pollForPairingCode(phone, attempts = 0) {
+      if (attempts > 12) {
+        showStatus('error', '❌ انتهت مهلة الانتظار. حاول مرة أخرى!');
+        return;
+      }
+      await sleep(3000);
+      try {
+        const res = await fetch('/api/pairingcode?phone=' + phone);
+        const data = await res.json();
+
+        if (data.status === 'connected') {
+          showStatus('success', '✅ البوت متصل بالفعل بهذا الرقم!');
+          return;
+        }
+
+        if (data.pairing_code) {
+          showStatus('success', '✅ تم توليد الكود بنجاح!');
+          const formatted = data.pairing_code.replace(/(.{4})(.{4})/, '$1 - $2');
+          document.getElementById('code-value').textContent = formatted;
+          document.getElementById('pairing-result').style.display = 'block';
+          document.getElementById('result-section').classList.add('visible');
+          return;
+        }
+
+        showStatus('loading', `جاري التحميل... (${attempts + 1}/12)`);
+        await pollForPairingCode(phone, attempts + 1);
+      } catch (err) {
+        showStatus('error', '❌ خطأ أثناء الانتظار: ' + err.message);
+      }
+    }
+
+    // ── Request QR Code ───────────────────────────────────────────────────────
+    async function requestQR(phone) {
+      showStatus('loading', 'جاري توليد رمز QR...');
+      try {
+        const res = await fetch('/api/set-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone_number: phone })
+        });
+        await sleep(4000);
+
+        await loadQRCode(phone);
+      } catch (err) {
+        showStatus('error', '❌ فشل الاتصال: ' + err.message);
+      }
+    }
+
+    async function loadQRCode(phone) {
+      try {
+        const res = await fetch('/api/pairingcode?phone=' + phone);
+        const data = await res.json();
+
+        if (data.status === 'connected') {
+          showStatus('success', '✅ البوت متصل بالفعل!');
+          return;
+        }
+
+        if (data.pairing_code) {
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.pairing_code)}&bgcolor=0a0e1a&color=25d366&format=png`;
+          document.getElementById('qr-img').src = qrUrl;
+          document.getElementById('qr-result').style.display = 'block';
+          document.getElementById('result-section').classList.add('visible');
+          showStatus('info', '📱 امسح QR الآن من تطبيق واتساب');
+
+          // Countdown 60s
+          startQRCountdown(60, phone);
+          return;
+        }
+
+        showStatus('error', '❌ لم يتم توليد QR بعد. حاول مرة أخرى!');
+      } catch (err) {
+        showStatus('error', '❌ خطأ: ' + err.message);
+      }
+    }
+
+    function startQRCountdown(seconds, phone) {
+      stopQrTimers();
+      let remaining = seconds;
+      const countdownEl = document.getElementById('qr-countdown');
+      countdownEl.textContent = `ينتهي الرمز خلال ${remaining} ثانية`;
+
+      qrCountdownTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(qrCountdownTimer);
+          countdownEl.textContent = '⚠️ انتهت صلاحية الرمز — جاري التجديد...';
+          const phone2 = document.getElementById('phone-input').value.replace(/[^0-9]/g, '');
+          loadQRCode(phone2);
+          return;
+        }
+        const color = remaining < 15 ? '#fc8181' : remaining < 30 ? '#f6c90e' : '#25d366';
+        countdownEl.style.color = color;
+        countdownEl.textContent = `ينتهي الرمز خلال ${remaining} ثانية`;
+      }, 1000);
+    }
+
+    function stopQrTimers() {
+      if (qrRefreshTimer) { clearInterval(qrRefreshTimer); qrRefreshTimer = null; }
+      if (qrCountdownTimer) { clearInterval(qrCountdownTimer); qrCountdownTimer = null; }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function showStatus(type, msg) {
+      const bar = document.getElementById('status-bar');
+      bar.style.display = 'flex';
+      bar.className = `status-bar ${type}`;
+
+      const icons = {
+        loading: '<div class="spinner"></div>',
+        info: '<i class="fas fa-circle-info"></i>',
+        success: '<i class="fas fa-circle-check"></i>',
+        error: '<i class="fas fa-circle-xmark"></i>'
+      };
+      bar.innerHTML = `${icons[type] || ''} <span>${msg}</span>`;
+      document.getElementById('result-section').classList.add('visible');
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ── Phone input validation ────────────────────────────────────────────────
+    document.getElementById('phone-input').addEventListener('input', function(e) {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+  </script>
+</body>
+</html>
