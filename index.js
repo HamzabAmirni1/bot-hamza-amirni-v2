@@ -742,6 +742,12 @@ ${reply_text}
             if (settings.silent_mode !== undefined) global.SILENT_MODE = (settings.silent_mode === 'true' || settings.silent_mode === true);
             if (settings.auto_online !== undefined) global.AUTO_ONLINE = (settings.auto_online === 'true' || settings.auto_online === true);
             if (settings.auto_ai !== undefined) global.AUTO_AI = (settings.auto_ai === 'true' || settings.auto_ai === true);
+            // Broadcast settings to all active worker threads
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) {
+                info.worker.postMessage({ type: 'update_configs', settings });
+              }
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, saved: Object.keys(settings) }));
           } catch (err) {

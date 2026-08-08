@@ -6,20 +6,30 @@ import path from 'path';
 import { unwatchFile, watchFile } from 'fs';
 import chalk from 'chalk';
 
-// Listen for direct messages/broadcasts requested from Web Dashboard via worker.postMessage (registered ONCE)
+// Listen for direct messages/broadcasts & config updates requested from Web Dashboard via worker.postMessage (registered ONCE)
 if (parentPort && !global.__parentPortListenerAdded) {
 	global.__parentPortListenerAdded = true;
 	parentPort.on('message', async (msg) => {
 		try {
-			if (typeof msg === 'object' && msg && msg.type === 'send_msg') {
-				const { jid, text } = msg;
-				if (global.conn && jid && text) {
-					await global.conn.sendMessage(jid, { text: text });
-					console.log(`✅ [Dashboard -> WhatsApp] Message sent to ${jid}`);
+			if (typeof msg === 'object' && msg) {
+				if (msg.type === 'send_msg') {
+					const { jid, text } = msg;
+					if (global.conn && jid && text) {
+						await global.conn.sendMessage(jid, { text: text });
+						console.log(`✅ [Dashboard -> WhatsApp] Message sent to ${jid}`);
+					}
+				} else if (msg.type === 'update_configs' && msg.settings) {
+					if (msg.settings.auto_ai !== undefined) global.AUTO_AI = (msg.settings.auto_ai === 'true' || msg.settings.auto_ai === true);
+					if (msg.settings.auto_read !== undefined) global.AUTO_READ = (msg.settings.auto_read === 'true' || msg.settings.auto_read === true);
+					if (msg.settings.auto_status_read !== undefined) global.AUTO_STATUS_READ = (msg.settings.auto_status_read === 'true' || msg.settings.auto_status_read === true);
+					if (msg.settings.anti_call !== undefined) global.ANTI_CALL = (msg.settings.anti_call === 'true' || msg.settings.anti_call === true);
+					if (msg.settings.silent_mode !== undefined) global.SILENT_MODE = (msg.settings.silent_mode === 'true' || msg.settings.silent_mode === true);
+					if (msg.settings.auto_online !== undefined) global.AUTO_ONLINE = (msg.settings.auto_online === 'true' || msg.settings.auto_online === true);
+					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', { AUTO_AI: global.AUTO_AI });
 				}
 			}
 		} catch (err) {
-			console.error('❌ [Dashboard -> WhatsApp] Send Error:', err.message);
+			console.error('❌ [Worker] ParentPort Error:', err.message);
 		}
 	});
 }
@@ -179,6 +189,35 @@ async function saveAiMemoryToSupabase(senderJid, historyArr) {
 	} catch (_) {}
 }
 
+let lastConfigSync = 0;
+async function syncGlobalConfigsFromSupabase() {
+	const now = Date.now();
+	if (now - lastConfigSync < 10000) return;
+	lastConfigSync = now;
+	try {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 3000);
+		const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs?select=key,value', {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+			signal: controller.signal
+		});
+		clearTimeout(timeoutId);
+		if (fetchRes.ok) {
+			const rows = await fetchRes.json();
+			if (Array.isArray(rows)) {
+				rows.forEach(r => {
+					if (r.key === 'auto_read') global.AUTO_READ = (r.value === 'true' || r.value === true);
+					if (r.key === 'auto_status_read') global.AUTO_STATUS_READ = (r.value === 'true' || r.value === true);
+					if (r.key === 'anti_call') global.ANTI_CALL = (r.value === 'true' || r.value === true);
+					if (r.key === 'silent_mode') global.SILENT_MODE = (r.value === 'true' || r.value === true);
+					if (r.key === 'auto_online') global.AUTO_ONLINE = (r.value === 'true' || r.value === true);
+					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
+				});
+			}
+		}
+	} catch (_) {}
+}
+
 /**
  * Handle messages upsert
  * @param {import('baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate
@@ -211,6 +250,7 @@ export async function handler(chatUpdate) {
 	if (m.message?.messageStubType) return; // server-generated stubs (e-2-e, group updates etc.)
 
 	if (global.db.data == null) await global.loadDatabase();
+	await syncGlobalConfigsFromSupabase().catch(() => {});
 	try {
 		m = smsg(this, m) || m;
 		if (!m) return;
@@ -707,7 +747,8 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 		// ── Auto AI Chatbot (الرد التلقائي بالذكاء الاصطناعي مع حفظ المحادثة فـ Supabase) ──
 		const isAutoAiOn = global.AUTO_AI !== undefined ? global.AUTO_AI : false;
-		if (isAutoAiOn && !m.isCommand && m.text && !m.fromMe && !m.isBaileys && !usedPrefix) {
+		if (isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.')) {
+			console.log(`🤖 [Auto AI] Processing message from ${m.sender}: "${m.text}"`);
 			try {
 				let history = await getAiMemoryFromSupabase(m.sender);
 				let contextText = `أنت مساعد ذكي ولطيف اسمه "بوت حمزة اعمرني". تجيب بالدارجة المغربية أو العربية بحسب لغة المستخدم، بأسلوب محترم وسريع ونشيط.\n\n`;
@@ -718,26 +759,44 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 				let aiReply = '';
 				try {
-					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(contextText)}?model=openai`);
+					const controller = new AbortController();
+					const timeoutId = setTimeout(() => controller.abort(), 7000);
+					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(contextText)}?model=openai`, {
+						headers: { 'User-Agent': 'Mozilla/5.0' },
+						signal: controller.signal
+					});
+					clearTimeout(timeoutId);
 					if (res.ok) {
 						aiReply = await res.text();
 					}
-				} catch (_) {}
+				} catch (e) {
+					console.error('Pollinations fetch error:', e.message);
+				}
 
 				if (!aiReply || aiReply.length < 2) {
 					try {
-						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`);
+						const controller = new AbortController();
+						const timeoutId = setTimeout(() => controller.abort(), 5000);
+						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+							body: `text=${encodeURIComponent(m.text)}&lc=ar`,
+							signal: controller.signal
+						});
+						clearTimeout(timeoutId);
 						const simData = await simRes.json();
 						aiReply = simData?.message || '';
 					} catch (_) {}
 				}
 
-				if (aiReply) {
+				if (aiReply && aiReply.trim()) {
+					const cleanReply = aiReply.trim();
+					console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
 					history.push({ role: 'user', content: m.text });
-					history.push({ role: 'assistant', content: aiReply.trim() });
+					history.push({ role: 'assistant', content: cleanReply });
 					saveAiMemoryToSupabase(m.sender, history).catch(() => {});
 
-					await this.reply(m.chat, aiReply.trim(), m).catch(() => {});
+					await this.reply(m.chat, cleanReply, m).catch(() => {});
 				}
 			} catch (e) {
 				console.error('Auto AI Chatbot Error:', e);
