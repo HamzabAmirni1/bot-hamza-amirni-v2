@@ -6,22 +6,22 @@ let handler = async (m, { conn, command, usedPrefix }) => {
 
     // 1. Send VCards (Contacts) for Developer / Owner
     const owners = [
-        { name: 'Hamza Amirni (المطور)', number: '212612030829' },
-        { name: 'Hamza Amirni (المالك)', number: '212624855939' }
+        { name: 'Hamza Amirni حمزة اعمرني (المطور)', number: '212612030829' },
+        { name: 'Hamza Amirni حمزة اعمرني (المالك)', number: '212624855939' }
     ];
     
     const contacts = owners.map(o => ({
         vcard: 'BEGIN:VCARD\n'
             + 'VERSION:3.0\n' 
             + 'FN:' + o.name + '\n'
-            + 'ORG:Bot Hamza Amirni Developer;\n'
+            + 'ORG:Bot حمزة اعمرني Developer;\n'
             + 'TEL;type=CELL;type=VOICE;waid=' + o.number + ':+ ' + o.number + '\n'
             + 'END:VCARD'
     }));
 
     await conn.sendMessage(m.chat, {
         contacts: {
-            displayName: 'Hamza Amirni (المطور والمالك)',
+            displayName: 'حمزة اعمرني Hamza Amirni (المطور والمالك)',
             contacts
         }
     }, { quoted: m }).catch(() => {});
@@ -34,7 +34,7 @@ let handler = async (m, { conn, command, usedPrefix }) => {
             `${'─'.repeat(32)}\n\n` +
             `👋 Welcome! If you want to connect your phone number and get your own WhatsApp bot directly, please contact the developer or use the official control panel below:\n\n` +
             `🌐 *Official Panel Link:* \n${websiteUrl}\n\n` +
-            `👑 *Developer:* Hamza Amirni\n` +
+            `👑 *Developer:* Hamza Amirni (حمزة اعمرني)\n` +
             `📱 *WhatsApp:* +212 612-030829 / +212 624-855939\n\n` +
             `⚡ *Steps to connect:* \n` +
             `1. Open the website: ${websiteUrl}\n` +
@@ -46,7 +46,7 @@ let handler = async (m, { conn, command, usedPrefix }) => {
             `${'─'.repeat(32)}\n\n` +
             `👋 مرحباً بك! لربط رقمك والحصول على بوت خاص بك فـ واتساب، يرجى التواصل مع المطور أو الدخول مباشرة إلى لوحة التحكم لربط كود الإقران:\n\n` +
             `🌐 *رابط الموقع المباشر للربط:* \n${websiteUrl}\n\n` +
-            `👑 *المطور والبرمج:* حمزة أميرني (Hamza Amirni)\n` +
+            `👑 *المطور والبرمج:* حمزة اعمرني (Hamza Amirni)\n` +
             `📱 *واتساب المطور:* +212 612-030829 / +212 624-855939\n\n` +
             `⚡ *خطوات الربط المباشر:* \n` +
             `1. افتح الموقع: ${websiteUrl}\n` +
@@ -59,7 +59,7 @@ let handler = async (m, { conn, command, usedPrefix }) => {
             `${'─'.repeat(32)}\n\n` +
             `👋 أهلاً بك أ العشير! لا بغيتي تربط نمرتك ويولي عندك بوت ديالك خاص فـ الواتساب، تواصل مع المطور ولا دخل نيشان للوحة التحكم فـ الموقع تحت باش تحصل على كود الإقران:\n\n` +
             `🌐 *رابط موقع الربط المباشر:* \n${websiteUrl}\n\n` +
-            `👑 *المطور والبرمج:* Hamza Amirni (حمزة أميرني)\n` +
+            `👑 *المطور والبرمج:* Hamza Amirni (حمزة اعمرني)\n` +
             `📱 *واتساب المطور:* +212 612-030829 / +212 624-855939\n\n` +
             `⚡ *طريقة الربط من الموقع:* \n` +
             `1. دخل للموقع: ${websiteUrl}\n` +
