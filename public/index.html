@@ -719,6 +719,81 @@
 
       <!-- BOT TAB -->
       <div id="spanel-bot">
+
+        <!-- ⚡ Quick System Actions & Control Card -->
+        <div class="card mb-20" style="border-top:3px solid var(--yellow)">
+          <div class="ch">
+            <div class="ci yellow"><i class="fas fa-bolt"></i></div>
+            <div>
+              <div class="ct">⚡ التحكم المباشر بالنظام وإعادة التشغيل السريع</div>
+              <div style="font-size:11px;color:var(--text2)">Restart · Reset Session · Bot Mode Switcher · Toggles</div>
+            </div>
+          </div>
+          <!-- Restart & Reset Buttons -->
+          <div class="g2 mb-14" style="gap:12px;">
+            <button class="btn btn-warning lg" onclick="triggerBotRestart()"><i class="fas fa-sync-alt"></i> 🔄 إعادة تشغيل البوت (Restart)</button>
+            <button class="btn btn-danger lg" onclick="resetBotSessionAction()"><i class="fas fa-power-off"></i> ⚠️ مسح الجلسة وإعادة الاقتران</button>
+          </div>
+
+          <!-- Bot Mode Switcher -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent);">🌐 وضع البوت — Bot Mode:</div>
+            <div id="bot-mode-btns" class="row" style="gap:8px;flex-wrap:wrap;">
+              <button id="mode-btn-public"  class="btn btn-g sm"      onclick="setBotMode('public')">🟢 عام (Public)</button>
+              <button id="mode-btn-private" class="btn btn-ghost sm"  onclick="setBotMode('private')">🔒 خاص DM فقط</button>
+              <button id="mode-btn-group"   class="btn btn-ghost sm" style="color:var(--purple);border-color:var(--purple);" onclick="setBotMode('group')">👥 مجموعات فقط</button>
+              <button id="mode-btn-admin"   class="btn btn-danger sm" onclick="setBotMode('admin')">🛡️ مشرفين فقط</button>
+            </div>
+            <div id="bot-mode-status" style="margin-top:8px;font-size:12px;color:var(--text2);text-align:right">جاري التحميل...</div>
+          </div>
+
+          <!-- System Toggles -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent);">🔧 إعدادات النظام التلقائية:</div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">📖 Auto Read (قراءة تلقائية)</div>
+                <div class="tg-sub">يقرأ البوت الرسائل تلقائياً بدون رد</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autoread" onchange="saveToggle('auto_read', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">📵 Anti-Call (رفض المكالمات)</div>
+                <div class="tg-sub">يرفض ويحظر أي شخص يتصل بالبوت تلقائياً</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-anticall" onchange="saveToggle('anti_call', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">🔕 Silent Mode (وضع الصمت)</div>
+                <div class="tg-sub">لا يرد البوت في المجموعات إلا عند المنشن</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-silent" onchange="saveToggle('silent_mode', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">🟢 Auto Online (متصل دائماً)</div>
+                <div class="tg-sub">البوت يظهر متصلاً دائماً في واتساب</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autoonline" onchange="saveToggle('auto_online', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🤖 Bot Identity -->
         <div class="g2 mb-20">
           <div class="card">
             <div class="ch"><div class="ci green"><i class="fas fa-robot"></i></div><div class="ct">هوية البوت</div></div>
@@ -734,13 +809,13 @@
           </div>
         </div>
 
-        <!-- All Commands Limit Control -->
+        <!-- 📊 Commands Daily Limit -->
         <div class="card mb-20" style="border-top:3px solid var(--accent)">
           <div class="ch">
             <div class="ci blue"><i class="fas fa-sliders-h"></i></div>
             <div>
               <div class="ct">حد الأوامر اليومي لجميع الأشخاص (Commands Daily Limit)</div>
-              <div style="font-size:11px;color:var(--text2)">التحكم في عدد الأوامر المتاحة لكل شخص يومياً — اسحب الخط للآخر للحصول على <b>غير محدود ∞</b></div>
+              <div style="font-size:11px;color:var(--text2)">اسحب الخط للآخر للحصول على <b>غير محدود ∞</b> — المشرفون والمالكون لهم صلاحية غير محدودة دائماً</div>
             </div>
           </div>
           <div class="row-between mb-20" style="align-items:center;">
@@ -755,7 +830,7 @@
           <button class="btn btn-g full" onclick="saveUserCmdLimit()"><i class="fas fa-save"></i> حفظ حد الأوامر العام</button>
         </div>
 
-        <!-- APK Limit Control -->
+        <!-- 📥 APK Limit Control -->
         <div class="card mb-20" style="border-top:3px solid var(--green)">
           <div class="ch">
             <div class="ci green"><i class="fas fa-download"></i></div>
@@ -776,8 +851,30 @@
           <button class="btn btn-g full" onclick="saveApkLimit()"><i class="fas fa-save"></i> حفظ حد APK</button>
         </div>
 
+        <!-- 👑 Bot Admins Manager -->
+        <div class="card mb-20" style="border-top:3px solid var(--purple)">
+          <div class="ch">
+            <div class="ci purple"><i class="fas fa-user-shield"></i></div>
+            <div>
+              <div class="ct">👑 إدارة أدمينات البوت (Bot Admins)</div>
+              <div style="font-size:11px;color:var(--text2)">الأشخاص الذين لهم صلاحيات كاملة ومحدودة غير محدودة مثل المالك</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label class="fl">رقم الأدمين الجديد (بدون +)</label>
+            <div class="row" style="gap:10px;">
+              <input type="tel" id="new-admin-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1" />
+              <button class="btn btn-b sm" onclick="addBotAdmin()"><i class="fas fa-plus"></i> إضافة</button>
+            </div>
+          </div>
+          <div id="admins-list" style="min-height:40px;">
+            <div class="sbar info" style="font-size:12px;">⏳ جاري تحميل الأدمينات...</div>
+          </div>
+        </div>
+
         <button class="btn btn-g full lg" onclick="saveBotSettings()"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button>
       </div>
+
 
       <!-- OWNER TAB -->
       <div id="spanel-owner" style="display:none">

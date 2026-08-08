@@ -1281,8 +1281,18 @@ async function loadBotSettings() {
       if (cfg.apk_daily_limit !== undefined) {
         syncApkSlider(cfg.apk_daily_limit);
       }
+      // Load toggles
+      const toggleMap = { auto_read: 'toggle-autoread', anti_call: 'toggle-anticall', silent_mode: 'toggle-silent', auto_online: 'toggle-autoonline' };
+      for (const [key, elId] of Object.entries(toggleMap)) {
+        const el = document.getElementById(elId);
+        if (el && cfg[key] !== undefined) el.checked = (cfg[key] === 'true' || cfg[key] === true || cfg[key] === '1');
+      }
     }
   } catch(e) {}
+  // Load bot mode from API
+  await loadBotMode();
+  // Load admins list
+  await loadAdmins();
 }
 
 function syncUserCmdSlider(val) {
@@ -1393,6 +1403,162 @@ async function saveApkLimit() {
     toast('⚠️ خطأ بالحفظ: ' + e.message, 'warn');
   }
   localStorage.setItem('apk_daily_limit', String(limit));
+}
+
+/* ─────────────────────────────────────────────
+   BOT MODE SWITCHER
+   ───────────────────────────────────────────── */
+async function setBotMode(mode) {
+  try {
+    const res = await fetch('/api/bot-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const labels = { public: '🟢 عام (Public)', private: '🔒 خاص DM فقط', group: '👥 مجموعات فقط', admin: '🛡️ مشرفين فقط' };
+      toast('✅ تم تغيير وضع البوت إلى: ' + (labels[mode] || mode), 'ok');
+      updateModeBtnUI(mode);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل تغيير الوضع'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function loadBotMode() {
+  try {
+    const res = await fetch('/api/bot-mode');
+    if (!res.ok) return;
+    const data = await res.json();
+    updateModeBtnUI(data.mode || 'public');
+  } catch(e) {}
+}
+
+function updateModeBtnUI(activeMode) {
+  const modeMap = {
+    public:  { id: 'mode-btn-public',  label: '🟢 عام (Public)' },
+    private: { id: 'mode-btn-private', label: '🔒 خاص DM فقط' },
+    group:   { id: 'mode-btn-group',   label: '👥 مجموعات فقط' },
+    admin:   { id: 'mode-btn-admin',   label: '🛡️ مشرفين فقط' }
+  };
+  const statusEl = document.getElementById('bot-mode-status');
+  Object.entries(modeMap).forEach(([mode, { id, label }]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (mode === activeMode) {
+      btn.classList.add('mode-btn-active');
+      btn.style.opacity = '1';
+      if (statusEl) statusEl.innerHTML = `<span style="color:var(--green)">✅ الوضع الحالي: <b>${label}</b></span>`;
+    } else {
+      btn.classList.remove('mode-btn-active');
+      btn.style.opacity = '0.6';
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   SYSTEM TOGGLES (auto_read, anti_call, etc.)
+   ───────────────────────────────────────────── */
+async function saveToggle(key, value) {
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    const labels = { auto_read: 'Auto Read', anti_call: 'Anti-Call', silent_mode: 'Silent Mode', auto_online: 'Auto Online' };
+    if (data.success) {
+      toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key}`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+/* ─────────────────────────────────────────────
+   BOT ADMINS MANAGER
+   ───────────────────────────────────────────── */
+async function loadAdmins() {
+  const wrap = document.getElementById('admins-list');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/bot-admins');
+    const data = await res.json();
+    const admins = data.admins || [];
+    if (!admins.length) {
+      wrap.innerHTML = '<div class="sbar info" style="font-size:12px;">لا يوجد أدمينات مضافون حالياً</div>';
+      return;
+    }
+    wrap.innerHTML = admins.map(a => `
+      <div class="row-between" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">+${a}</div>
+          <div style="font-size:11px;color:var(--green)">👑 Bot Admin • صلاحيات كاملة</div>
+        </div>
+        <button class="btn btn-danger sm" onclick="removeBotAdmin('${a}')" title="حذف">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    `).join('');
+  } catch(e) {
+    wrap.innerHTML = '<div class="sbar warn" style="font-size:12px;">⚠️ فشل تحميل الأدمينات</div>';
+  }
+}
+
+async function addBotAdmin() {
+  const inp = document.getElementById('new-admin-phone');
+  const phone = inp ? inp.value.trim().replace(/[^0-9]/g, '') : '';
+  if (!phone || phone.length < 8) return toast('⚠️ أدخل رقماً صحيحاً', 'warn');
+  try {
+    const res = await fetch('/api/bot-admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تمت إضافة +${phone} كأدمين`, 'ok');
+      if (inp) inp.value = '';
+      await loadAdmins();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الإضافة'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function removeBotAdmin(phone) {
+  const ok = await showConfirm({
+    title: 'حذف الأدمين',
+    text: `هل تريد إزالة +${phone} من قائمة الأدمينات؟`,
+    confirmText: '🗑️ نعم، احذف',
+    icon: '⚠️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/bot-admins', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تمت إزالة +${phone} من الأدمينات`, 'ok');
+      await loadAdmins();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحذف'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
 }
 
 function loadCfgForm() {

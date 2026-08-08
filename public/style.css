@@ -1049,3 +1049,97 @@ body {
     display: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   TOGGLE SWITCHES (System Toggles in Settings)
+   ════════════════════════════════════════════════════════════════ */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.toggle-row:last-child { border-bottom: none; }
+
+.tg-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.tg-sub {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 13px;
+  transition: var(--transition);
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 2px;
+  top: 2px;
+  background: var(--text2);
+  border-radius: 50%;
+  transition: var(--transition);
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: var(--green);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(22px);
+  background: var(--green);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* ci yellow icon */
+.ci.yellow { background: rgba(245, 158, 11, 0.15); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.25); }
+
+/* btn-g / btn-b (green / blue) if not already defined */
+.btn-g {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--green);
+}
+.btn-g:hover {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 4px 15px var(--green-glow);
+}
+.btn-b {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.3);
+  color: var(--blue);
+}
+.btn-b:hover {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 4px 15px var(--blue-glow);
+}
+
+/* mode button active highlight */
+.mode-btn-active {
+  box-shadow: 0 0 0 2px currentColor !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
