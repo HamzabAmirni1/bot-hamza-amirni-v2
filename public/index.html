@@ -11,7 +11,8 @@
   <!-- Auth Guard -->
   <script>
     (function() {
-      if (sessionStorage.getItem('bot_auth') !== 'ok') {
+      const auth = sessionStorage.getItem('bot_auth') || localStorage.getItem('bot_auth');
+      if (auth !== 'ok') {
         window.location.href = '/login.html';
       }
     })();

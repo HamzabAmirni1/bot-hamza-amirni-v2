@@ -22,6 +22,22 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #080c14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.8);
+    }
+
     body {
       font-family: 'Cairo', sans-serif;
       background: var(--bg);
@@ -30,7 +46,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow-y: auto;
+      padding: 40px 15px;
     }
 
     /* Animated background */
@@ -485,13 +502,13 @@
     }
 
     // ─── Already logged in? ─────────────────────────────────────────
-    if (sessionStorage.getItem('bot_auth') === 'ok') {
+    if (sessionStorage.getItem('bot_auth') === 'ok' || localStorage.getItem('bot_auth') === 'ok') {
       window.location.href = '/';
     }
 
     // ─── Login handler ──────────────────────────────────────────────
     function doLogin(e) {
-      e.preventDefault();
+      if (e) e.preventDefault();
       const user = document.getElementById('username').value.trim();
       const pass = document.getElementById('password').value;
       const btn  = document.getElementById('loginBtn');
@@ -509,10 +526,12 @@
         if (match) {
           sessionStorage.setItem('bot_auth', 'ok');
           sessionStorage.setItem('bot_user', user);
+          localStorage.setItem('bot_auth', 'ok');
+          localStorage.setItem('bot_user', user);
           document.getElementById('successOverlay').classList.add('show');
           setTimeout(() => {
             window.location.href = '/';
-          }, 1500);
+          }, 1200);
         } else {
           btn.classList.remove('loading');
           showError('❌ اسم المستخدم أو كلمة المرور غير صحيحة!');

@@ -97,6 +97,8 @@ async function doLogout() {
   if (!ok) return;
   sessionStorage.removeItem('bot_auth');
   sessionStorage.removeItem('bot_user');
+  localStorage.removeItem('bot_auth');
+  localStorage.removeItem('bot_user');
   window.location.href = '/login.html';
 }
 
