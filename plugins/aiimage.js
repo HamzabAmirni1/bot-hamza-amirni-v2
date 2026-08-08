@@ -65,52 +65,27 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 
   const caption = t(
-    `🎨 *AI Image Generated*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *Prompt:* ${prompt}\n⚡ *bot amirni hamza*`,
-    `🎨 *تم إنشاء الصورة بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *الوصف:* ${prompt}\n⚡ *bot amirni hamza*`,
-    `🎨 *ها هي التصويرة بالذكاء الاصطناعي واجدة*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *الوصف:* ${prompt}\n⚡ *bot amirni hamza*`
+    `🎨 *AI Image Generated* ✅\n━━━━━━━━━━━━━━━━━━━━━\n📝 *Prompt:* ${prompt}\n\n💡 *Quick Options:*\n▸ \`.hd\` — Increase image resolution (HD)\n▸ \`.removebg\` — Remove image background\n▸ \`.imagine ${prompt}\` — Generate another version\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+    `🎨 *تم إنشاء الصورة بالذكاء الاصطناعي* ✅\n━━━━━━━━━━━━━━━━━━━━━\n📝 *الوصف:* ${prompt}\n\n💡 *خيارات سريعة:*\n▸ \`.hd\` — تحسين جودة الصورة (HD)\n▸ \`.removebg\` — إزالة خلفية الصورة\n▸ \`.imagine ${prompt}\` — صاوب صورة أخرى\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+    `🎨 *ها هي التصويرة بالذكاء الاصطناعي واجدة* ✅\n━━━━━━━━━━━━━━━━━━━━━\n📝 *الوصف:* ${prompt}\n\n💡 *خيارات سريعة:*\n▸ \`.hd\` — زيد الجودة (HD)\n▸ \`.removebg\` — حيد الخلفية\n▸ \`.imagine ${prompt}\` — صاوب وحدة أخرى\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
   );
 
   try {
-    const { imageMessage } = await generateWAMessageContent({ image: imgBuffer }, { upload: conn.waUploadToServer });
-    const buttons = [
-      {
-        "name": "quick_reply",
-        "buttonParamsJson": JSON.stringify({ display_text: t("🖼️ HD Upscale", "🖼️ تحسين الجودة HD", "🖼️ زيادة الجودة HD"), id: `.hd` })
-      },
-      {
-        "name": "quick_reply",
-        "buttonParamsJson": JSON.stringify({ display_text: t("✂️ Remove BG", "✂️ إزالة الخلفية", "✂️ حيد الخلفية"), id: `.removebg` })
-      },
-      {
-        "name": "quick_reply",
-        "buttonParamsJson": JSON.stringify({ display_text: t("🔄 Re-Generate", "🔄 إعادة الإنشاء", "🔄 صاوب وحدة أخرى"), id: `.${command} ${prompt}` })
-      }
-    ];
-
-    const botMsg = generateWAMessageFromContent(m.chat, {
-      interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-        body: proto.Message.InteractiveMessage.Body.create({ text: caption }),
-        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
-        header: proto.Message.InteractiveMessage.Header.create({
-          hasMediaAttachment: true,
-          imageMessage
-        }),
-        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({ buttons })
-      })
+    await conn.sendMessage(m.chat, {
+      image: imgBuffer,
+      caption: caption
     }, { quoted: m });
-
-    await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
     await m.react('✅');
-  } catch (e) {
-    // Fallback to sendFile
-    await conn.sendFile(m.chat, imgBuffer, 'ai_image.png', caption, m);
-    await m.react('✅');
+  } catch (sendErr) {
+    console.error('[aiimage error]:', sendErr);
+    await m.react('❌');
+    return m.reply(t('❌ Failed to send AI image.', '❌ تعذر إرسال الصورة.', '❌ ما قدرناش نصيفطو التصويرة.'));
   }
 };
 
 handler.help = ['imagine <prompt>', 'aiimage <prompt>', 'gen <prompt>'];
-handler.tags = ['ai'];
-handler.command = /^(imagine|aiimage|aiimg|gen|draw|صورة_بالذكاء)$/i;
-handler.limit = true;
+handler.tags = ['ai', 'tools'];
+handler.command = /^(imagine|aiimage|aiimg|gen|صورة_ذكاء|صاوب_تصويرة)$/i;
+handler.limit = false;
 
 export default handler;

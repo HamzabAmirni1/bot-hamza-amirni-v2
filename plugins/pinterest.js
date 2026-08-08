@@ -115,68 +115,26 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
             return m.reply(t(`😕 No results found for *"${query}"*`, `😕 لم يتم العثور على نتائج لـ *"${query}"*`, `😕 مالقينا حتى نتيجة لـ *"${query}"*`))
         }
 
-        async function createHeaderImage(url) {
+        const validResults = data.results.filter(p => p.image).slice(0, 5);
+
+        for (let i = 0; i < validResults.length; i++) {
+            const pin = validResults[i];
+            const caption = t(
+                `📌 *Pinterest Result (${i + 1}/${validResults.length})*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *Title:* ${pin.title || 'Pinterest Image'}\n👤 *By:* ${pin.fullName || 'Pinterest'}\n🔗 *Link:* ${pin.pinUrl}\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+                `📌 *نتيجة Pinterest (${i + 1}/${validResults.length})*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *العنوان:* ${pin.title || 'صورة Pinterest'}\n👤 *الناشر:* ${pin.fullName || 'Pinterest'}\n🔗 *الرابط:* ${pin.pinUrl}\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+                `📌 *نتيجة Pinterest (${i + 1}/${validResults.length})*\n━━━━━━━━━━━━━━━━━━━━━\n📝 *العنوان:* ${pin.title || 'صورة Pinterest'}\n👤 *الناشر:* ${pin.fullName || 'Pinterest'}\n🔗 *الرابط:* ${pin.pinUrl}\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
+            );
+
             try {
-                const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
-                const { imageMessage } = await generateWAMessageContent({ image: Buffer.from(res.data) }, { upload: conn.waUploadToServer });
-                return imageMessage;
-            } catch (_) {
-                try {
-                    const fallbackUrl = `https://ui-avatars.com/api/?name=Pinterest&background=E60023&color=FFFFFF&size=200`;
-                    const fallbackRes = await axios.get(fallbackUrl, { responseType: 'arraybuffer', timeout: 3000 });
-                    const { imageMessage } = await generateWAMessageContent({ image: Buffer.from(fallbackRes.data) }, { upload: conn.waUploadToServer });
-                    return imageMessage;
-                } catch (__) {
-                    return null;
-                }
+                await conn.sendMessage(m.chat, {
+                    image: { url: pin.image },
+                    caption: caption
+                }, { quoted: i === 0 ? m : undefined });
+            } catch (err) {
+                console.error('[Pinterest img send error]:', err.message);
             }
         }
 
-        let cards = [];
-        for (let i = 0; i < data.results.length; i++) {
-            const pin = data.results[i];
-            if (!pin.image) continue;
-
-            const imageMessage = await createHeaderImage(pin.image);
-
-            const buttons = [
-                {
-                    "name": "quick_reply",
-                    "buttonParamsJson": JSON.stringify({ display_text: t("📥 Download Image", "📥 تحميل الصورة", "📥 تحميل الصورة"), id: `.pindl ${pin.image}` })
-                },
-                {
-                    "name": "cta_url",
-                    "buttonParamsJson": JSON.stringify({ display_text: t("🔗 Open on Pinterest", "🔗 فتح على Pinterest", "🔗 فتح فـ Pinterest"), url: pin.pinUrl })
-                }
-            ];
-
-            const cardTitle = t(`Image ${i + 1}/${data.results.length}`, `صورة ${i + 1}/${data.results.length}`, `صورة ${i + 1}/${data.results.length}`);
-            const cardBody = t(`📝 ${pin.title || 'Creative Pin'}\n👤 By: ${pin.fullName || 'Pinterest'}`, `📝 ${pin.title || 'تصميم مميز'}\n👤 الناشر: ${pin.fullName || 'Pinterest'}`, `📝 ${pin.title || 'تصميم ناضي'}\n👤 الناشر: ${pin.fullName || 'Pinterest'}`);
-
-            cards.push({
-                body: proto.Message.InteractiveMessage.Body.fromObject({ text: cardBody }),
-                header: proto.Message.InteractiveMessage.Header.fromObject({
-                    title: cardTitle,
-                    hasMediaAttachment: !!imageMessage,
-                    ...(imageMessage ? { imageMessage } : {})
-                }),
-                nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-                    buttons
-                })
-            });
-        }
-
-        const carouselBodyText = t(`📌 Pinterest results for: *${query}*`, `📌 نتائج البحث في Pinterest عن: *${query}*`, `📌 نتائج البحث فـ Pinterest عن: *${query}*`);
-
-        const botMsg = generateWAMessageFromContent(m.chat, {
-            interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-                body: proto.Message.InteractiveMessage.Body.create({ text: carouselBodyText }),
-                footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
-                carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
-            })
-        }, { quoted: m, userJid: conn.user?.jid || conn.decodeJid(conn.user?.id) });
-
-        await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
         await m.react('✅');
     }
 
