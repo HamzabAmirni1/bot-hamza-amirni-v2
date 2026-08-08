@@ -1,5 +1,3 @@
-import { generateWAMessageFromContent, proto } from 'baileys';
-
 let handler = async (m, { conn, command, usedPrefix }) => {
     let user = global.db?.data?.users?.[m.sender] || {};
     let lang = user.language || 'darija';
@@ -69,48 +67,30 @@ let handler = async (m, { conn, command, usedPrefix }) => {
             `3. غايطلع لك رمز الإقران (Pairing Code) مباشرة فـ الواتساب!`;
     }
 
-    // 3. Send message with interactive button for website link
-    try {
-        const msg = generateWAMessageFromContent(m.chat, {
-            viewOnceMessage: {
-                message: {
-                    interactiveMessage: proto.Message.InteractiveMessage.create({
-                        body: proto.Message.InteractiveMessage.Body.create({ text: msgText }),
-                        footer: proto.Message.InteractiveMessage.Footer.create({ text: '⚡ Official Panel • BOT HAMZA AMIRNI v2.5' }),
-                        header: proto.Message.InteractiveMessage.Header.create({
-                            title: '🤖 BOT HAMZA AMIRNI',
-                            subtitle: 'Jadibot & Pairing System',
-                            hasMediaAttachment: false
-                        }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                            buttons: [
-                                {
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '🌐 فتح موقع الربط المباشر',
-                                        url: websiteUrl,
-                                        merchant_url: websiteUrl
-                                    })
-                                },
-                                {
-                                    name: 'cta_url',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '👑 تواصل مع المطور فـ واتساب',
-                                        url: 'https://wa.me/212612030829'
-                                    })
-                                }
-                            ]
-                        })
-                    })
-                }
-            }
-        }, { quoted: m });
+    const buttons = [
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: '🌐 فتح موقع الربط المباشر',
+                url: websiteUrl
+            })
+        },
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: '👑 تواصل مع المطور فـ واتساب',
+                url: 'https://wa.me/212612030829'
+            })
+        }
+    ];
 
-        await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id });
-    } catch (e) {
-        // Fallback simple reply if native buttons fail
-        await m.reply(msgText);
-    }
+    await conn.sendButton(m.chat, {
+        body: msgText,
+        footer: '⚡ Official Panel • BOT HAMZA AMIRNI v2.5',
+        buttons
+    }, { quoted: m }).catch(async () => {
+        await m.reply(msgText).catch(() => {});
+    });
 };
 
 handler.help = ['jadibot', 'code', 'tansib', 'pair', 'botclone'];

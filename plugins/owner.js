@@ -1,14 +1,11 @@
-import { generateWAMessageFromContent, proto } from 'baileys';
-
 let handler = async (m, { conn, usedPrefix }) => {
-    let _p = usedPrefix || '.';
     let user = global.db?.data?.users?.[m.sender] || {};
     let lang = user.language || 'darija';
 
-    // 1. Send VCards (Contacts) for both Owner numbers
+    // 1. Send VCards (Contacts) for Owner numbers
     const owners = [
-        { name: 'Hamza Amirni', number: '212612030829' },
-        { name: 'Hamza Amirni', number: '212624855939' }
+        { name: 'Hamza Amirni (المطور والمالك)', number: '212612030829' },
+        { name: 'Hamza Amirni (المالك الثاني)', number: '212624855939' }
     ];
     
     const contacts = owners.map(o => ({
@@ -92,61 +89,44 @@ let handler = async (m, { conn, usedPrefix }) => {
         btnTextSite = '🌐 موقع لوحة التحكم';
     }
 
-    try {
-        const buttons = [
-            {
-                name: 'cta_url',
-                buttonParamsJson: JSON.stringify({
-                    display_text: btnTextChannel,
-                    url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p'
-                })
-            },
-            {
-                name: 'cta_url',
-                buttonParamsJson: JSON.stringify({
-                    display_text: btnTextIg,
-                    url: 'https://www.instagram.com/hamza_amirni_01'
-                })
-            },
-            {
-                name: 'cta_url',
-                buttonParamsJson: JSON.stringify({
-                    display_text: btnTextFb,
-                    url: 'https://www.facebook.com/profile.php?id=61578860781418'
-                })
-            },
-            {
-                name: 'cta_url',
-                buttonParamsJson: JSON.stringify({
-                    display_text: btnTextSite,
-                    url: 'https://gestionbothamzaamirni01.koyeb.app/'
-                })
-            }
-        ];
+    const buttons = [
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: btnTextChannel,
+                url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p'
+            })
+        },
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: btnTextIg,
+                url: 'https://www.instagram.com/hamza_amirni_01'
+            })
+        },
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: btnTextFb,
+                url: 'https://www.facebook.com/profile.php?id=61578860781418'
+            })
+        },
+        {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+                display_text: btnTextSite,
+                url: 'https://gestionbothamzaamirni01.koyeb.app/'
+            })
+        }
+    ];
 
-        const msg = generateWAMessageFromContent(m.chat, {
-            viewOnceMessage: {
-                message: {
-                    interactiveMessage: proto.Message.InteractiveMessage.create({
-                        body: proto.Message.InteractiveMessage.Body.create({ text: presentationText }),
-                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza • حمزة اعمرني' }),
-                        header: proto.Message.InteractiveMessage.Header.create({
-                            title: '👑 HAMZA AMIRNI',
-                            subtitle: 'Bot Owner & Developer',
-                            hasMediaAttachment: false
-                        }),
-                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                            buttons
-                        })
-                    })
-                }
-            }
-        }, { quoted: m });
-
-        await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id });
-    } catch (e) {
+    await conn.sendButton(m.chat, {
+        body: presentationText,
+        footer: 'bot amirni hamza • حمزة اعمرني',
+        buttons
+    }, { quoted: m }).catch(async () => {
         await m.reply(presentationText).catch(() => {});
-    }
+    });
 };
 
 handler.help = ['owner', 'creator'];
