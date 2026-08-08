@@ -1,10 +1,11 @@
 import { generateWAMessageFromContent, proto } from 'baileys';
 
 let handler = async (m, { conn, usedPrefix }) => {
-    let user = global.db.data.users[m.sender] || {};
+    let _p = usedPrefix || '.';
+    let user = global.db?.data?.users?.[m.sender] || {};
     let lang = user.language || 'darija';
 
-    // 1. Send VCards (Contacts) for both Owner numbers (212612030829 & 212624855939)
+    // 1. Send VCards (Contacts) for both Owner numbers
     const owners = [
         { name: 'Hamza Amirni', number: '212612030829' },
         { name: 'Hamza Amirni', number: '212624855939' }
@@ -24,14 +25,13 @@ let handler = async (m, { conn, usedPrefix }) => {
             displayName: 'Hamza Amirni (Owner)',
             contacts
         }
-    }, { quoted: m });
+    }, { quoted: m }).catch(() => {});
 
     let presentationText = '';
     let btnTextChannel = '';
-    let btnTextIg1 = '';
-    let btnTextIg2 = '';
-    let btnTextFbBot = '';
-    let btnTextFbOfficial = '';
+    let btnTextIg = '';
+    let btnTextFb = '';
+    let btnTextSite = '';
 
     if (lang === 'english') {
         presentationText =
@@ -44,16 +44,14 @@ let handler = async (m, { conn, usedPrefix }) => {
             `💻 *Role:* Lead Developer & Programmer\n` +
             `🌐 *Specialization:* Web Development, AI & Bot Engineering\n\n` +
             `📫 *Official Accounts:*\n` +
-            `📸 *Instagram 1:* @hamza_amirni_01\n` +
-            `📸 *Instagram 2:* @hamza_amirni_02\n` +
-            `🤖 *Bot Facebook Page:* chatbot hamza amirni\n` +
-            `📘 *Official Facebook:* Hamza Amirni Official\n\n` +
+            `📸 *Instagram:* @hamza_amirni_01\n` +
+            `🤖 *Facebook:* chatbot hamza amirni\n` +
+            `🌐 *Control Panel:* https://gestionbothamzaamirni01.koyeb.app/\n\n` +
             `⚡ *Click the buttons below for direct links:*`;
         btnTextChannel = '📢 Official WhatsApp Channel';
-        btnTextIg1 = '📸 Instagram 01';
-        btnTextIg2 = '📸 Instagram 02';
-        btnTextFbBot = '🤖 Bot Facebook Page';
-        btnTextFbOfficial = '📘 Official Facebook Page';
+        btnTextIg = '📸 Instagram Official';
+        btnTextFb = '🤖 Facebook Page';
+        btnTextSite = '🌐 Control Panel Website';
     } else if (lang === 'arabic') {
         presentationText =
             `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
@@ -65,43 +63,37 @@ let handler = async (m, { conn, usedPrefix }) => {
             `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
             `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، وتطوير البوتات\n\n` +
             `📫 *حساباتي للتواصل الفوري:*\n` +
-            `📸 *إنستغرام 1:* @hamza_amirni_01\n` +
-            `📸 *إنستغرام 2:* @hamza_amirni_02\n` +
+            `📸 *إنستغرام:* @hamza_amirni_01\n` +
             `🤖 *فيسبوك البوت:* chatbot hamza amirni\n` +
-            `📘 *فيسبوك الرسمي:* Hamza Amirni Official\n\n` +
+            `🌐 *لوحة التحكم والربط:* https://gestionbothamzaamirni01.koyeb.app/\n\n` +
             `⚡ *انقر على الأزرار أدناه للوصول السريع إلى القناة والحسابات:*`;
         btnTextChannel = '📢 قناة الواتساب الرسمية';
-        btnTextIg1 = '📸 إنستغرام 01';
-        btnTextIg2 = '📸 إنستغرام 02';
-        btnTextFbBot = '🤖 صفحة البوت فيسبوك';
-        btnTextFbOfficial = '📘 الصفحة الرسمية فيسبوك';
+        btnTextIg = '📸 إنستغرام المطور';
+        btnTextFb = '🤖 صفحة الفيسبوك';
+        btnTextSite = '🌐 موقع لوحة التحكم';
     } else {
         presentationText =
             `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
             `${'─'.repeat(30)}\n\n` +
             `👤 *الاسم:* حمزة اعمرني (Hamza Amirni)\n` +
-            `📱 *نمرة الساط المالك:*\n` +
+            `📱 *نمرة المالك:*\n` +
             `  ▸ +212 612-030829\n` +
             `  ▸ +212 624-855939\n\n` +
             `💻 *الدور:* المطور والمبرمج الرئيسي للبوت\n` +
             `🌐 *التخصص:* تطوير الويب والذكاء الاصطناعي\n\n` +
             `📫 *الحسابات الرسمية للتواصل:*\n` +
-            `📸 *إنستغرام 1:* @hamza_amirni_01\n` +
-            `📸 *إنستغرام 2:* @hamza_amirni_02\n` +
+            `📸 *إنستغرام:* @hamza_amirni_01\n` +
             `🤖 *فيسبوك البوت:* chatbot hamza amirni\n` +
-            `📘 *فيسبوك الرسمي:* Hamza Amirni Official\n\n` +
+            `🌐 *لوحة التحكم والربط:* https://gestionbothamzaamirni01.koyeb.app/\n\n` +
             `⚡ *برك على الأزرار لتحت باش تواصل مع المطور مباشرة:*`;
         btnTextChannel = '📢 قناة الواتساب الرسمية';
-        btnTextIg1 = '📸 إنستغرام 01';
-        btnTextIg2 = '📸 إنستغرام 02';
-        btnTextFbBot = '🤖 صفحة البوت فيسبوك';
-        btnTextFbOfficial = '📘 الصفحة الرسمية فيسبوك';
+        btnTextIg = '📸 إنستغرام المطور';
+        btnTextFb = '🤖 صفحة الفيسبوك';
+        btnTextSite = '🌐 موقع لوحة التحكم';
     }
 
-    await conn.sendButton(m.chat, {
-        text: presentationText,
-        footer: 'bot amirni hamza • حمزة اعمرني',
-        buttons: [
+    try {
+        const buttons = [
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
@@ -112,40 +104,49 @@ let handler = async (m, { conn, usedPrefix }) => {
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: btnTextIg1,
+                    display_text: btnTextIg,
                     url: 'https://www.instagram.com/hamza_amirni_01'
                 })
             },
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: btnTextIg2,
-                    url: 'https://www.instagram.com/hamza_amirni_02'
+                    display_text: btnTextFb,
+                    url: 'https://www.facebook.com/profile.php?id=61578860781418'
                 })
             },
             {
                 name: 'cta_url',
                 buttonParamsJson: JSON.stringify({
-                    display_text: btnTextFbBot,
-                    url: 'https://www.facebook.com/profile.php?id=61578860781418&mibextid=rS40aB7S9Ucbxw6v'
-                })
-            },
-            {
-                name: 'cta_url',
-                buttonParamsJson: JSON.stringify({
-                    display_text: btnTextFbOfficial,
-                    url: 'https://www.facebook.com/hamzaamirni.official'
-                })
-            },
-            {
-                name: 'quick_reply',
-                buttonParamsJson: JSON.stringify({
-                    display_text: '🌐 Change Language',
-                    id: `${_p}lang`
+                    display_text: btnTextSite,
+                    url: 'https://gestionbothamzaamirni01.koyeb.app/'
                 })
             }
-        ]
-    }, { quoted: m });
+        ];
+
+        const msg = generateWAMessageFromContent(m.chat, {
+            viewOnceMessage: {
+                message: {
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                        body: proto.Message.InteractiveMessage.Body.create({ text: presentationText }),
+                        footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza • حمزة اعمرني' }),
+                        header: proto.Message.InteractiveMessage.Header.create({
+                            title: '👑 HAMZA AMIRNI',
+                            subtitle: 'Bot Owner & Developer',
+                            hasMediaAttachment: false
+                        }),
+                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                            buttons
+                        })
+                    })
+                }
+            }
+        }, { quoted: m });
+
+        await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id });
+    } catch (e) {
+        await m.reply(presentationText).catch(() => {});
+    }
 };
 
 handler.help = ['owner', 'creator'];
