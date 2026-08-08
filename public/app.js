@@ -1978,3 +1978,11 @@ async function handleAccessReq(id, action) {
     toast('❌ ' + err.message, 'err');
   }
 }
+
+// Automatically load bot settings and toggles when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadBotSettings);
+} else {
+  loadBotSettings();
+}
+
