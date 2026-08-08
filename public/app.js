@@ -1303,8 +1303,12 @@ async function loadBotSettings() {
       for (const [key, elId] of Object.entries(toggleMap)) {
         const el = document.getElementById(elId);
         if (el) {
-          if (cfg[key] !== undefined) {
+          const localVal = localStorage.getItem('toggle_' + key);
+          if (localVal !== null) {
+            el.checked = (localVal === 'true');
+          } else if (cfg[key] !== undefined) {
             el.checked = (cfg[key] === 'true' || cfg[key] === true || cfg[key] === '1');
+            localStorage.setItem('toggle_' + key, el.checked ? 'true' : 'false');
           } else {
             el.checked = defaultsMap[key];
           }
@@ -1485,7 +1489,30 @@ function updateModeBtnUI(activeMode) {
 /* ─────────────────────────────────────────────
    SYSTEM TOGGLES (auto_read, anti_call, etc.)
    ───────────────────────────────────────────── */
+async function onToggleAutoAi(el) {
+  const willEnable = el.checked;
+  // Visually revert until confirmed
+  el.checked = !willEnable;
+
+  const confirmed = await showConfirm({
+    title: willEnable ? '🧠 تفعيل الرد التلقائي بالذكاء الاصطناعي' : '🛑 إيقاف الرد التلقائي بالذكاء الاصطناعي',
+    text: willEnable 
+      ? 'هل أنت متأكد من تفعيل الرد التلقائي بالذكاء الاصطناعي؟ سيظل البوت يجيب على المحادثات فـ الواتساب ومحفوظاً دائماً فـ الداتابيز حتى تقوم بإيقافه يدوياً.' 
+      : 'هل أنت متأكد من إيقاف الرد التلقائي بالذكاء الاصطناعي؟',
+    confirmText: willEnable ? 'تأكيد التفعيل' : 'تأكيد الإيقاف',
+    icon: willEnable ? '🧠' : '🛑',
+    isDanger: !willEnable
+  });
+
+  if (confirmed) {
+    el.checked = willEnable;
+    localStorage.setItem('toggle_auto_ai', willEnable ? 'true' : 'false');
+    await saveToggle('auto_ai', willEnable);
+  }
+}
+
 async function saveToggle(key, value) {
+  localStorage.setItem('toggle_' + key, value ? 'true' : 'false');
   try {
     const res = await fetch('/api/settings', {
       method: 'POST',
@@ -1502,7 +1529,7 @@ async function saveToggle(key, value) {
       auto_ai: 'AI Chatbot (الرد التلقائي بالذكاء الاصطناعي)'
     };
     if (data.success) {
-      toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key}`, 'ok');
+      toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key} وحفظه فـ الداتابيز!`, 'ok');
     } else {
       toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
     }

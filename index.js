@@ -1485,10 +1485,16 @@ function startBotWorker(phone, isManual = false) {
   const cleanPhone = (phone || BOT_PHONE).toString().replace(/[^0-9]/g, '');
   if (!cleanPhone || cleanPhone.length < 10) return null;
 
+  if (!global._launchBlockedUntil) global._launchBlockedUntil = {};
   if (isManual) {
     stoppedWorkers.delete(cleanPhone);
+    delete global._launchBlockedUntil[cleanPhone];
   } else if (stoppedWorkers.has(cleanPhone)) {
     console.log(`🛑 Worker +${cleanPhone} is marked as deleted/stopped. Skipping launch.`);
+    return null;
+  } else if (global._launchBlockedUntil[cleanPhone] && global._launchBlockedUntil[cleanPhone] > Date.now()) {
+    const remainingSec = Math.round((global._launchBlockedUntil[cleanPhone] - Date.now()) / 1000);
+    console.log(`⏸️ [+${cleanPhone}] Stream Conflict Backoff: Blocking launch for another ${remainingSec}s...`);
     return null;
   }
 
@@ -1642,6 +1648,7 @@ function startBotWorker(phone, isManual = false) {
     }
 
     global._workerRestarts[cleanPhone] = restartCount + 1;
+    global._launchBlockedUntil[cleanPhone] = Date.now() + delayMs;
 
     // Reset conflict + restart counters after 10 minutes of no conflicts
     setTimeout(() => {
