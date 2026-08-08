@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
 const mediaRegex = /https?:\/\/(www\.)?mediafire\.com\/(file|folder)\/(\w+)/;
 
@@ -31,6 +32,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 `.trim();
 
 		await m.reply(caption);
+
+		const sizeOk = await assertFileSizeOk(res.download, m, lang, 300 * 1024 * 1024);
+		if (!sizeOk) return;
 
 		await conn.sendMessage(
 			m.chat,
