@@ -752,8 +752,18 @@
             <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent);">🔧 إعدادات النظام التلقائية:</div>
             <div class="toggle-row">
               <div>
-                <div class="tg-label">📖 Auto Read (قراءة تلقائية)</div>
-                <div class="tg-sub">يقرأ البوت الرسائل تلقائياً بدون رد</div>
+                <div class="tg-label">👁️ Vu Status (مشاهدة الستوري تلقائياً)</div>
+                <div class="tg-sub">يشاهد البوت حالات واتساب (Status Stories) تلقائياً فور نزولها</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autostatus" onchange="saveToggle('auto_status_read', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">📖 Auto Read (قراءة الرسائل تلقائياً)</div>
+                <div class="tg-sub">يقرأ البوت الرسائل تلقائياً مع تعليم العلامة الزرقاء</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="toggle-autoread" onchange="saveToggle('auto_read', this.checked)">
@@ -790,6 +800,7 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+
           </div>
         </div>
 

@@ -608,6 +608,11 @@ ${reply_text}
             if (settings.apk_daily_limit !== undefined) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
             if (settings.default_user_limit !== undefined) global.DEFAULT_USER_LIMIT = parseInt(settings.default_user_limit);
             if (settings.bot_name) global.namebot = settings.bot_name;
+            if (settings.auto_read !== undefined) global.AUTO_READ = (settings.auto_read === 'true' || settings.auto_read === true);
+            if (settings.auto_status_read !== undefined) global.AUTO_STATUS_READ = (settings.auto_status_read === 'true' || settings.auto_status_read === true);
+            if (settings.anti_call !== undefined) global.ANTI_CALL = (settings.anti_call === 'true' || settings.anti_call === true);
+            if (settings.silent_mode !== undefined) global.SILENT_MODE = (settings.silent_mode === 'true' || settings.silent_mode === true);
+            if (settings.auto_online !== undefined) global.AUTO_ONLINE = (settings.auto_online === 'true' || settings.auto_online === true);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, saved: Object.keys(settings) }));
           } catch (err) {
@@ -1645,10 +1650,47 @@ async function initStats() {
   }
 }
 
+async function initGlobalConfigs() {
+  try {
+    const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs?select=key,value', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    if (fetchRes.ok) {
+      const rows = await fetchRes.json();
+      const cfg = {};
+      if (Array.isArray(rows)) rows.forEach(r => { cfg[r.key] = r.value; });
+
+      global.AUTO_READ = cfg.auto_read !== undefined ? (cfg.auto_read === 'true' || cfg.auto_read === true) : true;
+      global.AUTO_STATUS_READ = cfg.auto_status_read !== undefined ? (cfg.auto_status_read === 'true' || cfg.auto_status_read === true) : true;
+      global.ANTI_CALL = cfg.anti_call !== undefined ? (cfg.anti_call === 'true' || cfg.anti_call === true) : true;
+      global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
+      global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
+      global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : 20;
+      global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
+      global.BOT_MODE = cfg.bot_mode || 'public';
+      
+      console.log('⚙️ Initialized global configs from Supabase:', {
+        AUTO_READ: global.AUTO_READ,
+        AUTO_STATUS_READ: global.AUTO_STATUS_READ,
+        ANTI_CALL: global.ANTI_CALL,
+        SILENT_MODE: global.SILENT_MODE,
+        AUTO_ONLINE: global.AUTO_ONLINE,
+        DEFAULT_USER_LIMIT: global.DEFAULT_USER_LIMIT,
+        APK_DAILY_LIMIT: global.APK_DAILY_LIMIT,
+        BOT_MODE: global.BOT_MODE
+      });
+    }
+  } catch (err) {
+    console.error('❌ Failed to load global configs from Supabase:', err.message);
+  }
+}
+
 async function init() {
+  await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
   await restoreAllSessions(); // launches worker threads for ALL connected bots
 }
 
 init();
+

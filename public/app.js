@@ -1281,11 +1281,30 @@ async function loadBotSettings() {
       if (cfg.apk_daily_limit !== undefined) {
         syncApkSlider(cfg.apk_daily_limit);
       }
-      // Load toggles
-      const toggleMap = { auto_read: 'toggle-autoread', anti_call: 'toggle-anticall', silent_mode: 'toggle-silent', auto_online: 'toggle-autoonline' };
+      // Load toggles (defaulting to enabled if not explicitly 'false')
+      const toggleMap = { 
+        auto_status_read: 'toggle-autostatus',
+        auto_read: 'toggle-autoread', 
+        anti_call: 'toggle-anticall', 
+        silent_mode: 'toggle-silent', 
+        auto_online: 'toggle-autoonline' 
+      };
+      const defaultsMap = {
+        auto_status_read: true,
+        auto_read: true,
+        anti_call: true,
+        silent_mode: false,
+        auto_online: true
+      };
       for (const [key, elId] of Object.entries(toggleMap)) {
         const el = document.getElementById(elId);
-        if (el && cfg[key] !== undefined) el.checked = (cfg[key] === 'true' || cfg[key] === true || cfg[key] === '1');
+        if (el) {
+          if (cfg[key] !== undefined) {
+            el.checked = (cfg[key] === 'true' || cfg[key] === true || cfg[key] === '1');
+          } else {
+            el.checked = defaultsMap[key];
+          }
+        }
       }
     }
   } catch(e) {}
@@ -1470,7 +1489,13 @@ async function saveToggle(key, value) {
       body: JSON.stringify({ [key]: value ? 'true' : 'false' })
     });
     const data = await res.json();
-    const labels = { auto_read: 'Auto Read', anti_call: 'Anti-Call', silent_mode: 'Silent Mode', auto_online: 'Auto Online' };
+    const labels = { 
+      auto_status_read: 'Vu Status (مشاهدة الستوري)', 
+      auto_read: 'Auto Read (قراءة الرسائل)', 
+      anti_call: 'Anti-Call (رفض المكالمات)', 
+      silent_mode: 'Silent Mode (وضع الصمت)', 
+      auto_online: 'Auto Online (متصل دائماً)' 
+    };
     if (data.success) {
       toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key}`, 'ok');
     } else {

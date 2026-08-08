@@ -149,7 +149,18 @@ export async function handler(chatUpdate) {
 	let m = chatUpdate.messages[chatUpdate.messages.length - 1];
 	if (!m) return;
 
+	// ── Auto Status Read (مشاهدة الستوري تلقائياً) ──
+	if (m.key?.remoteJid === 'status@broadcast' || m.chat === 'status@broadcast') {
+		const isAutoStatusOn = global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true;
+		if (isAutoStatusOn) {
+			await this.readMessages([m.key]).catch(() => {});
+			console.log(`👁️ [Auto-Status] Viewed status story from ${m.key?.participant || m.sender}`);
+		}
+		return;
+	}
+
 	// ── Guard: skip if bot user not yet initialized (still reconnecting) ──
+
 	if (!this.user?.id && !this.user?.jid) return;
 
 	// ── Guard: skip CIPHERTEXT / undecryptable messages (arrive after reconnect) ──
@@ -683,7 +694,10 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 		} catch (e) {
 			console.log(m, m.quoted, e);
 		}
-		if (global.db.data.settings[this.user?.jid || conn.user?.jid || '']?.autoread) await conn.readMessages([m.key]).catch(() => {});
+		const isAutoReadOn = global.AUTO_READ !== undefined ? global.AUTO_READ : true;
+		if (isAutoReadOn || global.db?.data?.settings?.[this.user?.jid || conn.user?.jid || '']?.autoread) {
+			await conn.readMessages([m.key]).catch(() => {});
+		}
 	}
 }
 
@@ -816,6 +830,22 @@ global.dfail = (type, m, conn) => {
 	let msg = dict[type] || dict['owner'];
 	if (msg) return conn.reply(m.chat, msg, m);
 };
+
+/**
+ * Handle incoming call updates (Anti-Call)
+ * @param {Array} callEvents
+ */
+export async function callUpdate(callEvents = []) {
+	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
+	if (!isAntiCallOn) return;
+	for (const call of callEvents) {
+		if (call.status === 'offer') {
+			await this.rejectCall(call.id, call.from).catch(() => {});
+			console.log(`断 [Anti-Call] Rejected incoming call from ${call.from}`);
+		}
+	}
+}
+
 
 let file = global.__filename(import.meta.url, true);
 watchFile(file, async () => {
