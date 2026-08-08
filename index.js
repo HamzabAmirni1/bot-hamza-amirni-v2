@@ -1361,58 +1361,62 @@ function startBotWorker(phone, isManual = false) {
     }
   });
 
-  // Track conflict detection separately
-  let lastConflictTime = 0;
+  // Track conflict detection via GLOBAL map — survives across worker restarts
+  if (!global._workerConflicts) global._workerConflicts = {};
+  if (!global._workerRestarts)  global._workerRestarts  = {};
+  if (!global._workerRestarts[cleanPhone])  global._workerRestarts[cleanPhone]  = 0;
+  if (!global._workerConflicts[cleanPhone]) global._workerConflicts[cleanPhone] = 0;
+
   w.stdout.on('data', (chunk) => {
     const s = chunk.toString();
     if (s.includes('Stream Errored (conflict)') || s.includes('Conflict')) {
-      lastConflictTime = Date.now();
-      global._workerRestarts[cleanPhone] = (global._workerRestarts[cleanPhone] || 0) + 1;
-      console.log(`⚠️ [+${cleanPhone}] Stream conflict detected! Another session is active. Waiting before retry...`);
+      global._workerConflicts[cleanPhone] = Date.now();
+      global._workerRestarts[cleanPhone]  = (global._workerRestarts[cleanPhone] || 0) + 1;
+      console.log(`⚠️ [+${cleanPhone}] Stream conflict! Another session is open. Blocking reconnect for 90s...`);
     }
   });
-
-  // Track consecutive restarts for exponential backoff
-  if (!global._workerRestarts) global._workerRestarts = {};
-  if (!global._workerRestarts[cleanPhone]) global._workerRestarts[cleanPhone] = 0;
 
   w.on('exit', (code) => {
     console.log(`🛑 Worker for +${cleanPhone} exited (code ${code})`);
     workersMap.delete(cleanPhone);
 
     if (stoppedWorkers.has(cleanPhone)) {
-      console.log(`🛑 Worker +${cleanPhone} was manually deleted/stopped. Skipping auto-restart.`);
+      console.log(`🛑 Worker +${cleanPhone} was manually stopped. Skipping auto-restart.`);
       return;
     }
 
+    const now = Date.now();
+    const lastConflict = global._workerConflicts[cleanPhone] || 0;
     const restartCount = global._workerRestarts[cleanPhone] || 0;
 
-    // Conflict = another session is open (e.g. phone app or local dev)
-    // Wait MUCH longer (60–120s) to let the other session close first
-    const isRecentConflict = (Date.now() - lastConflictTime) < 10000;
+    // If conflict happened recently → hard block for 90s + escalating wait
+    const isRecentConflict = (now - lastConflict) < 15000;
     let delayMs;
     if (isRecentConflict) {
-      // Escalating backoff on conflict: 60s, 90s, 120s, max 180s
-      delayMs = Math.min(60000 + restartCount * 30000, 180000);
-      console.log(`🔁 [+${cleanPhone}] Conflict detected — waiting ${Math.round(delayMs/1000)}s before reconnect (let other session close)...`);
+      // Hard minimum 90s, escalates up to 300s (5 minutes) on repeat conflicts
+      delayMs = Math.min(90000 + restartCount * 30000, 300000);
+      console.log(`🚫 [+${cleanPhone}] CONFLICT — hard wait ${Math.round(delayMs/1000)}s. Close the other session on your phone or PC!`);
     } else {
-      // Normal crash/disconnect: 5s → 7.5s → 11s … max 45s
-      delayMs = Math.min(5000 * Math.pow(1.5, restartCount), 45000);
+      // Normal disconnect: 5s → 7.5s → 11s … max 45s
+      delayMs = Math.min(5000 * Math.pow(1.5, Math.min(restartCount, 6)), 45000);
     }
 
     global._workerRestarts[cleanPhone] = restartCount + 1;
 
-    // Reset counter after 5 minutes of stability
+    // Reset conflict + restart counters after 10 minutes of no conflicts
     setTimeout(() => {
-      global._workerRestarts[cleanPhone] = 0;
-    }, 300000);
+      if (Date.now() - (global._workerConflicts[cleanPhone] || 0) >= 600000) {
+        global._workerRestarts[cleanPhone]  = 0;
+        global._workerConflicts[cleanPhone] = 0;
+      }
+    }, 600000);
 
     setTimeout(() => {
       if (stoppedWorkers.has(cleanPhone)) {
-        console.log(`🛑 Worker +${cleanPhone} was deleted during delay. Skipping restart.`);
+        console.log(`🛑 Worker +${cleanPhone} deleted during delay. Skipping restart.`);
         return;
       }
-      console.log(`🔄 Restarting worker for +${cleanPhone} (attempt ${restartCount + 1}, delay ${Math.round(delayMs/1000)}s)...`);
+      console.log(`🔄 Restarting worker for +${cleanPhone} (attempt ${restartCount + 1}, waited ${Math.round(delayMs/1000)}s)...`);
       startBotWorker(cleanPhone);
     }, delayMs);
   });
