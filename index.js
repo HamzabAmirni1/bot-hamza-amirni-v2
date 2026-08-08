@@ -262,6 +262,134 @@ http.createServer(async (req, res) => {
         return;
       }
 
+      // ── GET /api/banned-users — fetch all banned & registered users with ban state & bot isolation ──
+      if (endpoint.startsWith('banned-users') && req.method === 'GET') {
+        try {
+          const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
+          const filterBotPhone = (urlParams.get('bot_phone') || '').replace(/[^0-9]/g, '');
+
+          // Fetch users from Supabase bot_users
+          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_users?select=*&order=last_seen.desc', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          const sbUsers = await fetchRes.json();
+
+          const userMap = new Map();
+          if (Array.isArray(sbUsers)) {
+            sbUsers.forEach(u => {
+              const cleanPhone = (u.phone_number || u.jid || '').replace(/[^0-9]/g, '');
+              const uBotPhone = (u.bot_phone || '').replace(/[^0-9]/g, '');
+              if (cleanPhone) {
+                const key = `${uBotPhone || 'all'}:${cleanPhone}`;
+                userMap.set(key, {
+                  phone: cleanPhone,
+                  name: u.name || cleanPhone,
+                  jid: u.jid || cleanPhone + '@s.whatsapp.net',
+                  bot_phone: uBotPhone || null,
+                  banned: u.is_banned === true || u.is_banned === 'true' || u.banned === true,
+                  last_seen: u.last_seen || null
+                });
+              }
+            });
+          }
+
+          if (global.db?.data?.users) {
+            Object.entries(global.db.data.users).forEach(([jid, u]) => {
+              const cleanPhone = jid.replace(/[^0-9]/g, '');
+              if (cleanPhone) {
+                const key = `all:${cleanPhone}`;
+                const existing = userMap.get(key) || Array.from(userMap.values()).find(x => x.phone === cleanPhone) || {};
+                userMap.set(key, {
+                  phone: cleanPhone,
+                  name: u.name || existing.name || cleanPhone,
+                  jid,
+                  bot_phone: existing.bot_phone || null,
+                  banned: u.banned === true || u.is_banned === true || existing.banned || false,
+                  last_seen: existing.last_seen || null
+                });
+              }
+            });
+          }
+
+          let allUsers = Array.from(userMap.values());
+          if (filterBotPhone && filterBotPhone !== 'all') {
+            allUsers = allUsers.filter(u => !u.bot_phone || u.bot_phone === filterBotPhone);
+          }
+
+          const bannedUsers = allUsers.filter(u => u.banned);
+
+          // Build unique list of bots found in DB
+          const activeBotsList = Array.from(workersMap.keys());
+          if (BOT_PHONE && !activeBotsList.includes(BOT_PHONE)) activeBotsList.push(BOT_PHONE);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            users: allUsers,
+            bannedUsers,
+            bots: activeBotsList,
+            totalBanned: bannedUsers.length,
+            totalUsers: allUsers.length
+          }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message, users: [], bannedUsers: [], bots: [] }));
+        }
+        return;
+      }
+
+      // ── POST /api/ban-user — ban or unban a user by phone number ──
+      if (endpoint === 'ban-user' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const { phone, ban, bot_phone } = JSON.parse(body || '{}');
+            if (!phone) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'phone is required' }));
+              return;
+            }
+            const cleanPhone = phone.replace(/[^0-9]/g, '');
+            const cleanBotPhone = (bot_phone || '').replace(/[^0-9]/g, '');
+            const targetJid = cleanPhone + '@s.whatsapp.net';
+            const isBanned = Boolean(ban);
+
+            // 1. Update in-memory DB
+            if (global.db?.data?.users) {
+              if (!global.db.data.users[targetJid]) {
+                global.db.data.users[targetJid] = { banned: isBanned };
+              } else {
+                global.db.data.users[targetJid].banned = isBanned;
+              }
+            }
+
+            // 2. Upsert to Supabase bot_users
+            const payload = { jid: targetJid, phone_number: cleanPhone, is_banned: isBanned };
+            if (cleanBotPhone) payload.bot_phone = cleanBotPhone;
+
+            await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_users', {
+              method: 'POST',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify([payload])
+            }).catch(() => {});
+
+            console.log(`🔒 User +${cleanPhone} ban status updated to: ${isBanned} (bot: +${cleanBotPhone || 'all'})`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, phone: cleanPhone, banned: isBanned, bot_phone: cleanBotPhone }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+
       // ── POST /api/broadcast — send broadcast to all users ──
       if (endpoint === 'broadcast' && req.method === 'POST') {
         const chunks = [];

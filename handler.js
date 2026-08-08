@@ -254,6 +254,15 @@ export async function handler(chatUpdate) {
 			_user.hasSelectedLang = true;
 		}
 
+		// ── Ban Gate: check if user is banned ──
+		if (_user && _user.banned && !isOwner) {
+			console.log(`[Handler] Ignored command from banned user: ${m.sender}`);
+			if (m.text && m.text.startsWith('.')) {
+				await this.reply(m.chat, `⛔ عفواً @${m.sender.split('@')[0]}، حسابك محظور من استخدام البوت!\nتواصل مع المالك لفك الحظر.`, m, { mentions: [m.sender] }).catch(() => {});
+			}
+			return;
+		}
+
 		// ── Language gate: show beautiful welcome if user hasn't selected a language ──
 		if (_user && !_user.hasSelectedLang && !m.fromMe && !m.isGroup) {
 			const isLangCmd = m.text && (

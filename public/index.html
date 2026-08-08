@@ -92,6 +92,11 @@
           <span class="nv-label">المستخدمون</span>
         </div>
 
+        <div class="nv" onclick="goPage('bannedusers', this)">
+          <div class="nv-icon" style="color:var(--red)"><i class="fas fa-user-slash"></i></div>
+          <span class="nv-label">إدارة الحظر (Banned)</span>
+        </div>
+
         <div class="nv" onclick="goPage('aichat', this)">
           <div class="nv-icon"><i class="fas fa-brain"></i></div>
           <span class="nv-label">محادثات AI</span>
@@ -924,6 +929,67 @@
         </div>
       </div>
     </div>
+
+      <!-- ════════════════ PAGE: BANNED USERS ════════════════ -->
+      <div class="page" id="page-bannedusers">
+        <div class="pg-head">
+          <div>
+            <h1>🚫 إدارة الحظر والمستخدمين المحظورين</h1>
+            <p>إدارة قائمة الأشخاص المحظورين، معزولة لكل بوت ومربوطة بالداتابيز تلقائياً</p>
+          </div>
+          <button class="btn btn-ghost sm" onclick="loadBannedUsers()"><i class="fas fa-sync-alt"></i> تحديث القائمة</button>
+        </div>
+
+        <!-- Quick Ban / Unblock Card -->
+        <div class="card mb-20" style="border-top:3px solid var(--red)">
+          <div class="ch">
+            <div class="ci red"><i class="fas fa-user-slash"></i></div>
+            <div>
+              <div class="ct">حظر أو فك حظر رقم مباشر فـ البوت</div>
+              <div style="font-size:11px;color:var(--text2)">أدخل رقم الهاتف للتحكم في حالة الحظر الخاصة به مباشرة في النظام وقاعدة البيانات Supabase</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label class="fl">رقم الهاتف (بدون +)</label>
+            <div class="row" style="gap:10px;flex-wrap:wrap;">
+              <input type="tel" id="quick-ban-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1;min-width:200px;" />
+              <button class="btn btn-danger sm" onclick="quickBanAction(true)"><i class="fas fa-ban"></i> 🔴 حظر (Block)</button>
+              <button class="btn btn-g sm" onclick="quickBanAction(false)"><i class="fas fa-check-circle"></i> 🟢 فك الحظر (Unblock)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Bar & Multi-Bot Selector -->
+        <div class="card mb-20" style="border-top:3px solid var(--blue)">
+          <div class="row-between mb-16" style="gap:14px;flex-wrap:wrap;align-items:center;">
+            <!-- Search Bar (bar drecherche) -->
+            <div style="flex:1;min-width:240px;">
+              <div style="position:relative;">
+                <input type="text" id="banned-search-inp" class="fi" placeholder="🔍 ابحث بالاسم أو رقم الهاتف..." oninput="searchBannedUsers(this.value)" style="padding-right:38px;" />
+                <i class="fas fa-search" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text2);"></i>
+              </div>
+            </div>
+
+            <!-- Bot Selector Dropdown (Multi-Bot Isolation) -->
+            <div style="min-width:180px;">
+              <select id="banned-bot-select" class="fi" onchange="loadBannedUsers()" style="background:var(--surface);color:var(--text);border-color:var(--border);">
+                <option value="all">🌐 جميع الأبوتات (All Bots)</option>
+              </select>
+            </div>
+
+            <!-- Badges Counter -->
+            <div class="row" style="gap:10px;">
+              <span id="stat-banned-cnt" class="badge b-r" style="font-size:12px;padding:8px 14px;">🔴 المحظورون: 0</span>
+              <span id="stat-total-cnt" class="badge b-b" style="font-size:12px;padding:8px 14px;">👥 إجمالي المسجلين: 0</span>
+            </div>
+          </div>
+
+          <!-- Banned Users Table Wrapper -->
+          <div id="banned-users-wrap">
+            <div class="sbar info">⏳ جاري تحميل قائمة الحظر...</div>
+          </div>
+        </div>
+      </div>
 
     <!-- ════════════════ PAGE: ACCESS REQUESTS ════════════════ -->
     <div class="page" id="page-access-req">

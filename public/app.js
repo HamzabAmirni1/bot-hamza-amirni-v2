@@ -169,7 +169,9 @@ function goPage(id, el) {
   if (id === 'commands')    renderCmds();
   if (id === 'settings')    loadCfgForm();
   if (id === 'botusers')    loadBotUsers(1);
+  if (id === 'bannedusers') loadBannedUsers();
   if (id === 'botdetails')  loadBotDetailsPage();
+
   if (id === 'access-req')  loadAccessRequests();
   if (id === 'dashboard' || id === 'mainbot') loadStats();
 }
@@ -1979,10 +1981,159 @@ async function handleAccessReq(id, action) {
   }
 }
 
+/* ─────────────────────────────────────────────
+   BANNED USERS MANAGEMENT (Multi-Bot Isolated)
+   ───────────────────────────────────────────── */
+let allBannedUsersList = [];
+
+async function loadBannedUsers() {
+  const wrap = document.getElementById('banned-users-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="sw"><div class="sp"></div></div>';
+
+  const botSelect = document.getElementById('banned-bot-select');
+  const selectedBot = botSelect ? botSelect.value : 'all';
+
+  try {
+    const res = await fetch(`/api/banned-users?bot_phone=${selectedBot}`);
+    const data = await res.json();
+    allBannedUsersList = data.users || [];
+
+    // Populate bot selector dropdown if not populated
+    if (botSelect && data.bots && data.bots.length) {
+      const currentVal = botSelect.value;
+      let optsHtml = '<option value="all">🌐 جميع الأبوتات (All Bots)</option>';
+      data.bots.forEach(bPhone => {
+        optsHtml += `<option value="${bPhone}" ${currentVal === bPhone ? 'selected' : ''}>🤖 بوت +${bPhone}</option>`;
+      });
+      botSelect.innerHTML = optsHtml;
+    }
+
+    const bannedCount = data.totalBanned || allBannedUsersList.filter(u => u.banned).length;
+    const totalCount = data.totalUsers || allBannedUsersList.length;
+
+    const bEl = document.getElementById('stat-banned-cnt');
+    const tEl = document.getElementById('stat-total-cnt');
+    if (bEl) bEl.textContent = `🔴 المحظورون: ${bannedCount}`;
+    if (tEl) tEl.textContent = `👥 إجمالي المسجلين: ${totalCount}`;
+
+    renderBannedUsersTable(allBannedUsersList);
+  } catch (err) {
+    wrap.innerHTML = `<div class="sbar error">❌ خطأ في التحميل: ${err.message}</div>`;
+  }
+}
+
+function searchBannedUsers(query) {
+  query = (query || '').toLowerCase().trim();
+  if (!query) {
+    renderBannedUsersTable(allBannedUsersList);
+    return;
+  }
+  const filtered = allBannedUsersList.filter(u => 
+    (u.name || '').toLowerCase().includes(query) ||
+    (u.phone || '').includes(query) ||
+    (u.jid || '').toLowerCase().includes(query)
+  );
+  renderBannedUsersTable(filtered);
+}
+
+function renderBannedUsersTable(list) {
+  const wrap = document.getElementById('banned-users-wrap');
+  if (!wrap) return;
+  if (!list.length) {
+    wrap.innerHTML = '<div class="sbar info">لا يوجد مستخدمون يطابقون البحث</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);color:var(--text2);">
+            <th style="padding:10px;text-align:right;">#</th>
+            <th style="padding:10px;text-align:right;">المستخدم</th>
+            <th style="padding:10px;text-align:right;">رقم الهاتف</th>
+            <th style="padding:10px;text-align:center;">البوت المخصص</th>
+            <th style="padding:10px;text-align:center;">الحالة (Status)</th>
+            <th style="padding:10px;text-align:center;">الإجراء (Action)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((u, i) => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:10px;color:var(--text2);">${i + 1}</td>
+              <td style="padding:10px;font-weight:600;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span>${u.banned ? '🚫' : '👤'}</span>
+                  <span>${u.name || u.phone}</span>
+                </div>
+              </td>
+              <td style="padding:10px;direction:ltr;text-align:right;color:var(--sky);font-family:monospace;">+${u.phone}</td>
+              <td style="padding:10px;text-align:center;color:var(--text2);font-size:11px;">
+                ${u.bot_phone ? `📱 +${u.bot_phone}` : '🌐 عام'}
+              </td>
+              <td style="padding:10px;text-align:center;">
+                ${u.banned 
+                  ? '<span class="badge b-r">🔴 محظور (Banned)</span>' 
+                  : '<span class="badge b-g">🟢 نشط (Active)</span>'}
+              </td>
+              <td style="padding:10px;text-align:center;">
+                ${u.banned
+                  ? `<button class="btn btn-g sm" onclick="toggleUserBanAction('${u.phone}', false, '${u.bot_phone || ''}')"><i class="fas fa-unlock"></i> 🟢 فك الحظر</button>`
+                  : `<button class="btn btn-danger sm" onclick="toggleUserBanAction('${u.phone}', true, '${u.bot_phone || ''}')"><i class="fas fa-ban"></i> 🔴 حظر</button>`
+                }
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function quickBanAction(isBan) {
+  const phoneInp = document.getElementById('quick-ban-phone');
+  const phone = phoneInp ? phoneInp.value.trim() : '';
+  if (!phone) return toast('⚠️ أدخل رقم الهاتف أولاً', 'warn');
+  const botSelect = document.getElementById('banned-bot-select');
+  const botPhone = botSelect && botSelect.value !== 'all' ? botSelect.value : '';
+  await toggleUserBanAction(phone, isBan, botPhone);
+  if (phoneInp) phoneInp.value = '';
+}
+
+async function toggleUserBanAction(phone, isBan, botPhone = '') {
+  const actionText = isBan ? 'حظر (Block)' : 'فك حظر (Unblock)';
+  const ok = await showConfirm({
+    title: `${isBan ? '🔴' : '🟢'} ${actionText} المستخدم`,
+    text: `هل أنت متأكد من ${actionText} الرقم +${phone}؟`,
+    confirmText: `نعم، ${actionText}`,
+    icon: isBan ? '🔴' : '🟢',
+    isDanger: isBan
+  });
+  if (!ok) return;
+
+  try {
+    const res = await fetch('/api/ban-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, ban: isBan, bot_phone: botPhone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تم ${actionText} الرقم +${phone} بنجاح!`, 'ok');
+      await loadBannedUsers();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الإجراء'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
 // Automatically load bot settings and toggles when page loads
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', loadBotSettings);
 } else {
   loadBotSettings();
 }
+
 
