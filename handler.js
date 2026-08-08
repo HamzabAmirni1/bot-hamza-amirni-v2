@@ -237,48 +237,10 @@ export async function handler(chatUpdate) {
 			} catch (_) {}
 		}
 
-		// ── Language gate: block all commands until user selects a language ──
-		if (_user && !_user.hasSelectedLang && !m.fromMe && !m.isGroup) {
-			const isLangCmd = m.text && (
-				/^\.lang(\s|$)/i.test(m.text) ||
-				/^\.language/i.test(m.text) ||
-				/^\.darija/i.test(m.text) ||
-				/^\.arabic/i.test(m.text) ||
-				/^\.english/i.test(m.text) ||
-				/^[123]$/.test(m.text.trim())
-			);
-			if (!isLangCmd) {
-				const langPrompt =
-`🌍 *سلام! مرحباً بيك فالبوت ديال حمزة اعمرني! | Welcome!*
-━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ قبل ما تبدا، خاصك تختار اللغة اللي بغيتي نهضر معاك بيها:
-
-1️⃣ 🇲🇦 *الدارجة المغربية* — كنهضر معاك بالدارجة
-2️⃣ 🇸🇦 *العربية الفصحى* — أسلوب فصيح ومباشر
-3️⃣ 🇬🇧 *English* — Clean & Friendly
-
-👇 اضغط على زر أو أرسل *1* أو *2* أو *3*:`;
-
-				try {
-					await this.sendButton(
-						m.chat,
-						{
-							text: langPrompt,
-							footer: 'bot amirni hamza • حمزة اعمرني',
-							buttons: [
-								{ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🇲🇦 الدارجة', id: '.lang 1' }) },
-								{ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🇸🇦 العربية', id: '.lang 2' }) },
-								{ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🇬🇧 English', id: '.lang 3' }) },
-							],
-						},
-						{ quoted: m }
-					);
-				} catch (_) {
-					await m.reply(langPrompt);
-				}
-				return;
-			}
+		// ── Language default: ensure user language is set (defaults to darija) ──
+		if (_user && !_user.language) {
+			_user.language = 'darija';
+			_user.hasSelectedLang = true;
 		}
 
 		const groupMetadata = (m.isGroup ? (conn.chats[m.chat] || {}).metadata || (await this.groupMetadata(m.chat).catch((_) => null)) : {}) || {};
