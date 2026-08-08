@@ -1289,14 +1289,16 @@ async function loadBotSettings() {
         auto_read: 'toggle-autoread', 
         anti_call: 'toggle-anticall', 
         silent_mode: 'toggle-silent', 
-        auto_online: 'toggle-autoonline' 
+        auto_online: 'toggle-autoonline',
+        auto_ai: 'toggle-autoai'
       };
       const defaultsMap = {
         auto_status_read: true,
         auto_read: true,
         anti_call: true,
         silent_mode: false,
-        auto_online: true
+        auto_online: true,
+        auto_ai: false
       };
       for (const [key, elId] of Object.entries(toggleMap)) {
         const el = document.getElementById(elId);

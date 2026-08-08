@@ -741,6 +741,7 @@ ${reply_text}
             if (settings.anti_call !== undefined) global.ANTI_CALL = (settings.anti_call === 'true' || settings.anti_call === true);
             if (settings.silent_mode !== undefined) global.SILENT_MODE = (settings.silent_mode === 'true' || settings.silent_mode === true);
             if (settings.auto_online !== undefined) global.AUTO_ONLINE = (settings.auto_online === 'true' || settings.auto_online === true);
+            if (settings.auto_ai !== undefined) global.AUTO_AI = (settings.auto_ai === 'true' || settings.auto_ai === true);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, saved: Object.keys(settings) }));
           } catch (err) {
@@ -1793,6 +1794,7 @@ async function initGlobalConfigs() {
       global.ANTI_CALL = cfg.anti_call !== undefined ? (cfg.anti_call === 'true' || cfg.anti_call === true) : true;
       global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
       global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
+      global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : false;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : 20;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
       global.BOT_MODE = cfg.bot_mode || 'public';
@@ -1803,6 +1805,7 @@ async function initGlobalConfigs() {
         ANTI_CALL: global.ANTI_CALL,
         SILENT_MODE: global.SILENT_MODE,
         AUTO_ONLINE: global.AUTO_ONLINE,
+        AUTO_AI: global.AUTO_AI,
         DEFAULT_USER_LIMIT: global.DEFAULT_USER_LIMIT,
         APK_DAILY_LIMIT: global.APK_DAILY_LIMIT,
         BOT_MODE: global.BOT_MODE

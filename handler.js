@@ -139,6 +139,46 @@ async function logErrorToSupabase(cmd, errorMsg) {
 	} catch (_) {}
 }
 
+async function getAiMemoryFromSupabase(senderJid) {
+	try {
+		const key = 'ai_hist_' + senderJid;
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 3000);
+		const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.${encodeURIComponent(key)}&select=history`, {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+			signal: controller.signal
+		});
+		clearTimeout(timeoutId);
+		if (!res.ok) return [];
+		const rows = await res.json();
+		if (Array.isArray(rows) && rows[0]?.history) {
+			return JSON.parse(rows[0].history);
+		}
+	} catch (_) {}
+	return [];
+}
+
+async function saveAiMemoryToSupabase(senderJid, historyArr) {
+	try {
+		const key = 'ai_hist_' + senderJid;
+		const trimmed = historyArr.slice(-10);
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 3000);
+		await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+			method: 'POST',
+			headers: {
+				'apikey': SB_KEY,
+				'Authorization': 'Bearer ' + SB_KEY,
+				'Content-Type': 'application/json',
+				'Prefer': 'resolution=merge-duplicates'
+			},
+			body: JSON.stringify([{ jid: key, history: JSON.stringify(trimmed) }]),
+			signal: controller.signal
+		});
+		clearTimeout(timeoutId);
+	} catch (_) {}
+}
+
 /**
  * Handle messages upsert
  * @param {import('baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate
@@ -663,6 +703,45 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 				english: `❌ *Command not found!*\n\nThe command doesn't exist:\n← *${usedPrefix}${command}*\n\n📋 Type *${usedPrefix}menu* to see all available commands.\n\n⚡ *bot amirni hamza*`,
 			};
 			await m.reply(__unknownMsg[__lang] || __unknownMsg['darija']);
+		}
+
+		// ── Auto AI Chatbot (الرد التلقائي بالذكاء الاصطناعي مع حفظ المحادثة فـ Supabase) ──
+		const isAutoAiOn = global.AUTO_AI !== undefined ? global.AUTO_AI : false;
+		if (isAutoAiOn && !m.isCommand && m.text && !m.fromMe && !m.isBaileys && !usedPrefix) {
+			try {
+				let history = await getAiMemoryFromSupabase(m.sender);
+				let contextText = `أنت مساعد ذكي ولطيف اسمه "بوت حمزة اعمرني". تجيب بالدارجة المغربية أو العربية بحسب لغة المستخدم، بأسلوب محترم وسريع ونشيط.\n\n`;
+				for (const h of history) {
+					contextText += `${h.role === 'user' ? 'المستخدم' : 'البوت'}: ${h.content}\n`;
+				}
+				contextText += `المستخدم: ${m.text}\nالبوت:`;
+
+				let aiReply = '';
+				try {
+					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(contextText)}?model=openai`);
+					if (res.ok) {
+						aiReply = await res.text();
+					}
+				} catch (_) {}
+
+				if (!aiReply || aiReply.length < 2) {
+					try {
+						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`);
+						const simData = await simRes.json();
+						aiReply = simData?.message || '';
+					} catch (_) {}
+				}
+
+				if (aiReply) {
+					history.push({ role: 'user', content: m.text });
+					history.push({ role: 'assistant', content: aiReply.trim() });
+					saveAiMemoryToSupabase(m.sender, history).catch(() => {});
+
+					await this.reply(m.chat, aiReply.trim(), m).catch(() => {});
+				}
+			} catch (e) {
+				console.error('Auto AI Chatbot Error:', e);
+			}
 		}
 
 	} catch (e) {
