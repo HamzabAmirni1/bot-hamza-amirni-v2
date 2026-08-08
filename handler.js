@@ -791,7 +791,15 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 - .owner → معلومات المالك والمطور`;
 
 
-				// 1. Try Pollinations POST (JSON API with history - 6s timeout)
+				// Helper: check if API response is a real valid reply (not an error string)
+				const isValidReply = (txt) => {
+					if (!txt || txt.trim().length < 2) return false;
+					const errorPhrases = ['missing text parameter', 'missing parameter', 'error', 'bad request', 'rate limit', 'too many requests', 'undefined', 'null'];
+					const lower = txt.trim().toLowerCase();
+					return !errorPhrases.some(e => lower === e || lower.startsWith(e + ':'));
+				};
+
+				// 1. Try Pollinations POST (JSON API with history - 10s timeout)
 				try {
 					const messages = [
 						{ role: 'system', content: AI_SYSTEM_PROMPT },
@@ -799,38 +807,42 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 						{ role: 'user', content: m.text }
 					];
 					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 6000);
+					const timeoutId = setTimeout(() => controller.abort(), 10000);
 					const res = await fetch('https://text.pollinations.ai/', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-						body: JSON.stringify({ messages, model: 'openai' }),
+						body: JSON.stringify({ messages, model: 'openai', seed: -1 }),
 						signal: controller.signal
 					});
 					clearTimeout(timeoutId);
 					if (res.ok) {
-						aiReply = await res.text();
+						const txt = await res.text();
+						if (isValidReply(txt)) aiReply = txt;
 					}
 				} catch (_) {}
 
-				// 2. Try Pollinations GET with system prompt injected (8s timeout)
-				if (!aiReply || aiReply.length < 2) {
+				// 2. Try Pollinations GET with message only (no long prompt in URL)
+				if (!isValidReply(aiReply)) {
+					aiReply = '';
 					try {
-						const injectPrompt = `${AI_SYSTEM_PROMPT}\n\nالمستخدم: ${m.text}\nالبوت:`;
+						const shortPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني". تجيب بنفس لغة المستخدم (دارجة/عربية/إنجليزية/فرنسية). لا تذكر ChatGPT أو OpenAI. المستخدم قال: ${m.text}`;
 						const controller = new AbortController();
 						const timeoutId = setTimeout(() => controller.abort(), 8000);
-						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(injectPrompt)}?model=openai`, {
+						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(shortPrompt)}?model=openai&seed=-1`, {
 							headers: { 'User-Agent': 'Mozilla/5.0' },
 							signal: controller.signal
 						});
 						clearTimeout(timeoutId);
 						if (res.ok) {
-							aiReply = await res.text();
+							const txt = await res.text();
+							if (isValidReply(txt)) aiReply = txt;
 						}
 					} catch (_) {}
 				}
 
 				// 3. SimSimi fallback (Arabic)
-				if (!aiReply || aiReply.length < 2) {
+				if (!isValidReply(aiReply)) {
+					aiReply = '';
 					try {
 						const controller = new AbortController();
 						const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -838,12 +850,15 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 							signal: controller.signal
 						});
 						clearTimeout(timeoutId);
-						const simData = await simRes.json();
-						aiReply = simData?.message || '';
+						if (simRes.ok) {
+							const simData = await simRes.json();
+							const simMsg = simData?.message || '';
+							if (isValidReply(simMsg)) aiReply = simMsg;
+						}
 					} catch (_) {}
 				}
 
-				if (aiReply && aiReply.trim()) {
+				if (isValidReply(aiReply)) {
 					const cleanReply = aiReply.trim();
 					console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
 					history.push({ role: 'user', content: m.text });
