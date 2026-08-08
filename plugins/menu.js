@@ -40,51 +40,9 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
   let user = global.db.data.users[m.sender] || {};
   let lang = user.language || 'darija';
 
-  // ── NEW USER: Send language selection card first ──────────────────────────
-  if (!user.hasSelectedLang) {
-    const langCardText =
-`🌐 *اختيار لغة البوت | Choose Bot Language*
-━━━━━━━━━━━━━━━━━━━━━
-
-👋 سلام! مرحباً بيك فالبوت ديال حمزة اعمرني!
-قبل ما تبدا, خاصك تختار اللغة اللي بغيتي نهضر معاك بيها:
-
-1️⃣ 🇲🇦 *الدارجة المغربية* — كنهضر معاك بالدارجة
-2️⃣ 🇸🇦 *العربية الفصحى* — أسلوب فصيح ومباشر
-3️⃣ 🇬🇧 *English* — Clean & Friendly
-
-👇 *اضغط على زر أو أرسل 1 أو 2 أو 3:*
-━━━━━━━━━━━━━━━━━━━━━
-⚡ *bot amirni hamza • حمزة اعمرني*`;
-
-    try {
-      await conn.sendButton(
-        m.chat,
-        {
-          text: langCardText,
-          footer: 'bot amirni hamza • حمزة اعمرني',
-          buttons: [
-            {
-              name: 'quick_reply',
-              buttonParamsJson: JSON.stringify({ display_text: '🇲🇦 الدارجة المغربية', id: `${_p}lang 1` })
-            },
-            {
-              name: 'quick_reply',
-              buttonParamsJson: JSON.stringify({ display_text: '🇸🇦 العربية الفصحى', id: `${_p}lang 2` })
-            },
-            {
-              name: 'quick_reply',
-              buttonParamsJson: JSON.stringify({ display_text: '🇬🇧 English', id: `${_p}lang 3` })
-            }
-          ]
-        },
-        { quoted: m }
-      );
-    } catch (_) {
-      await m.reply(langCardText);
-    }
-    return;
-  }
+  // Default language to darija if not set
+  if (!user.language) user.language = 'darija';
+  user.hasSelectedLang = true;
 
   // Section titles by language
   const allTagsMap = {
