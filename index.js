@@ -701,13 +701,30 @@ ${reply_text}
       
       // ── GET /api/settings — read bot config ──────────────
       if (endpoint === 'settings' && req.method === 'GET') {
-        const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs?select=key,value', {
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-        });
-        const rows = await fetchRes.json();
-        // Convert [{key,value}] array to {key:value} object
         const cfg = {};
-        if (Array.isArray(rows)) rows.forEach(r => { cfg[r.key] = r.value; });
+        try {
+          const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs?select=key,value', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          if (fetchRes.ok) {
+            const rows = await fetchRes.json();
+            if (Array.isArray(rows)) rows.forEach(r => { cfg[r.key] = r.value; });
+          }
+        } catch (_) {}
+
+        try {
+          const cloudCfg = await getConfigsFromSupabase();
+          Object.assign(cfg, cloudCfg);
+        } catch (_) {}
+
+        // Fallback defaults if not in database
+        if (cfg.auto_ai === undefined) cfg.auto_ai = String(global.AUTO_AI !== undefined ? global.AUTO_AI : false);
+        if (cfg.auto_read === undefined) cfg.auto_read = String(global.AUTO_READ !== undefined ? global.AUTO_READ : true);
+        if (cfg.auto_status_read === undefined) cfg.auto_status_read = String(global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true);
+        if (cfg.anti_call === undefined) cfg.anti_call = String(global.ANTI_CALL !== undefined ? global.ANTI_CALL : true);
+        if (cfg.silent_mode === undefined) cfg.silent_mode = String(global.SILENT_MODE !== undefined ? global.SILENT_MODE : false);
+        if (cfg.auto_online === undefined) cfg.auto_online = String(global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true);
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(cfg));
         return;
@@ -720,19 +737,28 @@ ${reply_text}
         req.on('end', async () => {
           try {
             const settings = JSON.parse(body); // { key: value, ... }
-            // Upsert each key-value pair
-            const rows = Object.entries(settings).map(([key, value]) => ({ key, value: String(value) }));
-            const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs', {
-              method: 'POST',
-              headers: {
-                'apikey': SB_KEY,
-                'Authorization': 'Bearer ' + SB_KEY,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates'
-              },
-              body: JSON.stringify(rows)
-            });
-            // Update global vars if bot is running
+            
+            // 1. Try saving to bot_configs table
+            try {
+              const rows = Object.entries(settings).map(([key, value]) => ({ key, value: String(value) }));
+              await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs', {
+                method: 'POST',
+                headers: {
+                  'apikey': SB_KEY,
+                  'Authorization': 'Bearer ' + SB_KEY,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify(rows)
+              });
+            } catch (_) {}
+
+            // 2. Dual backup save to ai_memory config rows
+            for (const [k, v] of Object.entries(settings)) {
+              saveConfigToSupabase(k, String(v)).catch(() => {});
+            }
+
+            // 3. Update global vars if bot is running
             if (settings.apk_daily_limit !== undefined) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
             if (settings.default_user_limit !== undefined) global.DEFAULT_USER_LIMIT = parseInt(settings.default_user_limit);
             if (settings.bot_name) global.namebot = settings.bot_name;
@@ -742,6 +768,7 @@ ${reply_text}
             if (settings.silent_mode !== undefined) global.SILENT_MODE = (settings.silent_mode === 'true' || settings.silent_mode === true);
             if (settings.auto_online !== undefined) global.AUTO_ONLINE = (settings.auto_online === 'true' || settings.auto_online === true);
             if (settings.auto_ai !== undefined) global.AUTO_AI = (settings.auto_ai === 'true' || settings.auto_ai === true);
+
             // Broadcast settings to all active worker threads
             for (const [_, info] of workersMap.entries()) {
               if (info.worker) {

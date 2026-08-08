@@ -1498,7 +1498,8 @@ async function saveToggle(key, value) {
       auto_read: 'Auto Read (قراءة الرسائل)', 
       anti_call: 'Anti-Call (رفض المكالمات)', 
       silent_mode: 'Silent Mode (وضع الصمت)', 
-      auto_online: 'Auto Online (متصل دائماً)' 
+      auto_online: 'Auto Online (متصل دائماً)',
+      auto_ai: 'AI Chatbot (الرد التلقائي بالذكاء الاصطناعي)'
     };
     if (data.success) {
       toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key}`, 'ok');
