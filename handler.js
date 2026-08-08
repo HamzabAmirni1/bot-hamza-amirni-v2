@@ -753,15 +753,17 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 				let history = await getAiMemoryFromSupabase(m.sender);
 				let aiReply = '';
 
-				// 1. Try Pollinations POST (Fast JSON API with history)
+				const AI_SYSTEM_PROMPT = `اسمك "بوت حمزة اعمرني" وأنت بوت واتساب ذكي صنعه المطور "حمزة اعمرني" (Hamza Amirni) المغربي. أنت لست ChatGPT ولا OpenAI ولا أي بوت آخر. اسمك "بوت حمزة اعمرني" فقط. تتكلم بالدارجة المغربية بشكل رئيسي (أو بالعربية إذا طلب منك المستخدم). ردودك مختصرة وطبيعية وفيها روح المرح. إذا سألك أحد عن اسمك أو من صنعك فقل أنت "بوت حمزة اعمرني" وأنت صنعت من طرف المطور حمزة اعمرني. لا تذكر أبدا OpenAI أو ChatGPT. الرد يكون دائماً بالعربية أو الدارجة فقط، حتى لو كتب ليك الشخص بالإنجليزية أو الفرنسية.`;
+
+				// 1. Try Pollinations POST (JSON API with history - 6s timeout)
 				try {
 					const messages = [
-						{ role: 'system', content: 'أنت مساعد ذكي ومرح اسمه "بوت حمزة اعمرني" (Hamza Amirni Bot)، تجيب بالدارجة المغربية أو العربية بأسلوب زوين وسريع ومختصر.' },
+						{ role: 'system', content: AI_SYSTEM_PROMPT },
 						...history.slice(-6),
 						{ role: 'user', content: m.text }
 					];
 					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 12000);
+					const timeoutId = setTimeout(() => controller.abort(), 6000);
 					const res = await fetch('https://text.pollinations.ai/', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
@@ -772,16 +774,15 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 					if (res.ok) {
 						aiReply = await res.text();
 					}
-				} catch (e) {
-					console.error('Pollinations POST error:', e.message);
-				}
+				} catch (_) {}
 
-				// 2. Try Pollinations GET fallback
+				// 2. Try Pollinations GET with system prompt injected (8s timeout)
 				if (!aiReply || aiReply.length < 2) {
 					try {
+						const injectPrompt = `${AI_SYSTEM_PROMPT}\n\nالمستخدم: ${m.text}\nالبوت:`;
 						const controller = new AbortController();
 						const timeoutId = setTimeout(() => controller.abort(), 8000);
-						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai`, {
+						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(injectPrompt)}?model=openai`, {
 							headers: { 'User-Agent': 'Mozilla/5.0' },
 							signal: controller.signal
 						});
@@ -792,7 +793,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 					} catch (_) {}
 				}
 
-				// 3. Try SimSimi GET fallback
+				// 3. SimSimi fallback (Arabic)
 				if (!aiReply || aiReply.length < 2) {
 					try {
 						const controller = new AbortController();
