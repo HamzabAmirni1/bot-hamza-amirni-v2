@@ -733,6 +733,27 @@
           </div>
         </div>
 
+        <!-- All Commands Limit Control -->
+        <div class="card mb-20" style="border-top:3px solid var(--accent)">
+          <div class="ch">
+            <div class="ci blue"><i class="fas fa-sliders-h"></i></div>
+            <div>
+              <div class="ct">حد الأوامر اليومي لجميع الأشخاص (Commands Daily Limit)</div>
+              <div style="font-size:11px;color:var(--text2)">التحكم في عدد الأوامر المتاحة لكل شخص يومياً — اسحب الخط للآخر للحصول على <b>غير محدود ∞</b></div>
+            </div>
+          </div>
+          <div class="row-between mb-20" style="align-items:center;">
+            <div style="flex:1;margin-left:20px;">
+              <input type="range" id="user-cmd-limit-slider" min="1" max="100" value="20" step="1" oninput="syncUserCmdSlider(this.value)" />
+            </div>
+            <div style="text-align:center;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:14px;padding:10px 20px;min-width:135px;">
+              <div id="user-cmd-limit-big" style="font-size:26px;font-weight:900;color:var(--accent);font-family:monospace">20</div>
+              <div id="user-cmd-limit-unit" style="font-size:10px;color:var(--text2)">أمر / يوم</div>
+            </div>
+          </div>
+          <button class="btn btn-g full" onclick="saveUserCmdLimit()"><i class="fas fa-save"></i> حفظ حد الأوامر العام</button>
+        </div>
+
         <!-- APK Limit Control -->
         <div class="card mb-20" style="border-top:3px solid var(--green)">
           <div class="ch">
@@ -812,6 +833,32 @@
 
 
   <!-- ════════════════ MODALS ════════════════ -->
+
+  <!-- User Limit Modal -->
+  <div class="mo" id="modal-user-limit">
+    <div class="mbox" style="max-width:440px;">
+      <div class="mh">
+        <span class="mt">⚡ تعديل حد المستخدم: <span id="ulimit-user-name" class="text-accent"></span></span>
+        <button class="mx" onclick="closeM('modal-user-limit')"><i class="fas fa-times"></i></button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">📱 الرقم: <span id="ulimit-user-phone" class="mono text-white"></span></div>
+      
+      <div class="fg">
+        <label class="fl">حدد الحد اليومي للأوامر (اسحب للآخر للـ Unlimited):</label>
+        <div class="row-between mb-10" style="align-items:center;">
+          <input type="range" id="ulimit-slider" min="1" max="100" value="20" step="1" style="flex:1;margin-left:14px;" oninput="syncIndividualLimitSlider(this.value)" />
+          <div style="text-align:center;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:6px 14px;min-width:110px;">
+            <div id="ulimit-big" style="font-size:20px;font-weight:900;color:var(--accent);font-family:monospace">20</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row" style="gap:10px;margin-top:16px;">
+        <button class="btn btn-g lg" style="flex:1;" onclick="saveIndividualUserLimit()"><i class="fas fa-check"></i> حفظ التغييرات</button>
+        <button class="btn btn-ghost lg" style="flex:1;" onclick="closeM('modal-user-limit')">إلغاء</button>
+      </div>
+    </div>
+  </div>
 
   <!-- User Chat History Modal -->
   <div class="mo" id="modal-user-chat">

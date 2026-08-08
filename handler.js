@@ -559,9 +559,14 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 				if (xp > 200)
 					m.reply('Ngecit -_-'); // Hehehe
 				else m.exp += xp;
-				const userLimit = _user?.limit ?? (global.db.data?.users?.[m.sender]?.limit || 20);
-				if (!isPrems && plugin.limit && userLimit < plugin.limit * 1) {
-					this.reply(m.chat, `[❗]Your limit has run out, please buy via *${usedPrefix}buy limit*`, m);
+				const globalDefaultLimit = (global.DEFAULT_USER_LIMIT !== undefined && !isNaN(global.DEFAULT_USER_LIMIT)) ? parseInt(global.DEFAULT_USER_LIMIT) : 20;
+				const isGlobalUnlimited = globalDefaultLimit === -1 || globalDefaultLimit >= 100;
+				const userLimit = _user?.limit !== undefined ? _user.limit : globalDefaultLimit;
+				const isAdminUser = isAdmin || isRAdmin || isBotAdmin || _isBotAdminUser || _isOwnerUser || isOwner || isROwner || isPrems;
+				const isUserUnlimited = isAdminUser || userLimit === -1 || userLimit >= 999999 || isGlobalUnlimited;
+
+				if (!isPrems && !isUserUnlimited && plugin.limit && userLimit < plugin.limit * 1) {
+					this.reply(m.chat, `[❗] Your limit has run out!`, m);
 					continue; // Limit habis
 				}
 				const userLevel = _user?.level || 1;
@@ -595,7 +600,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 				try {
 					await plugin.call(this, m, extra);
 					incrementStats(command).catch(() => {});
-					if (!isPrems) m.limit = m.limit || plugin.limit || false;
+					if (!isPrems && !isUserUnlimited) m.limit = m.limit || plugin.limit || false;
 				} catch (e) {
 					// Error occured
 					m.error = e;
@@ -622,7 +627,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 							console.error(e);
 						}
 					}
-					if (m.limit) m.reply(+m.limit + ' Limit used ✔️');
+					if (m.limit && !isUserUnlimited) m.reply(+m.limit + ' Limit used ✔️');
 				}
 				break;
 			}

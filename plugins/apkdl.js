@@ -30,10 +30,15 @@ function incrementDownload(jid) {
   downloadCount.set(jid, entry);
 }
 
-function isOwner(jid) {
-  const num = jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+function isAdminUser(jid, m = {}) {
+  const num = (jid || '').replace('@s.whatsapp.net', '').replace('@c.us', '');
   const owners = global.owner || [];
-  return owners.some(o => String(o[0]) === String(num));
+  if (owners.some(o => String(o[0]) === String(num))) return true;
+  const _settings = global.db?.data?.settings || {};
+  const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
+  if (_botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === num)) return true;
+  if (m?.isAdmin || m?.isOwner || m?.isPrems) return true;
+  return false;
 }
 
 // ── Aptoide Search Provider (combines Aptoide & Siputzx) ────
@@ -179,8 +184,8 @@ const handler = async (m, { conn, text, command }) => {
 
 		const sender = m.sender || m.key.participant || m.key.remoteJid;
 		
-		// Check limits
-		if (!isOwner(sender) && !canDownload(sender)) {
+		// Check limits (Admins have unlimited downloads)
+		if (!isAdminUser(sender, m) && !canDownload(sender)) {
 			await m.react('❌');
 			return m.reply(t(`❌ Daily limit reached (${getLimit()} apps).`, `❌ لقد تجاوزت الحد اليومي الأقصى المسموح به لك اليوم وهو (${getLimit()} تطبيقات).`, `❌ فتي الحد اليومي المسموح به (${getLimit()} تطبيقات).`));
 		}
@@ -212,7 +217,7 @@ const handler = async (m, { conn, text, command }) => {
 				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
 			}, { quoted: m });
 
-			if (!isOwner(sender)) {
+			if (!isAdminUser(sender, m)) {
 				incrementDownload(sender);
 			}
 

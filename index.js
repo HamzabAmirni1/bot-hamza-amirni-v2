@@ -605,10 +605,63 @@ ${reply_text}
               body: JSON.stringify(rows)
             });
             // Update global vars if bot is running
-            if (settings.apk_daily_limit) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
+            if (settings.apk_daily_limit !== undefined) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
+            if (settings.default_user_limit !== undefined) global.DEFAULT_USER_LIMIT = parseInt(settings.default_user_limit);
             if (settings.bot_name) global.namebot = settings.bot_name;
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, saved: Object.keys(settings) }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      // ── POST /api/user-limit — update specific user's command limit ──
+      if (endpoint === 'user-limit' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const { phone, limit } = JSON.parse(body || '{}');
+            if (!phone) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'phone is required' }));
+              return;
+            }
+            const cleanPhone = phone.replace(/[^0-9]/g, '');
+            const targetJid = cleanPhone + '@s.whatsapp.net';
+            const parsedLimit = parseInt(limit);
+
+            // 1. Update in-memory DB if available
+            if (global.db?.data?.users) {
+              if (!global.db.data.users[targetJid]) {
+                global.db.data.users[targetJid] = { limit: parsedLimit };
+              } else {
+                global.db.data.users[targetJid].limit = parsedLimit;
+              }
+            }
+
+            // 2. Update Supabase bot_users table
+            await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_users', {
+              method: 'POST',
+              headers: {
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify([{
+                jid: targetJid,
+                phone_number: cleanPhone,
+                limit: parsedLimit,
+                updated_at: new Date().toISOString()
+              }])
+            }).catch(() => {});
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, phone: cleanPhone, limit: parsedLimit }));
           } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));

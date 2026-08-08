@@ -735,21 +735,29 @@ function renderBotUsers(list) {
   if (!list.length) { wrap.innerHTML = empty('fas fa-users-slash', 'لا يوجد مستخدمون'); return; }
   wrap.innerHTML = `<div class="ov-x-auto">
     <table class="tbl">
-      <thead><tr><th>#</th><th>الاسم</th><th>الرقم</th><th>أول ظهور</th><th>آخر نشاط</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>#</th><th>الاسم</th><th>الرقم</th><th>الحد (Limit)</th><th>أول ظهور</th><th>آخر نشاط</th><th>إجراءات</th></tr></thead>
       <tbody>
       ${list.map((u, i) => {
         const phone = u.phone_number || u.jid?.replace('@s.whatsapp.net','') || '—';
         const encName = encodeURIComponent(u.name || phone);
         const first = u.first_seen ? new Date(u.first_seen).toLocaleDateString('ar') : '—';
         const last = u.last_seen ? new Date(u.last_seen).toLocaleTimeString('ar', {hour:'2-digit',minute:'2-digit'}) : '—';
+        const userLim = u.limit !== undefined ? parseInt(u.limit) : null;
+        const isUnlim = userLim === -1 || userLim >= 100 || userLim === 999999;
+        const limBadge = isUnlim 
+          ? `<span class="badge" style="color:#eab308;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);font-weight:700">∞ غير محدود</span>`
+          : `<span class="badge b-b" style="font-weight:700">${userLim ?? 'افتراضي'}</span>`;
+
         return `<tr>
           <td style="color:var(--text3)">${(currentUsersPage - 1) * 50 + i + 1}</td>
           <td style="font-weight:700">${u.name || phone}</td>
           <td><a href="https://wa.me/${phone}" target="_blank" class="mono text-accent" style="text-decoration:none">+${phone}</a></td>
+          <td>${limBadge}</td>
           <td style="font-size:11px;color:var(--text2)">${first}</td>
           <td style="font-size:11px;color:var(--text2)">${last}</td>
           <td>
-            <div class="row">
+            <div class="row" style="gap:6px;">
+              <button class="btn btn-ghost sm" style="color:#eab308;border-color:rgba(234,179,8,0.3);" onclick="openUserLimitModal('${phone}', '${encName}', ${userLim ?? 20})">⚡ الحد</button>
               <button class="btn btn-g sm" onclick="viewUserChatModal('${phone}', '${encName}')">💬 المحادثة</button>
               <button class="btn btn-b sm" onclick="openDirectMsgModal('${phone}', '${encName}')">✉️ مراسلة</button>
             </div>
@@ -1205,7 +1213,7 @@ function saveBotSettings() {
   toast('✅ تم حفظ إعدادات البوت', 'ok');
 }
 
-function loadBotSettings() {
+async function loadBotSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem('bot_settings') || '{}');
     if (saved.botname) document.getElementById('s-botname').value = saved.botname;
@@ -1214,7 +1222,106 @@ function loadBotSettings() {
     if (saved.owner1) document.getElementById('s-owner1').value = saved.owner1;
     if (saved.owner2) document.getElementById('s-owner2').value = saved.owner2;
     if (saved.pairing) document.getElementById('s-pairing').value = saved.pairing;
+
+    const res = await fetch('/api/settings');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.default_user_limit !== undefined) {
+        const lim = parseInt(cfg.default_user_limit);
+        const sliderVal = (lim === -1 || lim >= 100) ? 100 : lim;
+        syncUserCmdSlider(sliderVal);
+      }
+      if (cfg.apk_daily_limit !== undefined) {
+        syncApkSlider(cfg.apk_daily_limit);
+      }
+    }
   } catch(e) {}
+}
+
+function syncUserCmdSlider(val) {
+  val = parseInt(val);
+  const big = document.getElementById('user-cmd-limit-big');
+  const unit = document.getElementById('user-cmd-limit-unit');
+  const slider = document.getElementById('user-cmd-limit-slider');
+  if (slider) slider.value = val;
+  if (val >= 100) {
+    if (big) { big.innerHTML = '∞ غير محدود'; big.style.color = '#eab308'; }
+    if (unit) unit.textContent = 'استخدام مفتوح للجميع';
+  } else {
+    if (big) { big.textContent = val; big.style.color = 'var(--accent)'; }
+    if (unit) unit.textContent = 'أمر / يوم';
+  }
+}
+
+async function saveUserCmdLimit() {
+  const sliderVal = parseInt(document.getElementById('user-cmd-limit-slider').value);
+  const limit = (sliderVal >= 100) ? -1 : sliderVal;
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ default_user_limit: String(limit) })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const msg = limit === -1 ? '✅ تم جعل حد الأوامر غير محدود (∞ Unlimited) لجميع الأفراد!' : `✅ تم حفظ حد الأوامر: ${limit} أمر/يوم`;
+      toast(msg, 'ok');
+    }
+  } catch(e) {
+    toast('⚠️ خطأ بالحفظ: ' + e.message, 'warn');
+  }
+}
+
+let targetLimitPhone = '', targetLimitName = '';
+
+function openUserLimitModal(phone, encodedName, currentLimit) {
+  targetLimitPhone = phone;
+  targetLimitName = decodeURIComponent(encodedName) || phone;
+  const nameEl = document.getElementById('ulimit-user-name');
+  const phoneEl = document.getElementById('ulimit-user-phone');
+  if (nameEl) nameEl.textContent = targetLimitName;
+  if (phoneEl) phoneEl.textContent = '+' + phone;
+
+  const lim = parseInt(currentLimit);
+  const sliderVal = (isNaN(lim) || lim === -1 || lim >= 100) ? 100 : lim;
+  syncIndividualLimitSlider(sliderVal);
+  openM('modal-user-limit');
+}
+
+function syncIndividualLimitSlider(val) {
+  val = parseInt(val);
+  const big = document.getElementById('ulimit-big');
+  const slider = document.getElementById('ulimit-slider');
+  if (slider) slider.value = val;
+  if (val >= 100) {
+    if (big) { big.innerHTML = '∞ غير محدود'; big.style.color = '#eab308'; }
+  } else {
+    if (big) { big.textContent = val + ' أمر/يوم'; big.style.color = 'var(--accent)'; }
+  }
+}
+
+async function saveIndividualUserLimit() {
+  if (!targetLimitPhone) return;
+  const sliderVal = parseInt(document.getElementById('ulimit-slider').value);
+  const newLimit = (sliderVal >= 100) ? -1 : sliderVal;
+  try {
+    const res = await fetch('/api/user-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: targetLimitPhone, limit: newLimit })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const msgText = newLimit === -1 ? `✅ تم جعل حد +${targetLimitPhone} غير محدود (∞)` : `✅ تم تحديث حد +${targetLimitPhone} إلى ${newLimit} أمر/يوم`;
+      toast(msgText, 'ok');
+      closeM('modal-user-limit');
+      loadBotUsers(currentUsersPage);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل التحديث'), 'warn');
+    }
+  } catch(e) {
+    toast('⚠️ خطأ: ' + e.message, 'warn');
+  }
 }
 
 function syncApkSlider(val) {
