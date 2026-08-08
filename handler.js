@@ -751,18 +751,21 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 			console.log(`🤖 [Auto AI] Processing message from ${m.sender}: "${m.text}"`);
 			try {
 				let history = await getAiMemoryFromSupabase(m.sender);
-				let contextText = `أنت مساعد ذكي ولطيف اسمه "بوت حمزة اعمرني". تجيب بالدارجة المغربية أو العربية بحسب لغة المستخدم، بأسلوب محترم وسريع ونشيط.\n\n`;
-				for (const h of history) {
-					contextText += `${h.role === 'user' ? 'المستخدم' : 'البوت'}: ${h.content}\n`;
-				}
-				contextText += `المستخدم: ${m.text}\nالبوت:`;
-
 				let aiReply = '';
+
+				// 1. Try Pollinations POST (Fast JSON API with history)
 				try {
+					const messages = [
+						{ role: 'system', content: 'أنت مساعد ذكي ومرح اسمه "بوت حمزة اعمرني" (Hamza Amirni Bot)، تجيب بالدارجة المغربية أو العربية بأسلوب زوين وسريع ومختصر.' },
+						...history.slice(-6),
+						{ role: 'user', content: m.text }
+					];
 					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 7000);
-					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(contextText)}?model=openai`, {
-						headers: { 'User-Agent': 'Mozilla/5.0' },
+					const timeoutId = setTimeout(() => controller.abort(), 12000);
+					const res = await fetch('https://text.pollinations.ai/', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+						body: JSON.stringify({ messages, model: 'openai' }),
 						signal: controller.signal
 					});
 					clearTimeout(timeoutId);
@@ -770,17 +773,31 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 						aiReply = await res.text();
 					}
 				} catch (e) {
-					console.error('Pollinations fetch error:', e.message);
+					console.error('Pollinations POST error:', e.message);
 				}
 
+				// 2. Try Pollinations GET fallback
+				if (!aiReply || aiReply.length < 2) {
+					try {
+						const controller = new AbortController();
+						const timeoutId = setTimeout(() => controller.abort(), 8000);
+						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai`, {
+							headers: { 'User-Agent': 'Mozilla/5.0' },
+							signal: controller.signal
+						});
+						clearTimeout(timeoutId);
+						if (res.ok) {
+							aiReply = await res.text();
+						}
+					} catch (_) {}
+				}
+
+				// 3. Try SimSimi GET fallback
 				if (!aiReply || aiReply.length < 2) {
 					try {
 						const controller = new AbortController();
 						const timeoutId = setTimeout(() => controller.abort(), 5000);
-						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk`, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-							body: `text=${encodeURIComponent(m.text)}&lc=ar`,
+						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`, {
 							signal: controller.signal
 						});
 						clearTimeout(timeoutId);
