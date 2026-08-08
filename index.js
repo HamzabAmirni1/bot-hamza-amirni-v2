@@ -1361,11 +1361,14 @@ function startBotWorker(phone, isManual = false) {
     }
   });
 
-  // Track conflict detection to increase exponential backoff delay
+  // Track conflict detection separately
+  let lastConflictTime = 0;
   w.stdout.on('data', (chunk) => {
     const s = chunk.toString();
     if (s.includes('Stream Errored (conflict)') || s.includes('Conflict')) {
+      lastConflictTime = Date.now();
       global._workerRestarts[cleanPhone] = (global._workerRestarts[cleanPhone] || 0) + 1;
+      console.log(`⚠️ [+${cleanPhone}] Stream conflict detected! Another session is active. Waiting before retry...`);
     }
   });
 
@@ -1382,15 +1385,27 @@ function startBotWorker(phone, isManual = false) {
       return;
     }
 
-    // Exponential backoff — prevent reconnect storm on conflict errors
     const restartCount = global._workerRestarts[cleanPhone] || 0;
-    const delayMs = Math.min(3000 * Math.pow(1.5, restartCount), 60000); // 3s → 4.5s → 6.75s … max 60s
+
+    // Conflict = another session is open (e.g. phone app or local dev)
+    // Wait MUCH longer (60–120s) to let the other session close first
+    const isRecentConflict = (Date.now() - lastConflictTime) < 10000;
+    let delayMs;
+    if (isRecentConflict) {
+      // Escalating backoff on conflict: 60s, 90s, 120s, max 180s
+      delayMs = Math.min(60000 + restartCount * 30000, 180000);
+      console.log(`🔁 [+${cleanPhone}] Conflict detected — waiting ${Math.round(delayMs/1000)}s before reconnect (let other session close)...`);
+    } else {
+      // Normal crash/disconnect: 5s → 7.5s → 11s … max 45s
+      delayMs = Math.min(5000 * Math.pow(1.5, restartCount), 45000);
+    }
+
     global._workerRestarts[cleanPhone] = restartCount + 1;
 
-    // Reset counter after successful long run (>2min means stable)
+    // Reset counter after 5 minutes of stability
     setTimeout(() => {
       global._workerRestarts[cleanPhone] = 0;
-    }, 120000);
+    }, 300000);
 
     setTimeout(() => {
       if (stoppedWorkers.has(cleanPhone)) {
