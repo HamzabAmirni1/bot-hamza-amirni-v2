@@ -1497,20 +1497,12 @@ async function backupSessionForPhone(phone, force = false) {
 function startBackupWatcher() {
   if (backupWatcherStarted) return;
   backupWatcherStarted = true;
-  console.log('📡 Starting Multi-Bot Supabase session backup & liveness watcher...');
+  console.log('📡 Starting Multi-Bot Supabase session backup watcher...');
 
   setInterval(() => {
-    const now = Date.now();
     for (const [phone, info] of workersMap.entries()) {
       if (info.connected) {
         backupSessionForPhone(phone);
-      }
-      // Stale / Frozen Socket Protection: restart worker if silent for >25 minutes
-      const lastAct = info.lastActivity || now;
-      if (now - lastAct > 25 * 60 * 1000) {
-        console.log(`⚠️ Worker +${phone} has been silent for >25m. Restarting worker to unfreeze...`);
-        stopBotWorker(phone);
-        setTimeout(() => startBotWorker(phone, true), 2000);
       }
     }
   }, 3 * 60 * 1000);
