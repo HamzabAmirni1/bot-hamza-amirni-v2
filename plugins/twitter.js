@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
 // ─── API 1: cobalt.tools ────────────────────────────────────────────────────
 async function cobaltTwitter(url) {
@@ -154,6 +155,8 @@ Download any Twitter / X video or GIF!
 
   try {
     if (result.type === 'video') {
+      const sizeOk = await assertFileSizeOk(result.url, m, lang, 300 * 1024 * 1024);
+      if (!sizeOk) return;
       await conn.sendMessage(m.chat, {
         video: { url: result.url },
         caption,

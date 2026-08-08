@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
 // ─── API 1: cobalt.tools (free, best quality) ──────────────────────────────
 async function cobaltDownload(url) {
@@ -218,7 +219,9 @@ Download any Instagram content: Reels, Posts, Carousels, Stories!
 
   try {
     if (result.type === 'video') {
-      // ─── Single video / reel ─────────────────────────────────────────────
+      // ─── Single video / reel ─────────────────────────────────────
+      const sizeOk = await assertFileSizeOk(result.url, m, lang, 300 * 1024 * 1024);
+      if (!sizeOk) return;
       await conn.sendMessage(m.chat, {
         video: { url: result.url },
         caption,

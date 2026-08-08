@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
 // ─── API 1: cobalt.tools ────────────────────────────────────────────────────
 async function cobaltFB(url) {
@@ -179,6 +180,9 @@ Download any Facebook video or reel with ease!
     `📘 *تم التحميل من فيسبوك* ✅\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
   );
 
+  // ── File size guard (300 MB max) ──
+  const sizeOk = await assertFileSizeOk(videoUrl, m, lang, 300 * 1024 * 1024);
+  if (!sizeOk) return;
   try {
     const { videoMessage } = await generateWAMessageContent({ video: { url: videoUrl } }, { upload: conn.waUploadToServer });
     const buttons = [

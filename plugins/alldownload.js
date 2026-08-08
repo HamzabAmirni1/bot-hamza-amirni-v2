@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { assertFileSizeOk } from '../lib/checkFileSize.js'
 
 // ─── MeverClient (self-contained) ─────────────────────────────────────────────
 class MeverClient {
@@ -221,6 +222,10 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
   const isAudio = ['soundcloud', 'spotify', 'applemusic'].includes(mode)
     || mediaUrl.includes('.mp3')
     || mediaUrl.includes('.m4a')
+
+  // ── File size guard (300 MB max) ──
+  const sizeOk = await assertFileSizeOk(mediaUrl, m, lang, 300 * 1024 * 1024)
+  if (!sizeOk) return
 
   const caption = t(`📥  *${title}*\n\n🔗  Platform: *${mode}*\n\n⚡ *bot amirni hamza*`, `📥  *${title}*\n\n🔗  المنصة: *${mode}*\n\n⚡ *bot amirni hamza*`, `📥  *${title}*\n\n🔗  المنصة: *${mode}*\n\n⚡ *bot amirni hamza*`)
 

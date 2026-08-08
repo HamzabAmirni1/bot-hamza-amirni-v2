@@ -1,4 +1,5 @@
 import { ytdown } from './ytmp3.js';
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
 let handler = async (m, { usedPrefix, command, text }) => {
 	let user = global.db.data.users[m.sender] || {};
@@ -25,6 +26,9 @@ let handler = async (m, { usedPrefix, command, text }) => {
 			m,
 			{ title: info.title, source: text }
 		);
+
+		const sizeOk = await assertFileSizeOk(dl.download, m, lang, 300 * 1024 * 1024);
+		if (!sizeOk) return;
 
 		await conn.sendMessage(
 			m.chat,

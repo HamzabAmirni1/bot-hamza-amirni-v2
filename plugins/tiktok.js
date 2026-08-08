@@ -1,3 +1,4 @@
+import { assertFileSizeOk } from '../lib/checkFileSize.js';
 let handler = async (m, { conn, text, usedPrefix, command }) => {
 	let user = global.db.data.users[m.sender] || {};
 	let lang = user.language || 'darija';
@@ -30,7 +31,11 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 					await conn.sendAlbumMessage(m.chat, media, { quoted: m });
 				}
 			} else {
-				await conn.sendFile(m.chat, data.play, '', '', m);
+			// ── File size guard (300MB) ──
+			const lang2 = lang;
+			const sizeOk = await assertFileSizeOk(data.play, m, lang2, 300 * 1024 * 1024);
+			if (!sizeOk) return;
+			await conn.sendFile(m.chat, data.play, '', '', m);
 			}
 
 			if (data.music_info?.play) {
