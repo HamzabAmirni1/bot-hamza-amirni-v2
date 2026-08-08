@@ -102,6 +102,51 @@ async function doLogout() {
   window.location.href = '/login.html';
 }
 
+async function triggerBotRestart() {
+  const ok = await showConfirm({
+    title: '🔄 إعادة تشغيل البوت',
+    text: 'سيتم إيقاف البوت مؤقتاً وإعادة تشغيله خلال ثوانٍ. هل أنت متأكد؟',
+    confirmText: '🔄 نعم، أعد التشغيل',
+    icon: '🔄',
+    isDanger: false
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (data.success) {
+      toast('🔄 جاري إعادة تشغيل البوت... انتظر 10 ثوانٍ', 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل إعادة التشغيل'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function resetBotSessionAction() {
+  const ok = await showConfirm({
+    title: '⚠️ مسح الجلسة وإعادة الاقتران',
+    text: 'سيتم حذف جلسة واتساب الحالية ويجب عليك إعادة ربط البوت برمز جديد. هل أنت متأكد؟',
+    confirmText: '⚠️ نعم، امسح الجلسة',
+    icon: '⚠️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/resetsession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ تم مسح الجلسة! انتقل لصفحة الجلسات لإعادة الربط.', 'ok');
+      setTimeout(() => goPage('sessions'), 2500);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل المسح'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
 function goPage(id, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nv').forEach(n => n.classList.remove('active'));

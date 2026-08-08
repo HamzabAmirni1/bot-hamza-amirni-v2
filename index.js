@@ -670,6 +670,26 @@ ${reply_text}
         return;
       }
 
+      // ── POST /api/restart — restart active bot worker process ──
+      if (endpoint === 'restart' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const { phone_number } = JSON.parse(body || '{}');
+            const activePhone = (phone_number || getBotPhone()).toString().replace(/[^0-9]/g, '');
+            stopBotWorker(activePhone);
+            setTimeout(() => startBotWorker(activePhone), 1500);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: `Bot +${activePhone} restarting...` }));
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
       // ── POST /api/resetsession — clear session & restart bot ──
       if (endpoint === 'resetsession' && req.method === 'POST') {
         try {

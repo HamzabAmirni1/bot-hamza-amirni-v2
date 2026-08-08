@@ -772,6 +772,17 @@ body {
   box-shadow: 0 4px 15px var(--red-glow);
 }
 
+.btn-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--yellow);
+}
+.btn-warning:hover {
+  background: var(--yellow);
+  color: #fff;
+  box-shadow: 0 4px 15px var(--yellow-glow);
+}
+
 .btn.sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
 .btn.lg { padding: 14px 28px; font-size: 16px; border-radius: var(--radius-sm); width: 100%; }
 
