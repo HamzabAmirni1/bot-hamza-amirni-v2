@@ -712,12 +712,7 @@ ${reply_text}
           }
         } catch (_) {}
 
-        try {
-          const cloudCfg = await getConfigsFromSupabase();
-          Object.assign(cfg, cloudCfg);
-        } catch (_) {}
-
-        // Fallback defaults if not in database
+        // Fallback: fill from live globals if not found in DB
         if (cfg.auto_ai === undefined) cfg.auto_ai = String(global.AUTO_AI !== undefined ? global.AUTO_AI : false);
         if (cfg.auto_read === undefined) cfg.auto_read = String(global.AUTO_READ !== undefined ? global.AUTO_READ : true);
         if (cfg.auto_status_read === undefined) cfg.auto_status_read = String(global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true);
@@ -753,9 +748,17 @@ ${reply_text}
               });
             } catch (_) {}
 
-            // 2. Dual backup save to ai_memory config rows
+            // 2. Dual backup save to ai_memory config rows (inline)
             for (const [k, v] of Object.entries(settings)) {
-              saveConfigToSupabase(k, String(v)).catch(() => {});
+              fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+                method: 'POST',
+                headers: {
+                  'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify([{ jid: 'config_' + k, history: String(v) }])
+              }).catch(() => {});
             }
 
             // 3. Update global vars if bot is running
