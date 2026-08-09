@@ -192,7 +192,7 @@ async function saveAiMemoryToSupabase(senderJid, historyArr) {
 let lastConfigSync = 0;
 async function syncGlobalConfigsFromSupabase() {
 	const now = Date.now();
-	if (now - lastConfigSync < 10000) return;
+	if (now - lastConfigSync < 8000) return;
 	lastConfigSync = now;
 	try {
 		const controller = new AbortController();
@@ -212,6 +212,29 @@ async function syncGlobalConfigsFromSupabase() {
 					if (r.key === 'silent_mode') global.SILENT_MODE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_online') global.AUTO_ONLINE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
+				});
+			}
+		}
+
+		// Also check ai_memory cloud config backup (jid = 'config_auto_ai' or config_*)
+		const c2 = new AbortController();
+		const t2 = setTimeout(() => c2.abort(), 3000);
+		const fetchRes2 = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=like.config_*&select=jid,history', {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+			signal: c2.signal
+		});
+		clearTimeout(t2);
+		if (fetchRes2.ok) {
+			const rows2 = await fetchRes2.json();
+			if (Array.isArray(rows2)) {
+				rows2.forEach(r => {
+					const k = r.jid.replace('config_', '');
+					if (k === 'auto_ai') global.AUTO_AI = (r.history === 'true' || r.history === true);
+					if (k === 'auto_read') global.AUTO_READ = (r.history === 'true' || r.history === true);
+					if (k === 'auto_status_read') global.AUTO_STATUS_READ = (r.history === 'true' || r.history === true);
+					if (k === 'anti_call') global.ANTI_CALL = (r.history === 'true' || r.history === true);
+					if (k === 'silent_mode') global.SILENT_MODE = (r.history === 'true' || r.history === true);
+					if (k === 'auto_online') global.AUTO_ONLINE = (r.history === 'true' || r.history === true);
 				});
 			}
 		}
@@ -747,7 +770,11 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 		// ── Auto AI Chatbot (الرد التلقائي بالذكاء الاصطناعي مع حفظ المحادثة فـ Supabase) ──
 		const isAutoAiOn = global.AUTO_AI !== undefined ? global.AUTO_AI : false;
-		if (isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.')) {
+		const botJid = this.user?.jid || conn.user?.jid || '';
+		const isBotMentionedInGroup = m.isGroup && ((m.mentionedJid || []).includes(botJid) || (m.quoted && m.quoted.sender === botJid));
+		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && (!m.isGroup || isBotMentionedInGroup);
+
+		if (shouldProcessAi) {
 			console.log(`🤖 [Auto AI] Processing message from ${m.sender}: "${m.text}"`);
 			try {
 				let history = await getAiMemoryFromSupabase(m.sender);
@@ -793,7 +820,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 				// Helper: check if API response is a real valid reply (not an error string)
 				const isValidReply = (txt) => {
-					if (!txt || txt.trim().length < 2) return false;
+					if (!txt || txt.trim().length < 1) return false;
 					const errorPhrases = ['missing text parameter', 'missing parameter', 'error', 'bad request', 'rate limit', 'too many requests', 'undefined', 'null'];
 					const lower = txt.trim().toLowerCase();
 					return !errorPhrases.some(e => lower === e || lower.startsWith(e + ':'));
@@ -821,11 +848,11 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 					}
 				} catch (_) {}
 
-				// 2. Try Pollinations GET with message only (no long prompt in URL)
+				// 2. Try Pollinations GET with message only
 				if (!isValidReply(aiReply)) {
 					aiReply = '';
 					try {
-						const shortPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني". تجيب بنفس لغة المستخدم (دارجة/عربية/إنجليزية/فرنسية). لا تذكر ChatGPT أو OpenAI. المستخدم قال: ${m.text}`;
+						const shortPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني". تجيب بنفس لغة المستخدم. لا تذكر ChatGPT أو OpenAI. المستخدم قال: ${m.text}`;
 						const controller = new AbortController();
 						const timeoutId = setTimeout(() => controller.abort(), 8000);
 						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(shortPrompt)}?model=openai&seed=-1`, {
@@ -856,6 +883,11 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 							if (isValidReply(simMsg)) aiReply = simMsg;
 						}
 					} catch (_) {}
+				}
+
+				// 4. Final fallback
+				if (!isValidReply(aiReply)) {
+					aiReply = "أهلاً بك! أنا بوت حمزة اعمرني 🤖 كيف يمكنني مساعدتك اليوم؟";
 				}
 
 				if (isValidReply(aiReply)) {
