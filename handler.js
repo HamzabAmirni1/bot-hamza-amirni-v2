@@ -430,7 +430,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || 'public';
+		const _botMode = _settings.botMode || 'private';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
