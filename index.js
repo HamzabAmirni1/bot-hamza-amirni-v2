@@ -788,6 +788,40 @@ ${reply_text}
         return;
       }
 
+      // ── GET /api/active-servers — list all active server nodes ────────
+      if (endpoint === 'active-servers' && req.method === 'GET') {
+        try {
+          const resSup = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=like.server_node_*&select=history', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          const activeServers = [];
+          if (resSup.ok) {
+            const rows = await resSup.json();
+            const now = Date.now();
+            if (Array.isArray(rows)) {
+              rows.forEach(r => {
+                try {
+                  const data = JSON.parse(r.history || '{}');
+                  if (data.last_ping && (now - data.last_ping < 45000)) {
+                    activeServers.push(data);
+                  }
+                } catch (_) {}
+              });
+            }
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            count: activeServers.length,
+            current_instance: SERVER_INSTANCE_ID,
+            servers: activeServers
+          }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       // ── POST /api/user-limit — update specific user's command limit ──
       if (endpoint === 'user-limit' && req.method === 'POST') {
         let body = '';
@@ -1574,7 +1608,10 @@ function startBotWorker(phone, isManual = false) {
 
     if (isConnectEvent) {
       botInfo.connected = true;
-      backupSessionForPhone(cleanPhone);
+      // Instantly backup session on every connection event — keep it always fresh
+      backupSessionForPhone(cleanPhone, true);
+      // Also backup after 30s in case creds file updated after handshake
+      setTimeout(() => backupSessionForPhone(cleanPhone, true), 30000);
     }
 
     const translated = chunkStr
@@ -1642,9 +1679,18 @@ function startBotWorker(phone, isManual = false) {
     const isRecentConflict = (now - lastConflict) < 15000;
     let delayMs;
     if (isRecentConflict) {
-      // Hard minimum 90s, escalates up to 300s (5 minutes) on repeat conflicts
-      delayMs = Math.min(90000 + restartCount * 30000, 300000);
-      console.log(`🚫 [+${cleanPhone}] CONFLICT — hard wait ${Math.round(delayMs/1000)}s. Close the other session on your phone or PC!`);
+      // Session conflict: escalate wait time — NEVER delete the session!
+      // After many conflicts, wait longer for the old WhatsApp session to expire naturally.
+      // Koyeb old container takes a few minutes to fully shut down.
+      if (restartCount >= 6) {
+        // Too many conflicts — wait 15 minutes then retry with same session
+        delayMs = 900000; // 15 minutes
+        console.log(`⏰ [+${cleanPhone}] Too many conflicts (${restartCount}x). Waiting 15 min for old session to expire...`);
+      } else {
+        // Escalating: 2min → 4min → 6min → 8min → 10min → 12min
+        delayMs = Math.min(120000 + restartCount * 120000, 720000);
+        console.log(`🚫 [+${cleanPhone}] CONFLICT — waiting ${Math.round(delayMs/1000/60)}min for old session to expire (attempt ${restartCount+1}/6)...`);
+      }
     } else {
       // Normal disconnect: 5s → 7.5s → 11s … max 45s
       delayMs = Math.min(5000 * Math.pow(1.5, Math.min(restartCount, 6)), 45000);
@@ -1729,7 +1775,7 @@ async function backupSessionForPhone(phone, force = false) {
 
     const now = Date.now();
     const last = lastBackupTimes.get(clean) || 0;
-    if (!force && (now - last < 5 * 60 * 1000)) return;
+    if (!force && (now - last < 2 * 60 * 1000)) return; // throttle: max once per 2min
 
     const phoneDbPath = getBotDbPath(clean);
     if (!existsSync(phoneDbPath)) return;
@@ -1772,13 +1818,14 @@ function startBackupWatcher() {
   backupWatcherStarted = true;
   console.log('📡 Starting Multi-Bot Supabase session backup watcher...');
 
+  // Backup every 2 minutes for all connected bots
   setInterval(() => {
     for (const [phone, info] of workersMap.entries()) {
       if (info.connected) {
         backupSessionForPhone(phone);
       }
     }
-  }, 3 * 60 * 1000);
+  }, 2 * 60 * 1000);
 }
 
 let backupWatcherStarted = false;
@@ -1863,7 +1910,37 @@ async function initGlobalConfigs() {
   }
 }
 
+const SERVER_INSTANCE_ID = 'node_' + Math.random().toString(36).substring(2, 9);
+const SERVER_HOST_TYPE = process.env.KOYEB_SERVICE_NAME ? 'Koyeb Cloud' : (process.env.HEROKU_APP_NAME ? 'Heroku' : (process.env.RENDER ? 'Render' : 'Local PC / External Server'));
+
+async function pingServerHeartbeat() {
+  try {
+    const payload = {
+      instance_id: SERVER_INSTANCE_ID,
+      host_type: SERVER_HOST_TYPE,
+      port: PORT,
+      last_ping: Date.now()
+    };
+    await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([{ jid: 'server_node_' + SERVER_INSTANCE_ID, history: JSON.stringify(payload) }])
+    });
+  } catch (_) {}
+}
+
+function startServerHeartbeat() {
+  pingServerHeartbeat();
+  setInterval(pingServerHeartbeat, 15000);
+}
+
 async function init() {
+  startServerHeartbeat();
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
