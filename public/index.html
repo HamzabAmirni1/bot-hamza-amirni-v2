@@ -808,13 +808,27 @@
 
             <div class="toggle-row">
               <div>
-                <div class="tg-label">🧠 AI Chatbot (الرد التلقائي بالذكاء الاصطناعي)</div>
+                <div class="tg-label">🧠 AI Chatbot (الرد التلقائي بالذكاء الاصطناعي العامة)</div>
                 <div class="tg-sub">يجيب البوت تلقائياً على المحادثات بالذكاء الاصطناعي مع حفظ سياق المحادثة فـ Supabase</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="toggle-autoai" onchange="onToggleAutoAi(this)">
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+
+            <!-- Per-Bot AI Selector Box with Checkboxes -->
+            <div id="per-bot-ai-card" style="margin-top:14px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:var(--accent);">🤖 تحديد وتأشير البوتات المفعل فيها الذكاء الاصطناعي (Check Bots):</div>
+                  <div style="font-size:11px;color:var(--text2)">قم بتأشير (Cocher) البوتات التي تريد أن يجيب فيها الذكاء الاصطناعي فقط</div>
+                </div>
+                <button type="button" class="btn btn-ghost sm" onclick="loadPerBotAiList()"><i class="fas fa-sync-alt"></i> تحديث</button>
+              </div>
+              <div id="per-bot-ai-list">
+                <div class="sw"><div class="sp"></div></div>
+              </div>
             </div>
 
           </div>

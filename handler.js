@@ -775,7 +775,8 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 		}
 
 		// ── Auto AI Chatbot (الرد التلقائي بالذكاء الاصطناعي مع حفظ المحادثة فـ Supabase) ──
-		const myPhone = (process.env.PAIRING_NUMBER || this.user?.jid || conn.user?.jid || '').replace(/[^0-9]/g, '');
+		const rawJid = this.user?.jid || conn.user?.jid || process.env.PAIRING_NUMBER || '';
+		const myPhone = rawJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
 		const perBotKey = `AUTO_AI_${myPhone}`;
 		const isAutoAiOn = (global[perBotKey] !== undefined)
 			? global[perBotKey]

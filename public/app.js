@@ -1377,10 +1377,94 @@ async function loadBotSettings() {
       }
     }
   } catch(e) {}
+  // Load per-bot AI selector checkboxes list
+  await loadPerBotAiList();
   // Load bot mode from API
   await loadBotMode();
   // Load admins list
   await loadAdmins();
+}
+
+async function loadPerBotAiList() {
+  const wrap = document.getElementById('per-bot-ai-list');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) return;
+    const list = await res.json() || [];
+    if (!list.length) {
+      wrap.innerHTML = '<div style="font-size:11px;color:var(--text2)">لا توجد جلسات مسجلة بعد. قم بربط بوت أولاً من القائمة الجانبية.</div>';
+      return;
+    }
+
+    let settings = {};
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch(_) {}
+
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;">
+        ${list.map(s => {
+          const phone = (s.phone_number || '').replace(/\D/g, '');
+          const isConn = s.status === 'connected';
+          const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+          let isChecked = false;
+          if (localVal !== null) {
+            isChecked = (localVal === 'true');
+          } else if (settings['auto_ai_' + phone] !== undefined) {
+            isChecked = (settings['auto_ai_' + phone] === 'true' || settings['auto_ai_' + phone] === true);
+          } else if (settings.auto_ai !== undefined) {
+            isChecked = (settings.auto_ai === 'true' || settings.auto_ai === true);
+          }
+
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="chk-bot-ai-${phone}" ${isChecked ? 'checked' : ''} onchange="toggleBotAiCheckbox('${phone}', this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:var(--accent)">
+                <div>
+                  <div style="font-weight:800;font-size:13px;font-family:monospace;color:var(--accent)">+${phone}</div>
+                  <div style="font-size:10px;color:${isConn ? 'var(--green)' : 'var(--red)'};font-weight:600">${isConn ? '🟢 متصل ونشط' : '🔴 غير متصل'}</div>
+                </div>
+              </div>
+              <span class="badge ${isChecked ? 'b-g' : 'b-r'}" id="badge-bot-ai-${phone}">${isChecked ? '🧠 AI شغال' : '⏸️ AI موقف'}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--red)">فشل تحميل قائمة البوتات</div>';
+  }
+}
+
+async function toggleBotAiCheckbox(phone, isChecked) {
+  const key = 'auto_ai_' + phone;
+  localStorage.setItem('toggle_' + key, isChecked ? 'true' : 'false');
+  
+  const badge = document.getElementById(`badge-bot-ai-${phone}`);
+  if (badge) {
+    badge.className = `badge ${isChecked ? 'b-g' : 'b-r'}`;
+    badge.textContent = isChecked ? '🧠 AI شغال' : '⏸️ AI موقف';
+  }
+
+  // Also sync session table checkbox if present
+  const tblChk = document.getElementById(`toggle-botai-${phone}`);
+  if (tblChk) tblChk.checked = isChecked;
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: isChecked ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`${isChecked ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone}!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
 }
 
 function syncUserCmdSlider(val) {
