@@ -1996,29 +1996,7 @@ async function init() {
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
-
-  // Acquire Master Lock before spawning WhatsApp workers
-  const amMaster = await checkMasterLock();
-  if (amMaster) {
-    console.log(`👑 [Master Server Lock] Acquired by instance ${SERVER_INSTANCE_ID} (${SERVER_HOST_TYPE})`);
-    await restoreAllSessions();
-  } else {
-    console.log(`⏸️ [Standby Mode] Container ${SERVER_INSTANCE_ID} standing by while master server is running.`);
-  }
-
-  // Monitor Master Lock: if another server claims master, shut down local workers to prevent conflicts
-  setInterval(async () => {
-    const isMasterNow = await checkMasterLock();
-    if (isMasterNow && workersMap.size === 0) {
-      console.log(`👑 Master lock claimed/reclaimed by ${SERVER_INSTANCE_ID}! Spawning workers...`);
-      await restoreAllSessions();
-    } else if (!isMasterNow && workersMap.size > 0) {
-      console.log(`⏸️ Master lock claimed by another container (${SERVER_INSTANCE_ID}). Stopping local workers to prevent conflicts...`);
-      for (const phone of Array.from(workersMap.keys())) {
-        stopBotWorker(phone);
-      }
-    }
-  }, 15000);
+  await restoreAllSessions(); // Always restore and launch all connected sessions from Supabase!
 }
 
 init();
