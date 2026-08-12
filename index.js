@@ -1913,12 +1913,64 @@ async function initGlobalConfigs() {
 const SERVER_INSTANCE_ID = 'node_' + Math.random().toString(36).substring(2, 9);
 const SERVER_HOST_TYPE = process.env.KOYEB_SERVICE_NAME ? 'Koyeb Cloud' : (process.env.HEROKU_APP_NAME ? 'Heroku' : (process.env.RENDER ? 'Render' : 'Local PC / External Server'));
 
+let isMasterInstance = false;
+
+async function checkMasterLock() {
+  try {
+    const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_master_server_lock&select=history,updated_at`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    const now = Date.now();
+    let currentMaster = null;
+    let lastPing = 0;
+
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].history) {
+        try {
+          const parsed = JSON.parse(rows[0].history);
+          currentMaster = parsed.instance_id;
+          lastPing = parsed.last_ping || 0;
+        } catch (_) {}
+      }
+    }
+
+    const isStale = (now - lastPing > 25000);
+
+    if (!currentMaster || currentMaster === SERVER_INSTANCE_ID || isStale) {
+      isMasterInstance = true;
+      const payload = {
+        instance_id: SERVER_INSTANCE_ID,
+        host_type: SERVER_HOST_TYPE,
+        last_ping: now
+      };
+      await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + SB_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify([{ jid: 'config_master_server_lock', history: JSON.stringify(payload) }])
+      }).catch(() => {});
+      return true;
+    } else {
+      isMasterInstance = false;
+      return false;
+    }
+  } catch (_) {
+    return true;
+  }
+}
+
 async function pingServerHeartbeat() {
   try {
     const payload = {
       instance_id: SERVER_INSTANCE_ID,
       host_type: SERVER_HOST_TYPE,
       port: PORT,
+      is_master: isMasterInstance,
       last_ping: Date.now()
     };
     await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
@@ -1944,7 +1996,29 @@ async function init() {
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
-  await restoreAllSessions(); // launches worker threads for ALL connected bots
+
+  // Acquire Master Lock before spawning WhatsApp workers
+  const amMaster = await checkMasterLock();
+  if (amMaster) {
+    console.log(`👑 [Master Server Lock] Acquired by instance ${SERVER_INSTANCE_ID} (${SERVER_HOST_TYPE})`);
+    await restoreAllSessions();
+  } else {
+    console.log(`⏸️ [Standby Mode] Container ${SERVER_INSTANCE_ID} standing by while master server is running.`);
+  }
+
+  // Monitor Master Lock: if another server claims master, shut down local workers to prevent conflicts
+  setInterval(async () => {
+    const isMasterNow = await checkMasterLock();
+    if (isMasterNow && workersMap.size === 0) {
+      console.log(`👑 Master lock claimed/reclaimed by ${SERVER_INSTANCE_ID}! Spawning workers...`);
+      await restoreAllSessions();
+    } else if (!isMasterNow && workersMap.size > 0) {
+      console.log(`⏸️ Master lock claimed by another container (${SERVER_INSTANCE_ID}). Stopping local workers to prevent conflicts...`);
+      for (const phone of Array.from(workersMap.keys())) {
+        stopBotWorker(phone);
+      }
+    }
+  }, 15000);
 }
 
 init();
