@@ -707,37 +707,96 @@ async function removeBotAdmin(jid) {
 
 async function onToggleBotSpecificAi(phone, el) {
   const willEnable = el.checked;
-  el.checked = !willEnable;
+  const key = 'auto_ai_' + phone;
 
-  const confirmed = await showConfirm({
-    title: willEnable ? `🧠 تفعيل الذكاء الاصطناعي للبوت +${phone}` : `🛑 إيقاف الذكاء الاصطناعي للبوت +${phone}`,
-    text: willEnable 
-      ? `هل أنت متأكد من تفعيل الرد التلقائي بالذكاء الاصطناعي للبوت (+${phone}) فقط؟ سيجيب هذا البوت بذكاء اصطناعي مستقل ومحفوظ فـ الداتابيز.` 
-      : `هل أنت متأكد من إيقاف الرد التلقائي بالذكاء الاصطناعي للبوت (+${phone})؟`,
-    confirmText: willEnable ? 'تأكيد التفعيل' : 'تأكيد الإيقاف',
-    icon: willEnable ? '🧠' : '🛑',
-    isDanger: !willEnable
-  });
+  localStorage.setItem('toggle_' + key, willEnable ? 'true' : 'false');
+  
+  // Update badge UI immediately
+  const badge = document.getElementById('ai-status-badge-' + phone);
+  if (badge) {
+    badge.className = `badge ${willEnable ? 'b-g' : 'b-r'}`;
+    badge.textContent = willEnable ? '🧠 AI مفعّل' : '🛑 AI موقف';
+  }
 
-  if (confirmed) {
-    el.checked = willEnable;
-    const key = 'auto_ai_' + phone;
-    localStorage.setItem('toggle_' + key, willEnable ? 'true' : 'false');
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: willEnable ? 'true' : 'false' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast(`${willEnable ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone} فقط!`, 'ok');
-      } else {
-        toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
-      }
-    } catch(e) {
-      toast('❌ خطأ: ' + e.message, 'err');
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: willEnable ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`${willEnable ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone}!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
     }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function loadPerBotAiList() {
+  const wrap = document.getElementById('per-bot-ai-list');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const [statusRes, settingsRes] = await Promise.all([
+      fetch('/api/bot-status').then(r => r.json()).catch(() => ({ bots: [] })),
+      fetch('/api/settings').then(r => r.json()).catch(() => ({}))
+    ]);
+
+    const bots = statusRes.bots || [];
+    const globalAiOn = settingsRes.auto_ai !== undefined 
+      ? (settingsRes.auto_ai === 'true' || settingsRes.auto_ai === true)
+      : (localStorage.getItem('toggle_auto_ai') !== 'false');
+
+    if (bots.length === 0) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:10px;">لا توجد بوتات متصلة حالياً.</div>';
+      return;
+    }
+
+    const html = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px;margin-top:8px;">` +
+      bots.map(bot => {
+        const phone = (bot.phone || '').replace(/\D/g, '');
+        if (!phone) return '';
+
+        const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+        let isAiOn = false;
+        if (localVal !== null) {
+          isAiOn = (localVal === 'true');
+        } else if (settingsRes['auto_ai_' + phone] !== undefined) {
+          isAiOn = (settingsRes['auto_ai_' + phone] === 'true' || settingsRes['auto_ai_' + phone] === true);
+        } else {
+          // Default to global AI setting state
+          isAiOn = globalAiOn;
+        }
+
+        const isConn = !!bot.connected;
+
+        return `
+          <div style="background:rgba(255,255,255,0.04);border:1px solid ${isAiOn ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'};border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:800;font-size:14px;color:var(--txt);">+${phone}</div>
+              <div style="font-size:11px;margin-top:3px;">
+                ${isConn ? '<span class="badge b-g" style="font-size:10px;">🟢 متصل ونشط</span>' : '<span class="badge b-r" style="font-size:10px;">🔴 غير متصل</span>'}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="ai-status-badge-${phone}" class="badge ${isAiOn ? 'b-g' : 'b-r'}" style="font-size:11px;font-weight:700;">
+                ${isAiOn ? '🧠 AI مفعّل' : '🛑 AI موقف'}
+              </span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="perbot-toggle-${phone}" ${isAiOn ? 'checked' : ''} onchange="onToggleBotSpecificAi('${phone}', this)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        `;
+      }).join('') + `</div>`;
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--red);padding:10px;">خطأ فـ تحميل البوتات: ' + e.message + '</div>';
   }
 }
 
@@ -1359,7 +1418,7 @@ async function loadBotSettings() {
         anti_call: true,
         silent_mode: false,
         auto_online: true,
-        auto_ai: false
+        auto_ai: true
       };
       for (const [key, elId] of Object.entries(toggleMap)) {
         const el = document.getElementById(elId);
@@ -1378,6 +1437,8 @@ async function loadBotSettings() {
     }
   } catch(e) {}
   // Load per-bot AI selector checkboxes list
+  loadPerBotAiList();
+}
   await loadPerBotAiList();
   // Load bot mode from API
   await loadBotMode();
@@ -1653,6 +1714,7 @@ async function onToggleAutoAi(el) {
     el.checked = willEnable;
     localStorage.setItem('toggle_auto_ai', willEnable ? 'true' : 'false');
     await saveToggle('auto_ai', willEnable);
+    setTimeout(loadPerBotAiList, 400);
   }
 }
 
