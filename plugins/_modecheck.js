@@ -5,11 +5,12 @@
 // ============================================================
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
-let syncedWithSupabase = false;
+let _lastModeSync = 0;
 
 async function syncSettingsFromSupabase() {
-	if (syncedWithSupabase) return;
-	syncedWithSupabase = true;
+	const now = Date.now();
+	if (now - _lastModeSync < 30000) return; // re-sync every 30s
+	_lastModeSync = now;
 	try {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -32,8 +33,8 @@ async function syncSettingsFromSupabase() {
 				}
 			});
 		}
-		// Default to public mode if not specified
-		if (!s.botMode) s.botMode = 'private';
+		// Default to public if nothing saved yet
+		if (!s.botMode) s.botMode = 'public';
 		if (!s.botAdmins) s.botAdmins = [];
 	} catch (_) {}
 }
@@ -48,7 +49,7 @@ export async function before(m) {
 	if (isOwner) return false;
 
 	const settings = global.db?.data?.settings || {};
-	const mode     = settings.botMode || 'private';
+	const mode     = settings.botMode || 'public'; // default: public (all users allowed)
 	const admins   = Array.isArray(settings.botAdmins) ? settings.botAdmins : [];
 
 	const senderNum  = String(m.sender || '').replace(/[^0-9]/g, '');
