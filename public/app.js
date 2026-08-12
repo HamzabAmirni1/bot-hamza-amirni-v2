@@ -705,6 +705,42 @@ async function removeBotAdmin(jid) {
   } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
 }
 
+async function onToggleBotSpecificAi(phone, el) {
+  const willEnable = el.checked;
+  el.checked = !willEnable;
+
+  const confirmed = await showConfirm({
+    title: willEnable ? `🧠 تفعيل الذكاء الاصطناعي للبوت +${phone}` : `🛑 إيقاف الذكاء الاصطناعي للبوت +${phone}`,
+    text: willEnable 
+      ? `هل أنت متأكد من تفعيل الرد التلقائي بالذكاء الاصطناعي للبوت (+${phone}) فقط؟ سيجيب هذا البوت بذكاء اصطناعي مستقل ومحفوظ فـ الداتابيز.` 
+      : `هل أنت متأكد من إيقاف الرد التلقائي بالذكاء الاصطناعي للبوت (+${phone})؟`,
+    confirmText: willEnable ? 'تأكيد التفعيل' : 'تأكيد الإيقاف',
+    icon: willEnable ? '🧠' : '🛑',
+    isDanger: !willEnable
+  });
+
+  if (confirmed) {
+    el.checked = willEnable;
+    const key = 'auto_ai_' + phone;
+    localStorage.setItem('toggle_' + key, willEnable ? 'true' : 'false');
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: willEnable ? 'true' : 'false' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast(`${willEnable ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone} فقط!`, 'ok');
+      } else {
+        toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+      }
+    } catch(e) {
+      toast('❌ خطأ: ' + e.message, 'err');
+    }
+  }
+}
+
 async function loadAuth() {
   const wrap = document.getElementById('auth-wrap');
   if (!wrap) return;
@@ -717,22 +753,47 @@ async function loadAuth() {
       wrap.innerHTML = empty('fas fa-key', 'لا توجد جلسات مسجلة حالياً');
       return;
     }
+
+    let settings = {};
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch(_) {}
+
     wrap.innerHTML = `
       <div class="ov-x-auto"><table class="tbl">
-      <thead><tr><th>الرقم</th><th>رمز الإقران</th><th>الحالة</th><th>آخر تحديث</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>الرقم</th><th>رمز الإقران</th><th>الحالة</th><th>🧠 AI Chatbot</th><th>آخر تحديث</th><th>إجراءات</th></tr></thead>
       <tbody>
       ${list.map(s => {
+        const phone = (s.phone_number || '').replace(/\D/g, '');
         const isConn = s.status === 'connected';
         const isPend = s.status === 'pending' || s.status === 'requesting';
         const badgeClass = isConn ? 'b-g' : (isPend ? 'b-y' : 'b-r');
         const statusText = isConn ? (s.is_active ? '🟢 متصل ونشط' : '✅ متصل') : (isPend ? '⏳ في الانتظار' : '🔴 غير متصل');
+        
+        const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+        let isAiOn = false;
+        if (localVal !== null) {
+          isAiOn = (localVal === 'true');
+        } else if (settings['auto_ai_' + phone] !== undefined) {
+          isAiOn = (settings['auto_ai_' + phone] === 'true' || settings['auto_ai_' + phone] === true);
+        } else if (settings.auto_ai !== undefined) {
+          isAiOn = (settings.auto_ai === 'true' || settings.auto_ai === true);
+        }
+
         return `<tr>
-          <td class="mono" style="font-weight:700">+${s.phone_number||'—'}</td>
+          <td class="mono" style="font-weight:700">+${phone||'—'}</td>
           <td><code class="badge b-g">${s.pairing_code||'—'}</code></td>
           <td><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td>
+            <label class="toggle-switch sm" title="تفعيل/إيقاف AI Chatbot لهذا البوت فقط">
+              <input type="checkbox" id="toggle-botai-${phone}" ${isAiOn ? 'checked' : ''} onchange="onToggleBotSpecificAi('${phone}', this)">
+              <span class="toggle-slider"></span>
+            </label>
+          </td>
           <td style="font-size:11px;color:var(--text2)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
           <td>
-            <button class="btn btn-danger sm" onclick="deleteSessionRow('${s.phone_number||''}')" title="مسح الجلسة من قاعدة البيانات">
+            <button class="btn btn-danger sm" onclick="deleteSessionRow('${phone||''}')" title="مسح الجلسة من قاعدة البيانات">
               <i class="fas fa-trash-alt"></i> مسح
             </button>
           </td>

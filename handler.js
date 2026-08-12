@@ -19,13 +19,17 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						console.log(`✅ [Dashboard -> WhatsApp] Message sent to ${jid}`);
 					}
 				} else if (msg.type === 'update_configs' && msg.settings) {
-					if (msg.settings.auto_ai !== undefined) global.AUTO_AI = (msg.settings.auto_ai === 'true' || msg.settings.auto_ai === true);
-					if (msg.settings.auto_read !== undefined) global.AUTO_READ = (msg.settings.auto_read === 'true' || msg.settings.auto_read === true);
-					if (msg.settings.auto_status_read !== undefined) global.AUTO_STATUS_READ = (msg.settings.auto_status_read === 'true' || msg.settings.auto_status_read === true);
-					if (msg.settings.anti_call !== undefined) global.ANTI_CALL = (msg.settings.anti_call === 'true' || msg.settings.anti_call === true);
-					if (msg.settings.silent_mode !== undefined) global.SILENT_MODE = (msg.settings.silent_mode === 'true' || msg.settings.silent_mode === true);
-					if (msg.settings.auto_online !== undefined) global.AUTO_ONLINE = (msg.settings.auto_online === 'true' || msg.settings.auto_online === true);
-					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', { AUTO_AI: global.AUTO_AI });
+					for (const [k, v] of Object.entries(msg.settings)) {
+						const boolVal = (v === 'true' || v === true);
+						if (k === 'auto_ai') global.AUTO_AI = boolVal;
+						if (k.startsWith('auto_ai_')) global[k.toUpperCase()] = boolVal;
+						if (k === 'auto_read') global.AUTO_READ = boolVal;
+						if (k === 'auto_status_read') global.AUTO_STATUS_READ = boolVal;
+						if (k === 'anti_call') global.ANTI_CALL = boolVal;
+						if (k === 'silent_mode') global.SILENT_MODE = boolVal;
+						if (k === 'auto_online') global.AUTO_ONLINE = boolVal;
+					}
+					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', msg.settings);
 				}
 			}
 		} catch (err) {
@@ -212,6 +216,7 @@ async function syncGlobalConfigsFromSupabase() {
 					if (r.key === 'silent_mode') global.SILENT_MODE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_online') global.AUTO_ONLINE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
+					if (r.key.startsWith('auto_ai_')) global[r.key.toUpperCase()] = (r.value === 'true' || r.value === true);
 				});
 			}
 		}
@@ -230,6 +235,7 @@ async function syncGlobalConfigsFromSupabase() {
 				rows2.forEach(r => {
 					const k = r.jid.replace('config_', '');
 					if (k === 'auto_ai') global.AUTO_AI = (r.history === 'true' || r.history === true);
+					if (k.startsWith('auto_ai_')) global[k.toUpperCase()] = (r.history === 'true' || r.history === true);
 					if (k === 'auto_read') global.AUTO_READ = (r.history === 'true' || r.history === true);
 					if (k === 'auto_status_read') global.AUTO_STATUS_READ = (r.history === 'true' || r.history === true);
 					if (k === 'anti_call') global.ANTI_CALL = (r.history === 'true' || r.history === true);
@@ -430,7 +436,7 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || 'private';
+		const _botMode = _settings.botMode || 'public';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
@@ -769,7 +775,12 @@ _قبل ما تبدأ، اختار اللغة ديالك:_
 		}
 
 		// ── Auto AI Chatbot (الرد التلقائي بالذكاء الاصطناعي مع حفظ المحادثة فـ Supabase) ──
-		const isAutoAiOn = global.AUTO_AI !== undefined ? global.AUTO_AI : false;
+		const myPhone = (process.env.PAIRING_NUMBER || this.user?.jid || conn.user?.jid || '').replace(/[^0-9]/g, '');
+		const perBotKey = `AUTO_AI_${myPhone}`;
+		const isAutoAiOn = (global[perBotKey] !== undefined)
+			? global[perBotKey]
+			: (global.AUTO_AI !== undefined ? global.AUTO_AI : false);
+
 		const botJid = this.user?.jid || conn.user?.jid || '';
 		const isBotMentionedInGroup = m.isGroup && ((m.mentionedJid || []).includes(botJid) || (m.quoted && m.quoted.sender === botJid));
 		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && (!m.isGroup || isBotMentionedInGroup);
