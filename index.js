@@ -1685,10 +1685,12 @@ async function restoreAllSessions() {
     const rows = await res.json();
 
     let count = 0;
+    const seenPhones = new Set();
     for (const r of rows) {
       if (r.phone_number && r.session_data && r.status === 'connected') {
         const cleanP = r.phone_number.toString().replace(/[^0-9]/g, '');
-        if (cleanP.length < 10) continue;
+        if (cleanP.length < 10 || seenPhones.has(cleanP)) continue;
+        seenPhones.add(cleanP);
 
         const buffer = Buffer.from(r.session_data, 'base64');
         if (buffer.length > 5000) {
@@ -1698,9 +1700,11 @@ async function restoreAllSessions() {
           writeFileSync(targetDb, buffer);
           console.log(`✅ Restored session files for +${cleanP}`);
 
-          // Spawn worker thread for this connected bot!
-          startBotWorker(cleanP, true);
-          count++;
+          // Spawn worker thread for this connected bot if not already running!
+          if (!workersMap.has(cleanP)) {
+            startBotWorker(cleanP);
+            count++;
+          }
         }
       }
     }
