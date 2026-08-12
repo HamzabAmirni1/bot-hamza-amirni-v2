@@ -788,19 +788,20 @@ export async function handler(chatUpdate) {
 					return !errorPhrases.some(e => lower === e || lower.startsWith(e + ':'));
 				};
 
-				// 1. Try Pollinations POST (JSON API with history - 10s timeout)
+				// 1. Try Pollinations POST (JSON API with history - 12s timeout)
 				try {
 					const messages = [
 						{ role: 'system', content: AI_SYSTEM_PROMPT },
-						...history.slice(-6),
+						...history.slice(-10),
 						{ role: 'user', content: m.text }
 					];
 					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 10000);
+					const timeoutId = setTimeout(() => controller.abort(), 12000);
+					const randomSeed = Math.floor(Math.random() * 999999);
 					const res = await fetch('https://text.pollinations.ai/', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-						body: JSON.stringify({ messages, model: 'openai', seed: -1 }),
+						body: JSON.stringify({ messages, model: 'openai', seed: randomSeed, temperature: 0.85 }),
 						signal: controller.signal
 					});
 					clearTimeout(timeoutId);
@@ -810,14 +811,15 @@ export async function handler(chatUpdate) {
 					}
 				} catch (_) {}
 
-				// 2. Try Pollinations GET with message only
+				// 2. Try Pollinations GET with random seed
 				if (!isValidReply(aiReply)) {
 					aiReply = '';
 					try {
 						const shortPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني". تجيب بنفس لغة المستخدم. لا تذكر ChatGPT أو OpenAI. المستخدم قال: ${m.text}`;
 						const controller = new AbortController();
-						const timeoutId = setTimeout(() => controller.abort(), 8000);
-						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(shortPrompt)}?model=openai&seed=-1`, {
+						const timeoutId = setTimeout(() => controller.abort(), 10000);
+						const rs2 = Math.floor(Math.random() * 999999);
+						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(shortPrompt)}?model=openai&seed=${rs2}&temperature=0.9`, {
 							headers: { 'User-Agent': 'Mozilla/5.0' },
 							signal: controller.signal
 						});
