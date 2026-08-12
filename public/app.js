@@ -1437,8 +1437,6 @@ async function loadBotSettings() {
     }
   } catch(e) {}
   // Load per-bot AI selector checkboxes list
-  loadPerBotAiList();
-}
   await loadPerBotAiList();
   // Load bot mode from API
   await loadBotMode();
