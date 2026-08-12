@@ -1915,6 +1915,27 @@ const SERVER_HOST_TYPE = process.env.KOYEB_SERVICE_NAME ? 'Koyeb Cloud' : (proce
 
 let isMasterInstance = false;
 
+async function forceClaimMasterLock() {
+  try {
+    isMasterInstance = true;
+    const payload = {
+      instance_id: SERVER_INSTANCE_ID,
+      host_type: SERVER_HOST_TYPE,
+      last_ping: Date.now()
+    };
+    await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([{ jid: 'config_master_server_lock', history: JSON.stringify(payload) }])
+    }).catch(() => {});
+  } catch (_) {}
+}
+
 async function checkMasterLock() {
   try {
     const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_master_server_lock&select=history,updated_at`, {
@@ -1935,25 +1956,10 @@ async function checkMasterLock() {
       }
     }
 
-    const isStale = (now - lastPing > 25000);
+    const isStale = (now - lastPing > 30000);
 
     if (!currentMaster || currentMaster === SERVER_INSTANCE_ID || isStale) {
-      isMasterInstance = true;
-      const payload = {
-        instance_id: SERVER_INSTANCE_ID,
-        host_type: SERVER_HOST_TYPE,
-        last_ping: now
-      };
-      await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
-        method: 'POST',
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': 'Bearer ' + SB_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify([{ jid: 'config_master_server_lock', history: JSON.stringify(payload) }])
-      }).catch(() => {});
+      await forceClaimMasterLock();
       return true;
     } else {
       isMasterInstance = false;
@@ -1992,11 +1998,23 @@ function startServerHeartbeat() {
 }
 
 async function init() {
+  await forceClaimMasterLock(); // Force-claim Master Lock on startup!
   startServerHeartbeat();
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
   await restoreAllSessions(); // Always restore and launch all connected sessions from Supabase!
+
+  // Check Master Lock periodically: if a newer deployment claims Master Lock, stop workers on this old container!
+  setInterval(async () => {
+    const isMasterNow = await checkMasterLock();
+    if (!isMasterNow && workersMap.size > 0) {
+      console.log(`⏸️ [Master Lock Handover] Another container took Master Lock. Stopping local workers on old container (${SERVER_INSTANCE_ID})...`);
+      for (const phone of Array.from(workersMap.keys())) {
+        stopBotWorker(phone);
+      }
+    }
+  }, 10000);
 }
 
 init();
