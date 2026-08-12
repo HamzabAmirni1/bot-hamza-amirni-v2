@@ -358,8 +358,8 @@ export async function handler(chatUpdate) {
 		}
 
 		// ── Language default: ensure user language is set (defaults to darija) ──
-		if (_user && !_user.language) {
-			_user.language = 'darija';
+		if (_user) {
+			if (!_user.language) _user.language = 'darija';
 			_user.hasSelectedLang = true;
 		}
 
