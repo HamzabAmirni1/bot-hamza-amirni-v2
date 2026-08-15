@@ -757,210 +757,140 @@ export async function handler(chatUpdate) {
 					if (!txt || typeof txt !== 'string') return false;
 					const clean = txt.trim();
 					if (clean.length < 2) return false;
-					const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype'];
+					const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype', 'error'];
 					const lower = clean.toLowerCase();
-					return !bad.some(b => lower.includes(b));
+					return !bad.some(b => lower === b || lower.startsWith(b + ':'));
 				};
 
-				const msgs = [
-					{ role: 'system', content: AI_SYSTEM_PROMPT },
-					...history.slice(-8),
-					{ role: 'user', content: m.text }
-				];
+				// ── Fast Parallel AI Engine (Calls top providers simultaneously, first to respond wins!) ──
+				const fetchAirforce = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 6000);
+					const res = await fetch('https://api.airforce/v1/chat/completions', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+						body: JSON.stringify({
+							model: 'gpt-4o-mini',
+							messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, ...history.slice(-6), { role: 'user', content: m.text }],
+							temperature: 0.8,
+							max_tokens: 500
+						}),
+						signal: ctrl.signal
+					});
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Airforce error');
+					const data = await res.json();
+					const txt = data?.choices?.[0]?.message?.content;
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
 
-				// ── Provider 1: DeepSeek v3 (from silana-lite) ──────────────────────────
-				if (!isValidReply(aiReply)) {
+				const fetchBK9 = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 6000);
+					const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(m.text)}`, { signal: ctrl.signal });
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('BK9 error');
+					const data = await res.json();
+					const txt = data?.BK9 || data?.result || data?.message;
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
+
+				const fetchDelirius = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 6000);
+					const res = await fetch(`https://delirius-apiofc.vercel.app/ia/gptweb?text=${encodeURIComponent(m.text)}`, { signal: ctrl.signal });
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Delirius error');
+					const data = await res.json();
+					const txt = data?.data || data?.result;
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
+
+				const fetchPollinations = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 6000);
+					const seed = Math.floor(Math.random() * 999999);
+					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai&seed=${seed}&temperature=0.85`, {
+						headers: { 'User-Agent': 'Mozilla/5.0' },
+						signal: ctrl.signal
+					});
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Pollinations error');
+					const txt = await res.text();
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
+
+				const fetchSimSimi = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 5000);
+					const res = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`, { signal: ctrl.signal });
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('SimSimi error');
+					const data = await res.json();
+					const txt = data?.message;
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
+
+				// Run providers in parallel race
+				try {
+					aiReply = await Promise.any([
+						fetchAirforce(),
+						fetchBK9(),
+						fetchDelirius(),
+						fetchPollinations(),
+						fetchSimSimi()
+					]);
+				} catch (_) {
+					// All parallel providers failed, try direct Pollinations POST
 					try {
 						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
-							method: 'POST',
-							headers: {
-								'Authorization': 'Bearer 937e9831-d15e-4674-8bd3-a30be3e148e9',
-								'Content-Type': 'application/json',
-								'User-Agent': 'okhttp/4.12.0'
-							},
-							body: JSON.stringify({
-								model: 'deepseek-v3-1-250821',
-								messages: msgs,
-								max_tokens: 600,
-								temperature: 0.7
-							}),
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.json();
-							const txt = data?.choices?.[0]?.message?.content;
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 2: ChatUpAI (from silana-lite) ─────────────────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch('https://api.chatupai.org/api/v1/completions', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								'User-Agent': 'ChatUpAI-Client/1.3.0'
-							},
-							body: JSON.stringify({ messages: msgs }),
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.json();
-							const txt = data?.data?.content;
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 3: ChatEverywhere GPT-4 (from silana-lite) ─────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch('https://chateverywhere.app/api/chat/', {
-							method: 'POST',
-							headers: {
-								'Accept': '*/*',
-								'Content-Type': 'application/json',
-								'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-							},
-							body: JSON.stringify({
-								model: {
-									id: 'gpt-4',
-									name: 'GPT-4',
-									maxLength: 32000,
-									tokenLimit: 8000,
-									completionTokenLimit: 5000,
-									deploymentName: 'gpt-4'
-								},
-								messages: [{ pluginId: null, content: m.text, role: 'user' }],
-								prompt: AI_SYSTEM_PROMPT,
-								temperature: 0.7
-							}),
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.text();
-							if (isValidReply(data)) aiReply = data;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 4: Airforce API (GPT-4o-mini) ──────────────────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch('https://api.airforce/v1/chat/completions', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-							body: JSON.stringify({
-								model: 'gpt-4o-mini',
-								messages: msgs,
-								temperature: 0.8,
-								max_tokens: 600
-							}),
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.json();
-							const txt = data?.choices?.[0]?.message?.content;
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 5: BK9 AI (GPT-4) ──────────────────────────────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(m.text)}`, {
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.json();
-							const txt = data?.BK9 || data?.result || data?.message;
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 6: Delirius GPT Web API ────────────────────────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 7000);
-						const res = await fetch(`https://delirius-apiofc.vercel.app/ia/gptweb?text=${encodeURIComponent(m.text)}`, {
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const data = await res.json();
-							const txt = data?.data || data?.result;
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
-				}
-
-				// ── Provider 7: Pollinations POST ───────────────────────────────────────
-				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 8000);
-						const randomSeed = Math.floor(Math.random() * 9999999);
+						const tid = setTimeout(() => ctrl.abort(), 5000);
 						const res = await fetch('https://text.pollinations.ai/', {
 							method: 'POST',
-							headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-							body: JSON.stringify({ messages: msgs, model: 'openai', seed: randomSeed, temperature: 0.85 }),
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, { role: 'user', content: m.text }],
+								model: 'openai',
+								seed: Math.floor(Math.random() * 999999)
+							}),
 							signal: ctrl.signal
 						});
 						clearTimeout(tid);
 						if (res.ok) {
 							const txt = await res.text();
-							if (isValidReply(txt)) aiReply = txt;
+							if (isValidReply(txt)) aiReply = txt.trim();
 						}
 					} catch (_) {}
 				}
 
-				// ── Provider 6: Pollinations GET ────────────────────────────────────────
+				// ── Smart Conversational Fallback (Guarantees immediate response!) ──
 				if (!isValidReply(aiReply)) {
-					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 6000);
-						const seed = Math.floor(Math.random() * 9999999);
-						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai&seed=${seed}&temperature=0.9`, {
-							headers: { 'User-Agent': 'Mozilla/5.0' },
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
-						if (res.ok) {
-							const txt = await res.text();
-							if (isValidReply(txt)) aiReply = txt;
-						}
-					} catch (_) {}
+					const lower = m.text.trim().toLowerCase();
+					if (/^(hi|hello|hey|salam|salut|bonjour|hola|مرحبا|سلام|أهلا|اهلا)/i.test(lower)) {
+						aiReply = 'أهلاً وسهلاً بك! 👋 أنا بوت حمزة اعمرني 🤖\nكيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي أي شيء أو كتابة .menu لعرض الأوامر!';
+					} else if (/^(chkon|chkoun|who are you|من انت|شكون انت|شكون نتا)/i.test(lower)) {
+						aiReply = 'أنا *بوت حمزة اعمرني* 🤖، بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك في واتساب!';
+					} else if (/^(kidayr|labas|cv|ca va|kif dayr|كيداير|لاباس|كيفك|شخبارك)/i.test(lower)) {
+						aiReply = 'الحمد لله كلو تمام وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊';
+					} else if (/^(chokran|merci|thanks|thank you|شكرا|بارك الله فيك)/i.test(lower)) {
+						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
+					} else {
+						aiReply = `أهلاً بك! تلقيت رسالتك: "${m.text}" 🤖\nيمكنك استخدام الأمر *.ai ${m.text}* أو كتابة *.menu* لاستكشاف كل الخدمات!`;
+					}
 				}
 
-				if (isValidReply(aiReply)) {
-					const cleanReply = aiReply.trim();
-					console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
-					history.push({ role: 'user', content: m.text });
-					history.push({ role: 'assistant', content: cleanReply });
-					saveAiMemoryToSupabase(m.sender, history).catch(() => {});
+				const cleanReply = aiReply.trim();
+				console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
+				history.push({ role: 'user', content: m.text });
+				history.push({ role: 'assistant', content: cleanReply });
+				saveAiMemoryToSupabase(m.sender, history).catch(() => {});
 
-					await this.reply(m.chat, cleanReply, m).catch(() => {});
-				}
+				await this.reply(m.chat, cleanReply, m).catch(() => {});
 			} catch (e) {
 				console.error('Auto AI Chatbot Error:', e);
 			}
