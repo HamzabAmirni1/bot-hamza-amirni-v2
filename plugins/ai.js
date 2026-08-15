@@ -1,8 +1,115 @@
 import axios from 'axios';
 
+// Helper: validate AI reply
+function isValid(txt) {
+  if (!txt || typeof txt !== 'string') return false;
+  const clean = txt.trim();
+  if (clean.length < 2) return false;
+  const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype'];
+  const lower = clean.toLowerCase();
+  return !bad.some(b => lower.includes(b));
+}
+
+// Multi-provider AI Caller
+async function askAI(prompt, userText) {
+  const msgs = [
+    { role: 'system', content: prompt },
+    { role: 'user', content: userText }
+  ];
+
+  // 1. Airforce API (GPT-4o-mini)
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch('https://api.airforce/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: msgs,
+        temperature: 0.8,
+        max_tokens: 600
+      }),
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const data = await res.json();
+      const txt = data?.choices?.[0]?.message?.content;
+      if (isValid(txt)) return txt.trim();
+    }
+  } catch (_) {}
+
+  // 2. BK9 AI (GPT-4)
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(userText)}`, {
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const data = await res.json();
+      const txt = data?.BK9 || data?.result || data?.message;
+      if (isValid(txt)) return txt.trim();
+    }
+  } catch (_) {}
+
+  // 3. Delirius GPT Web
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(`https://delirius-apiofc.vercel.app/ia/gptweb?text=${encodeURIComponent(userText)}`, {
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const data = await res.json();
+      const txt = data?.data || data?.result;
+      if (isValid(txt)) return txt.trim();
+    }
+  } catch (_) {}
+
+  // 4. Pollinations POST
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 8000);
+    const seed = Math.floor(Math.random() * 9999999);
+    const res = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({ messages: msgs, model: 'openai', seed, temperature: 0.85 }),
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const txt = await res.text();
+      if (isValid(txt)) return txt.trim();
+    }
+  } catch (_) {}
+
+  // 5. Pollinations GET
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 6000);
+    const seed = Math.floor(Math.random() * 9999999);
+    const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userText)}?model=openai&seed=${seed}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const txt = await res.text();
+      if (isValid(txt)) return txt.trim();
+    }
+  } catch (_) {}
+
+  return null;
+}
+
 let handler = async (m, { conn, text, usedPrefix, command }) => {
   const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
-  
+
   const t = (en, ar, da) => {
     if (userLang === 'english') return en;
     if (userLang === 'arabic') return ar;
@@ -32,37 +139,23 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         display_text: '👑 ' + t('Owner', 'المطور', 'مالك البوت'),
         id: `${usedPrefix}owner`
       })
-    },
-    {
-      name: 'quick_reply',
-      buttonParamsJson: JSON.stringify({
-        display_text: '🌐 ' + t('Change Language', 'تغيير اللغة', 'تغيير اللغة'),
-        id: `${usedPrefix}lang`
-      })
     }
   ];
 
   if (!text) {
-    const usageMsg = t(
-      `🤖 *AI Assistant & Image Generator*\n\n📌 *Usage:*\n• ${usedPrefix + command} What is Quantum Physics?\n• ${usedPrefix}imagine A cute kitten flying in space`,
-      `🤖 *الذكاء الاصطناعي وتوليد الصور*\n\n📌 *طريقة الاستخدام:*\n← ${usedPrefix + command} ما هي عاصمة المغرب؟\n← ${usedPrefix}imagine قطة لطيفة تطير في الفضاء`,
-      `🤖 *الذكاء الاصطناعي ورسم الصور*\n\n📌 *طريقة الاستعمال:*\n← ${usedPrefix + command} عاود ليا شي نكتة زوينة بالدارجة\n← ${usedPrefix}imagine مش طائر فالسماء كيضحك`
-    );
-
-    return await conn.sendButton(m.chat, {
-      body: usageMsg,
-      footer: 'bot amirni hamza • حمزة اعمرني',
-      buttons: stdButtons
-    }, { quoted: m });
+    return m.reply(t(
+      `🤖 *AI Assistant*\n📌 Usage: ${usedPrefix + command} What is quantum physics?\n🎨 Image: ${usedPrefix}imagine a cat in space`,
+      `🤖 *الذكاء الاصطناعي*\n📌 طريقة الاستخدام: ${usedPrefix + command} ما هي عاصمة المغرب؟\n🎨 صورة: ${usedPrefix}imagine قطة تطير`,
+      `🤖 *الذكاء الاصطناعي*\n📌 طريقة الاستعمال: ${usedPrefix + command} عاود ليا نكتة بالدارجة\n🎨 صورة: ${usedPrefix}imagine قطة كتطير`
+    ));
   }
 
-  // ── 1. Image Generation Commands (.imagine, .dalle) ──────────────────────
+  // ── Image Generation (.imagine, .dalle, .draw) ─────────────────────────────
   if (/^(imagine|dalle|draw|رسم|تخيل)$/i.test(command)) {
-    await m.reply(t('🎨 Generating AI image, please wait...', '🎨 جاري توليد الصورة بالذكاء الاصطناعي...', '🎨 جاري رسم الصورة بالذكاء الاصطناعي، انتظر لحظة...'));
+    await m.reply(t('🎨 Generating AI image...', '🎨 جاري توليد الصورة...', '🎨 جاري رسم الصورة، انتظر...'));
     try {
-      const encodedPrompt = encodeURIComponent(text);
-      const imageUrl = `https://pollinations.ai/p/${encodedPrompt}?width=1024&height=1024&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
-      
+      const seed = Math.floor(Math.random() * 100000);
+      const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(text)}?width=1024&height=1024&seed=${seed}&nologo=true`;
       await conn.sendButton(m.chat, {
         image: { url: imageUrl },
         caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* _${text}_\n\n🤖 *bot amirni hamza • حمزة اعمرني*`,
@@ -70,55 +163,34 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         buttons: stdButtons
       }, { quoted: m });
     } catch (e) {
-      console.error(e);
-      m.reply(t('❌ Failed to generate image. Please try again.', '❌ فشل توليد الصورة. يرجى المحاولة لاحقاً.', '❌ وقع مشكل فـ رسم الصورة، عاود حاول من بعد.'));
+      m.reply(t('❌ Failed to generate image.', '❌ فشل توليد الصورة.', '❌ وقع مشكل فـ رسم الصورة.'));
     }
     return;
   }
 
-  // ── 2. Text AI Commands (.ai, .gpt, .chat) ──────────────────────────────
-  await m.reply(t('🧠 Thinking...', '🧠 جاري التفكير والإجابة...', '🧠 البوت كيفكر فـ الجواب، انتظر لحظة...'));
+  // ── Text AI (.ai, .gpt, .chat) ─────────────────────────────────────────────
+  await m.reply(t('🧠 Thinking...', '🧠 جاري التفكير...', '🧠 البوت كيفكر، انتظر لحظة...'));
+
+  const sysPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني"، صنعك المطور المغربي "حمزة اعمرني". تجيب مباشرة وبدقة على سؤال المستخدم بنفس اللغة التي كتب بها (دارجة/عربية/إنجليزية/فرنسية). ردودك طبيعية ومفيدة بدون فلسفة زائدة. لا تذكر ChatGPT أو OpenAI أبداً.`;
+
+  let aiResponse = await askAI(sysPrompt, text);
+
+  if (!aiResponse) {
+    aiResponse = t(
+      'Sorry, the AI service is temporarily busy. Please ask again in a moment.',
+      'عذراً، خدمة الذكاء الاصطناعي مشغولة حالياً. حاول إعادة السؤال بعد قليل.',
+      'سمح ليا أ عشيري، خدمة الذكاء الاصطناعي عليها ضغط حالياً 😅 عاود سولني دابا نيت!'
+    );
+  }
 
   try {
-    let aiResponse = null;
-
-    try {
-      const res = await axios.get(`https://text.pollinations.ai/${encodeURIComponent(text)}?model=openai`);
-      if (res.data && typeof res.data === 'string' && res.data.length > 5) {
-        aiResponse = res.data;
-      }
-    } catch (_) {}
-
-    if (!aiResponse) {
-      try {
-        const res = await axios.get(`https://api.simsimi.vn/v1/simtalk`, {
-          params: { text: text, lc: 'ar' }
-        });
-        if (res.data && res.data.message) {
-          aiResponse = res.data.message;
-        }
-      } catch (_) {}
-    }
-
-    if (!aiResponse) {
-      aiResponse = t(
-        'Sorry, I could not process your request at the moment.',
-        'عذراً، لم أستطع معالجة طلبك حالياً.',
-        'سمح ليا أ عشيري، وقع مشكل فـ السيرفر د الذكاء الاصطناعي، عاود سولني من بعد!'
-      );
-    }
-
-    const responseText = `🧠 *AI Assistant (الذكاء الاصطناعي)*\n━━━━━━━━━━━━━━━━━━━━━\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━━━━━━`;
-    
     await conn.sendButton(m.chat, {
-      body: responseText,
+      body: `🧠 *AI Assistant (بوت حمزة اعمرني)*\n━━━━━━━━━━━━━━━━\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━`,
       footer: 'bot amirni hamza • حمزة اعمرني',
       buttons: stdButtons
     }, { quoted: m });
-
-  } catch (err) {
-    console.error(err);
-    m.reply(t('❌ An error occurred with AI service.', '❌ حدث خطأ في خدمة الذكاء الاصطناعي.', '❌ وقع خطأ فـ الذكاء الاصطناعي.'));
+  } catch (_) {
+    await m.reply(aiResponse);
   }
 };
 

@@ -745,85 +745,101 @@ export async function handler(chatUpdate) {
 				const AI_SYSTEM_PROMPT = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني"، صنعك المطور المغربي "حمزة اعمرني" (Hamza Amirni). لست ChatGPT ولا OpenAI ولا أي بوت آخر. اسمك فقط "بوت حمزة اعمرني".
 
 قاعدة مهمة جداً: تجيب دائماً بنفس اللغة التي يكتب بها المستخدم:
-- إذا كتب بالدارجة المغربية → جاوب بالدارجة
+- إذا كتب بالدارجة المغربية → جاوب بالدارجة المغربية بشكل طبيعي وذكي
 - إذا كتب بالعربية الفصحى → جاوب بالعربية
 - إذا كتب بالإنجليزية → جاوب بالإنجليزية
 - إذا كتب بالفرنسية → جاوب بالفرنسية
 
-ردودك قصيرة ومباشرة وطبيعية وفيها روح مرح. لا تذكر ChatGPT أو OpenAI أبداً.
+جاوب مباشرة وبدقة على سؤال المستخدم ومعلوماته، وخلي الردود مفيدة وظريفة وبدون فلسفة زائدة. لا تذكر ChatGPT أو OpenAI أبداً.`;
 
-مزايا البوت التي تعرفها (يمكنك الإجابة عنها):
-- .menu → عرض القائمة الكاملة للأوامر
-- .ai [سؤال] → ذكاء اصطناعي
-- .aiimage [وصف] → توليد صورة بالذكاء الاصطناعي
-- .sticker → تحويل صورة/فيديو لملصق
-- .ytmp3 [رابط] → تحميل موسيقى من يوتيوب
-- .ytmp4 [رابط] → تحميل فيديو من يوتيوب
-- .Instagram [رابط] → تحميل من إنستغرام
-- .tiktok [رابط] → تحميل من تيك توك
-- .facebook [رابط] → تحميل من فيسبوك
-- .apk [اسم التطبيق] → تحميل تطبيق APK
-- .google [بحث] → بحث جوجل
-- .pinterest [بحث] → بحث صور Pinterest
-- .github [بحث] → بحث GitHub
-- .news → آخر الأخبار
-- .quran [رقم السورة:الآية] → آيات قرآنية
-- .salat → أوقات الصلاة
-- .hd [صورة] → تحسين جودة الصورة
-- .brat [نص] → ملصق brat
-- .fakechat → محادثة مزيفة
-- .ping → فحص سرعة البوت
-- .register → تسجيل في البوت
-- .msgtodev [رسالة] → إرسال رسالة للمطور
-- .jadibot [رقم] → إضافة بوت جديد
-- .lang → تغيير لغة البوت
-- .owner → معلومات المالك والمطور`;
-
-
-				// Helper: check if API response is a real valid reply (not an error string)
+				// Helper: validate AI response
 				const isValidReply = (txt) => {
-					if (!txt || txt.trim().length < 1) return false;
-					const errorPhrases = ['missing text parameter', 'missing parameter', 'error', 'bad request', 'rate limit', 'too many requests', 'undefined', 'null'];
-					const lower = txt.trim().toLowerCase();
-					return !errorPhrases.some(e => lower === e || lower.startsWith(e + ':'));
+					if (!txt || typeof txt !== 'string') return false;
+					const clean = txt.trim();
+					if (clean.length < 2) return false;
+					const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype'];
+					const lower = clean.toLowerCase();
+					return !bad.some(b => lower.includes(b));
 				};
 
-				// 1. Try Pollinations POST (JSON API with history - 12s timeout)
-				try {
-					const messages = [
-						{ role: 'system', content: AI_SYSTEM_PROMPT },
-						...history.slice(-10),
-						{ role: 'user', content: m.text }
-					];
-					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 12000);
-					const randomSeed = Math.floor(Math.random() * 999999);
-					const res = await fetch('https://text.pollinations.ai/', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-						body: JSON.stringify({ messages, model: 'openai', seed: randomSeed, temperature: 0.85 }),
-						signal: controller.signal
-					});
-					clearTimeout(timeoutId);
-					if (res.ok) {
-						const txt = await res.text();
-						if (isValidReply(txt)) aiReply = txt;
-					}
-				} catch (_) {}
+				const msgs = [
+					{ role: 'system', content: AI_SYSTEM_PROMPT },
+					...history.slice(-8),
+					{ role: 'user', content: m.text }
+				];
 
-				// 2. Try Pollinations GET with random seed
+				// ── Provider 1: Airforce API (GPT-4o-mini / DeepSeek) ───────────────────
 				if (!isValidReply(aiReply)) {
-					aiReply = '';
 					try {
-						const shortPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني". تجيب بنفس لغة المستخدم. لا تذكر ChatGPT أو OpenAI. المستخدم قال: ${m.text}`;
-						const controller = new AbortController();
-						const timeoutId = setTimeout(() => controller.abort(), 10000);
-						const rs2 = Math.floor(Math.random() * 999999);
-						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(shortPrompt)}?model=openai&seed=${rs2}&temperature=0.9`, {
-							headers: { 'User-Agent': 'Mozilla/5.0' },
-							signal: controller.signal
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 7000);
+						const res = await fetch('https://api.airforce/v1/chat/completions', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+							body: JSON.stringify({
+								model: 'gpt-4o-mini',
+								messages: msgs,
+								temperature: 0.8,
+								max_tokens: 600
+							}),
+							signal: ctrl.signal
 						});
-						clearTimeout(timeoutId);
+						clearTimeout(tid);
+						if (res.ok) {
+							const data = await res.json();
+							const txt = data?.choices?.[0]?.message?.content;
+							if (isValidReply(txt)) aiReply = txt;
+						}
+					} catch (_) {}
+				}
+
+				// ── Provider 2: BK9 AI (GPT-4) ──────────────────────────────────────────
+				if (!isValidReply(aiReply)) {
+					try {
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 7000);
+						const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(m.text)}`, {
+							signal: ctrl.signal
+						});
+						clearTimeout(tid);
+						if (res.ok) {
+							const data = await res.json();
+							const txt = data?.BK9 || data?.result || data?.message;
+							if (isValidReply(txt)) aiReply = txt;
+						}
+					} catch (_) {}
+				}
+
+				// ── Provider 3: Delirius GPT Web API ────────────────────────────────────
+				if (!isValidReply(aiReply)) {
+					try {
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 7000);
+						const res = await fetch(`https://delirius-apiofc.vercel.app/ia/gptweb?text=${encodeURIComponent(m.text)}`, {
+							signal: ctrl.signal
+						});
+						clearTimeout(tid);
+						if (res.ok) {
+							const data = await res.json();
+							const txt = data?.data || data?.result;
+							if (isValidReply(txt)) aiReply = txt;
+						}
+					} catch (_) {}
+				}
+
+				// ── Provider 4: Pollinations POST ───────────────────────────────────────
+				if (!isValidReply(aiReply)) {
+					try {
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 8000);
+						const randomSeed = Math.floor(Math.random() * 9999999);
+						const res = await fetch('https://text.pollinations.ai/', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+							body: JSON.stringify({ messages: msgs, model: 'openai', seed: randomSeed, temperature: 0.85 }),
+							signal: ctrl.signal
+						});
+						clearTimeout(tid);
 						if (res.ok) {
 							const txt = await res.text();
 							if (isValidReply(txt)) aiReply = txt;
@@ -831,27 +847,39 @@ export async function handler(chatUpdate) {
 					} catch (_) {}
 				}
 
-				// 3. SimSimi fallback (Arabic)
+				// ── Provider 5: BK9 Gemini ──────────────────────────────────────────────
 				if (!isValidReply(aiReply)) {
-					aiReply = '';
 					try {
-						const controller = new AbortController();
-						const timeoutId = setTimeout(() => controller.abort(), 5000);
-						const simRes = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`, {
-							signal: controller.signal
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 6000);
+						const res = await fetch(`https://bk9.fun/ai/gemini?q=${encodeURIComponent(m.text)}`, {
+							signal: ctrl.signal
 						});
-						clearTimeout(timeoutId);
-						if (simRes.ok) {
-							const simData = await simRes.json();
-							const simMsg = simData?.message || '';
-							if (isValidReply(simMsg)) aiReply = simMsg;
+						clearTimeout(tid);
+						if (res.ok) {
+							const data = await res.json();
+							const txt = data?.BK9 || data?.result;
+							if (isValidReply(txt)) aiReply = txt;
 						}
 					} catch (_) {}
 				}
 
-				// 4. Final fallback
+				// ── Provider 6: Pollinations GET ────────────────────────────────────────
 				if (!isValidReply(aiReply)) {
-					aiReply = "أهلاً بك! أنا بوت حمزة اعمرني 🤖 كيف يمكنني مساعدتك اليوم؟";
+					try {
+						const ctrl = new AbortController();
+						const tid = setTimeout(() => ctrl.abort(), 6000);
+						const seed = Math.floor(Math.random() * 9999999);
+						const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai&seed=${seed}&temperature=0.9`, {
+							headers: { 'User-Agent': 'Mozilla/5.0' },
+							signal: ctrl.signal
+						});
+						clearTimeout(tid);
+						if (res.ok) {
+							const txt = await res.text();
+							if (isValidReply(txt)) aiReply = txt;
+						}
+					} catch (_) {}
 				}
 
 				if (isValidReply(aiReply)) {
