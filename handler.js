@@ -869,31 +869,58 @@ export async function handler(chatUpdate) {
 					throw new Error('Invalid reply');
 				};
 
-				// Provider 4: Pollinations GET
-				const fetchPollinations = async () => {
+				// Provider 4: Pollinations POST (most reliable from cloud IPs)
+				const fetchPollinationsPost = async () => {
 					const ctrl = new AbortController();
-					const tid = setTimeout(() => ctrl.abort(), 6000);
-					const seed = Math.floor(Math.random() * 999999);
-					const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(m.text)}?model=openai&seed=${seed}&temperature=0.85`, {
-						headers: { 'User-Agent': 'Mozilla/5.0' },
+					const tid = setTimeout(() => ctrl.abort(), 10000);
+					const res = await fetch('https://text.pollinations.ai/', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+						body: JSON.stringify({
+							messages: [
+								{ role: 'system', content: AI_SYSTEM_PROMPT },
+								...history.slice(-4),
+								{ role: 'user', content: m.text }
+							],
+							model: 'openai',
+							seed: Math.floor(Math.random() * 999999),
+							temperature: 0.85
+						}),
 						signal: ctrl.signal
 					});
 					clearTimeout(tid);
-					if (!res.ok) throw new Error('Pollinations error');
+					if (!res.ok) throw new Error('Pollinations POST error');
 					const txt = await res.text();
 					if (isValidReply(txt)) return txt.trim();
 					throw new Error('Invalid reply');
 				};
 
-				// Run providers in parallel race
+				// Run providers in parallel race - log which one wins
 				try {
 					aiReply = await Promise.any([
-						fetchDuckDuckGo(),
-						fetchAirforce(),
-						fetchNowtech(),
-						fetchPollinations()
+						fetchDuckDuckGo().then(r => { console.log('🤖 [AI] Winner: DuckDuckGo'); return r; }),
+						fetchAirforce().then(r => { console.log('🤖 [AI] Winner: Airforce'); return r; }),
+						fetchNowtech().then(r => { console.log('🤖 [AI] Winner: Nowtech'); return r; }),
+						fetchPollinationsPost().then(r => { console.log('🤖 [AI] Winner: Pollinations POST'); return r; })
 					]);
-				} catch (_) {}
+				} catch (err) {
+					console.log('🤖 [AI] All providers failed, trying Pollinations fallback...');
+					try {
+						const res = await fetch('https://text.pollinations.ai/', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'User-Agent': 'WhatsApp-Bot/1.0' },
+							body: JSON.stringify({
+								messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, { role: 'user', content: m.text }],
+								model: 'openai-large',
+								seed: Math.floor(Math.random() * 999999)
+							})
+						});
+						if (res.ok) {
+							const txt = await res.text();
+							if (isValidReply(txt)) { aiReply = txt.trim(); console.log('🤖 [AI] Winner: Pollinations Fallback'); }
+						}
+					} catch (_) {}
+				}
 
 				// ── Smart Conversational Fallback (Guarantees immediate response!) ──
 				if (!isValidReply(aiReply)) {
@@ -907,7 +934,7 @@ export async function handler(chatUpdate) {
 					} else if (/^(chokran|merci|thanks|thank you|شكرا|بارك الله فيك)/i.test(lower)) {
 						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
 					} else {
-						aiReply = `أهلاً بك! تلقيت رسالتك: "${m.text}" 🤖\nيمكنك استخدام الأمر *.ai ${m.text}* أو كتابة *.menu* لاستكشاف كل الخدمات!`;
+							aiReply = 'عذراً، الذكاء الاصطناعي مشغول لحظياً. 🔄\nجرب مجدداً بعد ثواني أو استخدم: *.ai سؤالك*';
 					}
 				}
 
