@@ -47,6 +47,49 @@ async function ytmp3Mever(url) {
 	throw new Error('Mever mp3 failed');
 }
 
+// NEW: SaveTube audio downloader (same site used for video but audio output)
+async function ytmp3Savetube(url) {
+	const videoId = (url.match(/(?:youtu\.be\/|v=)([a-zA-Z0-9_-]{11})/) || [])[1];
+	if (!videoId) throw new Error('Invalid YouTube ID');
+	const stH = { 'accept': '*/*', 'content-type': 'application/json', 'origin': 'https://yt.savetube.me', 'referer': 'https://yt.savetube.me/', 'user-agent': 'Postify/1.0.0' };
+	const cdnRes = await axios.get('https://media.savetube.me/api/random-cdn', { headers: stH, timeout: 10000 });
+	const cdn = cdnRes.data.cdn;
+	const infoRes = await axios.post(`https://${cdn}/api/v2/info`, { url: `https://www.youtube.com/watch?v=${videoId}` }, { headers: stH, timeout: 15000 });
+	const data2 = Buffer.from(infoRes.data.data, 'base64');
+	const iv = data2.slice(0, 16), content = data2.slice(16);
+	const key = Buffer.from('C5D58EF67A7584E4A29F6C35BBC4EB12'.match(/.{1,2}/g).join(''), 'hex');
+	const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+	const decrypted = JSON.parse(Buffer.concat([decipher.update(content), decipher.final()]).toString());
+	const dlRes = await axios.post(`https://${cdn}/api/download`, { id: videoId, downloadType: 'audio', quality: '128', key: decrypted.key }, { headers: stH, timeout: 15000 });
+	if (dlRes.data?.data?.downloadUrl) return { download: dlRes.data.data.downloadUrl, title: decrypted.title };
+	throw new Error('Savetube audio no URL');
+}
+
+// NEW: y2mate API
+async function ytmp3Y2mate(url) {
+	const id = (url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
+	if (!id) throw new Error('Invalid YouTube URL');
+	const headers = { 'Content-Type': 'application/x-www-form-urlencoded', 'referer': 'https://www.y2mate.com/', 'User-Agent': 'Mozilla/5.0' };
+	const r1 = await axios.post('https://www.y2mate.com/mates/analyzeV2/ajax', `k_query=https://www.youtube.com/watch?v=${id}&k_page=home&hl=en&q_auto=0`, { headers, timeout: 15000 });
+	const links = r1?.data?.links?.mp3;
+	if (!links) throw new Error('y2mate no mp3 links');
+	const best = Object.values(links).find(x => x.size && x.k);
+	if (!best?.k) throw new Error('y2mate no key');
+	const r2 = await axios.post('https://www.y2mate.com/mates/convertV2/index', `vid=${id}&k=${best.k}`, { headers, timeout: 20000 });
+	if (r2?.data?.dlink) return { download: r2.data.dlink, title: r1.data.title || 'Audio' };
+	throw new Error('y2mate convert failed');
+}
+
+// NEW: yt-download.org
+async function ytmp3Ytdl(url) {
+	const id = (url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
+	if (!id) throw new Error('Invalid YouTube URL');
+	const r = await axios.get(`https://www.yt-download.org/api/button/mp3/${id}`, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+	const match = r.data?.match(/href="(https:\/\/www\.yt-download\.org\/[^"]+\.mp3[^"]*)"/);
+	if (match?.[1]) return { download: match[1], title: 'Audio' };
+	throw new Error('yt-download.org failed');
+}
+
 // ============================================================
 // VIDEO DOWNLOADERS — Fallback chain
 // ============================================================
@@ -260,13 +303,25 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try audio downloaders in fallback order
+		// Try audio downloaders in fallback order (6 providers)
 		let audioData = null;
-		for (const fn of [ytmp3Mever, ytmp3Yupra, ytmp3Ytconvert]) {
+		for (const [fn, name] of [
+			[ytmp3Savetube, 'SaveTube'],
+			[ytmp3Y2mate, 'y2mate'],
+			[ytmp3Mever, 'Mever'],
+			[ytmp3Yupra, 'Yupra'],
+			[ytmp3Ytdl, 'yt-download.org'],
+			[ytmp3Ytconvert, 'YTConvert']
+		]) {
 			try {
 				audioData = await fn(videoUrl);
-				if (audioData?.download) break;
-			} catch (_) {}
+				if (audioData?.download) {
+					console.log(`[play] ✅ Audio downloaded via ${name}`);
+					break;
+				}
+			} catch (e) {
+				console.log(`[play] ❌ ${name} failed: ${e.message}`);
+			}
 		}
 
 		if (!audioData?.download) {
