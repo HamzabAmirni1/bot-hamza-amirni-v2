@@ -1569,21 +1569,6 @@ function startBotWorker(phone, isManual = false) {
     botInfo.lastActivity = Date.now();
     const chunkStr = chunk.toString();
 
-    // Check for logged out signal from Baileys
-    if (chunkStr.includes('Session logged out') || chunkStr.includes('Session logged out. Recreate session')) {
-      console.log(`🗑️ Session logged out for +${cleanPhone}. Stopping worker and deleting session entry.`);
-      stopBotWorker(cleanPhone);
-      fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${cleanPhone}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      }).catch(() => {});
-      try {
-        const specificDir = getBotSessionDir(cleanPhone);
-        if (existsSync(specificDir)) rmSync(specificDir, { recursive: true, force: true });
-      } catch (_) {}
-      return;
-    }
-
     // Capture pairing code for this worker
     const pairingMatch = chunkStr.match(/Your Pairing Code\s*:\s*([A-Z0-9]{4}-[A-Z0-9]{4})/i) ||
                          chunkStr.match(/([A-Z0-9]{4}-[A-Z0-9]{4})/);
@@ -1625,21 +1610,6 @@ function startBotWorker(phone, isManual = false) {
 
   w.stderr.on('data', (chunk) => {
     const chunkStr = chunk.toString();
-
-    // Check for logged out signal in stderr as well
-    if (chunkStr.includes('Session logged out')) {
-      console.log(`🗑️ Session logged out for +${cleanPhone}. Stopping worker.`);
-      stopBotWorker(cleanPhone);
-      fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${cleanPhone}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      }).catch(() => {});
-      try {
-        const specificDir = getBotSessionDir(cleanPhone);
-        if (existsSync(specificDir)) rmSync(specificDir, { recursive: true, force: true });
-      } catch (_) {}
-      return;
-    }
 
     const silencePatterns = ['Closing open session', 'Closing session', 'SessionEntry', 'No session record', 'Bad MAC', 'Timed Out', 'Connection Closed', 'Precondition Required', 'MaxListenersExceededWarning', 'socket hang up'];
     if (!silencePatterns.some(p => chunkStr.includes(p))) {
