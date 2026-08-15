@@ -756,37 +756,83 @@ export async function handler(chatUpdate) {
 				const isValidReply = (txt) => {
 					if (!txt || typeof txt !== 'string') return false;
 					const clean = txt.trim();
-					if (clean.length < 2) return false;
-					const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype', 'error'];
+					if (clean.length < 3) return false;
+					const bad = ['missing text parameter', 'missing parameter', 'bad request', 'rate limit', 'too many requests', 'error code', 'internal server error', 'undefined', 'null', '<html>', '<!doctype', 'error', 'not exist', 'unexpected response', 'invalid response', '404 not found', 'no response received'];
 					const lower = clean.toLowerCase();
-					return !bad.some(b => lower === b || lower.startsWith(b + ':'));
+					return !bad.some(b => lower === b || lower.startsWith(b + ':') || lower.startsWith(b + ' '));
 				};
 
-				// ── Fast Parallel AI Engine (Calls top working cloud LLMs simultaneously) ──
-				const fetchWritecream = async () => {
+				// ── Fast Parallel AI Engine (DuckDuckGo GPT-4o-mini + Gemini + Airforce + Pollinations) ──
+
+				// Provider 1: DuckDuckGo DuckChat (Official GPT-4o-mini, no key required, ultra-fast)
+				const fetchDuckDuckGo = async () => {
 					const ctrl = new AbortController();
 					const tid = setTimeout(() => ctrl.abort(), 7000);
-					const queryParam = JSON.stringify([
-						{ role: 'system', content: AI_SYSTEM_PROMPT },
-						...history.slice(-4),
-						{ role: 'user', content: m.text }
-					]);
-					const url = `https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(queryParam)}&link=writecream.com`;
-					const res = await fetch(url, {
+					const statusRes = await fetch('https://duckduckgo.com/duckchat/v1/status', {
 						headers: {
-							'User-Agent': 'Mozilla/5.0 (Linux; Android 10; RMX2185) AppleWebKit/537.36 Chrome/136.0.0.0 Mobile Safari/537.36',
-							'Referer': 'https://www.writecream.com/ai-chat/'
+							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+							'x-vqd-accept': '1'
 						},
 						signal: ctrl.signal
 					});
+					const vqd = statusRes.headers.get('x-vqd-4');
+					if (!vqd) throw new Error('No VQD token');
+
+					const chatRes = await fetch('https://duckduckgo.com/duckchat/v1/chat', {
+						method: 'POST',
+						headers: {
+							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+							'Content-Type': 'application/json',
+							'x-vqd-4': vqd
+						},
+						body: JSON.stringify({
+							model: 'gpt-4o-mini',
+							messages: [
+								{ role: 'user', content: `${AI_SYSTEM_PROMPT}\n\nسؤال المستخدم: ${m.text}` }
+							]
+						}),
+						signal: ctrl.signal
+					});
 					clearTimeout(tid);
-					if (!res.ok) throw new Error('Writecream error');
-					const json = await res.json();
-					const txt = json?.response_content;
+					if (!chatRes.ok) throw new Error('DuckChat HTTP error');
+					const raw = await chatRes.text();
+					let text = '';
+					for (const line of raw.split('\n')) {
+						if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+							try {
+								const json = JSON.parse(line.slice(6));
+								if (json.message) text += json.message;
+							} catch (_) {}
+						}
+					}
+					if (isValidReply(text)) return text.trim();
+					throw new Error('Invalid DuckChat reply');
+				};
+
+				// Provider 2: Airforce API (GPT-4o-mini)
+				const fetchAirforce = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 6000);
+					const res = await fetch('https://api.airforce/v1/chat/completions', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+						body: JSON.stringify({
+							model: 'gpt-4o-mini',
+							messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, ...history.slice(-6), { role: 'user', content: m.text }],
+							temperature: 0.8,
+							max_tokens: 500
+						}),
+						signal: ctrl.signal
+					});
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Airforce error');
+					const data = await res.json();
+					const txt = data?.choices?.[0]?.message?.content;
 					if (isValidReply(txt)) return txt.trim();
 					throw new Error('Invalid reply');
 				};
 
+				// Provider 3: Nowtech AI (from silana-lite)
 				const fetchNowtech = async () => {
 					const ctrl = new AbortController();
 					const tid = setTimeout(() => ctrl.abort(), 7000);
@@ -823,28 +869,7 @@ export async function handler(chatUpdate) {
 					throw new Error('Invalid reply');
 				};
 
-				const fetchAirforce = async () => {
-					const ctrl = new AbortController();
-					const tid = setTimeout(() => ctrl.abort(), 6000);
-					const res = await fetch('https://api.airforce/v1/chat/completions', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-						body: JSON.stringify({
-							model: 'gpt-4o-mini',
-							messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, ...history.slice(-6), { role: 'user', content: m.text }],
-							temperature: 0.8,
-							max_tokens: 500
-						}),
-						signal: ctrl.signal
-					});
-					clearTimeout(tid);
-					if (!res.ok) throw new Error('Airforce error');
-					const data = await res.json();
-					const txt = data?.choices?.[0]?.message?.content;
-					if (isValidReply(txt)) return txt.trim();
-					throw new Error('Invalid reply');
-				};
-
+				// Provider 4: Pollinations GET
 				const fetchPollinations = async () => {
 					const ctrl = new AbortController();
 					const tid = setTimeout(() => ctrl.abort(), 6000);
@@ -863,21 +888,12 @@ export async function handler(chatUpdate) {
 				// Run providers in parallel race
 				try {
 					aiReply = await Promise.any([
-						fetchWritecream(),
-						fetchNowtech(),
+						fetchDuckDuckGo(),
 						fetchAirforce(),
+						fetchNowtech(),
 						fetchPollinations()
 					]);
-				} catch (_) {
-					// Fallback single try
-					try {
-						const res = await fetch(`https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(JSON.stringify([{ role: 'user', content: m.text }]))}&link=writecream.com`);
-						if (res.ok) {
-							const json = await res.json();
-							if (isValidReply(json?.response_content)) aiReply = json.response_content.trim();
-						}
-					} catch (_) {}
-				}
+				} catch (_) {}
 
 				// ── Smart Conversational Fallback (Guarantees immediate response!) ──
 				if (!isValidReply(aiReply)) {
