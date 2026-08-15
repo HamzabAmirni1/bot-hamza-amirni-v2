@@ -762,7 +762,67 @@ export async function handler(chatUpdate) {
 					return !bad.some(b => lower === b || lower.startsWith(b + ':'));
 				};
 
-				// ── Fast Parallel AI Engine (Calls top providers simultaneously, first to respond wins!) ──
+				// ── Fast Parallel AI Engine (Calls top working cloud LLMs simultaneously) ──
+				const fetchWritecream = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 7000);
+					const queryParam = JSON.stringify([
+						{ role: 'system', content: AI_SYSTEM_PROMPT },
+						...history.slice(-4),
+						{ role: 'user', content: m.text }
+					]);
+					const url = `https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(queryParam)}&link=writecream.com`;
+					const res = await fetch(url, {
+						headers: {
+							'User-Agent': 'Mozilla/5.0 (Linux; Android 10; RMX2185) AppleWebKit/537.36 Chrome/136.0.0.0 Mobile Safari/537.36',
+							'Referer': 'https://www.writecream.com/ai-chat/'
+						},
+						signal: ctrl.signal
+					});
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Writecream error');
+					const json = await res.json();
+					const txt = json?.response_content;
+					if (isValidReply(txt)) return txt.trim();
+					throw new Error('Invalid reply');
+				};
+
+				const fetchNowtech = async () => {
+					const ctrl = new AbortController();
+					const tid = setTimeout(() => ctrl.abort(), 7000);
+					const ts = Date.now().toString();
+					const secretKey = 'dfaugf098ad0g98-idfaugf098ad0g98-iduoafiunoa-f09a8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8gduoafiunoa-f09adfaugf098ad0g98-iduoafiunoa-f09a8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8g8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8g';
+					const key = crypto.createHmac('sha512', secretKey).update(ts).digest('base64');
+					const res = await fetch('http://aichat.nowtechai.com/now/v1/ai', {
+						method: 'POST',
+						headers: {
+							'User-Agent': 'Ktor client',
+							'Connection': 'Keep-Alive',
+							'Accept': 'application/json',
+							'Content-Type': 'application/json',
+							'Key': key,
+							'TimeStamps': ts
+						},
+						body: JSON.stringify({ content: `${AI_SYSTEM_PROMPT}\n\nالمستخدم قال: ${m.text}` }),
+						signal: ctrl.signal
+					});
+					clearTimeout(tid);
+					if (!res.ok) throw new Error('Nowtech error');
+					const raw = await res.text();
+					let result = '';
+					for (const line of raw.split('\n')) {
+						if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+							try {
+								const json = JSON.parse(line.replace('data: ', ''));
+								const content = json?.choices?.[0]?.delta?.content;
+								if (content) result += content;
+							} catch (_) {}
+						}
+					}
+					if (isValidReply(result)) return result.trim();
+					throw new Error('Invalid reply');
+				};
+
 				const fetchAirforce = async () => {
 					const ctrl = new AbortController();
 					const tid = setTimeout(() => ctrl.abort(), 6000);
@@ -785,30 +845,6 @@ export async function handler(chatUpdate) {
 					throw new Error('Invalid reply');
 				};
 
-				const fetchBK9 = async () => {
-					const ctrl = new AbortController();
-					const tid = setTimeout(() => ctrl.abort(), 6000);
-					const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(m.text)}`, { signal: ctrl.signal });
-					clearTimeout(tid);
-					if (!res.ok) throw new Error('BK9 error');
-					const data = await res.json();
-					const txt = data?.BK9 || data?.result || data?.message;
-					if (isValidReply(txt)) return txt.trim();
-					throw new Error('Invalid reply');
-				};
-
-				const fetchDelirius = async () => {
-					const ctrl = new AbortController();
-					const tid = setTimeout(() => ctrl.abort(), 6000);
-					const res = await fetch(`https://delirius-apiofc.vercel.app/ia/gptweb?text=${encodeURIComponent(m.text)}`, { signal: ctrl.signal });
-					clearTimeout(tid);
-					if (!res.ok) throw new Error('Delirius error');
-					const data = await res.json();
-					const txt = data?.data || data?.result;
-					if (isValidReply(txt)) return txt.trim();
-					throw new Error('Invalid reply');
-				};
-
 				const fetchPollinations = async () => {
 					const ctrl = new AbortController();
 					const tid = setTimeout(() => ctrl.abort(), 6000);
@@ -824,46 +860,21 @@ export async function handler(chatUpdate) {
 					throw new Error('Invalid reply');
 				};
 
-				const fetchSimSimi = async () => {
-					const ctrl = new AbortController();
-					const tid = setTimeout(() => ctrl.abort(), 5000);
-					const res = await fetch(`https://api.simsimi.vn/v1/simtalk?text=${encodeURIComponent(m.text)}&lc=ar`, { signal: ctrl.signal });
-					clearTimeout(tid);
-					if (!res.ok) throw new Error('SimSimi error');
-					const data = await res.json();
-					const txt = data?.message;
-					if (isValidReply(txt)) return txt.trim();
-					throw new Error('Invalid reply');
-				};
-
 				// Run providers in parallel race
 				try {
 					aiReply = await Promise.any([
+						fetchWritecream(),
+						fetchNowtech(),
 						fetchAirforce(),
-						fetchBK9(),
-						fetchDelirius(),
-						fetchPollinations(),
-						fetchSimSimi()
+						fetchPollinations()
 					]);
 				} catch (_) {
-					// All parallel providers failed, try direct Pollinations POST
+					// Fallback single try
 					try {
-						const ctrl = new AbortController();
-						const tid = setTimeout(() => ctrl.abort(), 5000);
-						const res = await fetch('https://text.pollinations.ai/', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								messages: [{ role: 'system', content: AI_SYSTEM_PROMPT }, { role: 'user', content: m.text }],
-								model: 'openai',
-								seed: Math.floor(Math.random() * 999999)
-							}),
-							signal: ctrl.signal
-						});
-						clearTimeout(tid);
+						const res = await fetch(`https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(JSON.stringify([{ role: 'user', content: m.text }]))}&link=writecream.com`);
 						if (res.ok) {
-							const txt = await res.text();
-							if (isValidReply(txt)) aiReply = txt.trim();
+							const json = await res.json();
+							if (isValidReply(json?.response_content)) aiReply = json.response_content.trim();
 						}
 					} catch (_) {}
 				}

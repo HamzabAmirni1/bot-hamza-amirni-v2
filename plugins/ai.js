@@ -1,4 +1,5 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 // Helper: validate AI reply
 function isValid(txt) {
@@ -10,150 +11,89 @@ function isValid(txt) {
   return !bad.some(b => lower.includes(b));
 }
 
-// Multi-provider AI Caller incorporating silana-lite providers
+// Multi-provider AI Caller using Writecream (AWS Lambda) + Nowtech (HMAC) + Airforce
 async function askAI(prompt, userText) {
-  const msgs = [
-    { role: 'system', content: prompt },
-    { role: 'user', content: userText }
-  ];
+  // 1. Writecream (AWS Lambda LLM endpoint - ultra reliable)
+  const fetchWritecream = async () => {
+    const queryParam = JSON.stringify([
+      { role: 'system', content: prompt },
+      { role: 'user', content: userText }
+    ]);
+    const url = `https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(queryParam)}&link=writecream.com`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; RMX2185) AppleWebKit/537.36 Chrome/136.0.0.0 Mobile Safari/537.36',
+        'Referer': 'https://www.writecream.com/ai-chat/'
+      }
+    });
+    if (!res.ok) throw new Error('Writecream error');
+    const json = await res.json();
+    const txt = json?.response_content;
+    if (isValid(txt)) return txt.trim();
+    throw new Error('Invalid reply');
+  };
 
-  // 1. DeepSeek v3 (from silana-lite)
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+  // 2. Nowtech (HMAC SHA512)
+  const fetchNowtech = async () => {
+    const ts = Date.now().toString();
+    const secretKey = 'dfaugf098ad0g98-idfaugf098ad0g98-iduoafiunoa-f09a8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8gduoafiunoa-f09adfaugf098ad0g98-iduoafiunoa-f09a8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8g8s098a09ea-a0s8g-asd8g0a9d--gasdga8d0g8a0dg80a9sd8g0a9d8g';
+    const key = crypto.createHmac('sha512', secretKey).update(ts).digest('base64');
+    const res = await fetch('http://aichat.nowtechai.com/now/v1/ai', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 937e9831-d15e-4674-8bd3-a30be3e148e9',
+        'User-Agent': 'Ktor client',
+        'Connection': 'Keep-Alive',
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': 'okhttp/4.12.0'
+        'Key': key,
+        'TimeStamps': ts
       },
-      body: JSON.stringify({
-        model: 'deepseek-v3-1-250821',
-        messages: msgs,
-        max_tokens: 600,
-        temperature: 0.7
-      }),
-      signal: ctrl.signal
+      body: JSON.stringify({ content: `${prompt}\n\nسؤال: ${userText}` })
     });
-    clearTimeout(tid);
-    if (res.ok) {
-      const data = await res.json();
-      const txt = data?.choices?.[0]?.message?.content;
-      if (isValid(txt)) return txt.trim();
+    if (!res.ok) throw new Error('Nowtech error');
+    const raw = await res.text();
+    let result = '';
+    for (const line of raw.split('\n')) {
+      if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+        try {
+          const json = JSON.parse(line.replace('data: ', ''));
+          const content = json?.choices?.[0]?.delta?.content;
+          if (content) result += content;
+        } catch (_) {}
+      }
     }
-  } catch (_) {}
+    if (isValid(result)) return result.trim();
+    throw new Error('Invalid reply');
+  };
 
-  // 2. ChatUpAI (from silana-lite)
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch('https://api.chatupai.org/api/v1/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'ChatUpAI-Client/1.3.0'
-      },
-      body: JSON.stringify({ messages: msgs }),
-      signal: ctrl.signal
-    });
-    clearTimeout(tid);
-    if (res.ok) {
-      const data = await res.json();
-      const txt = data?.data?.content;
-      if (isValid(txt)) return txt.trim();
-    }
-  } catch (_) {}
-
-  // 3. ChatEverywhere GPT-4 (from silana-lite)
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch('https://chateverywhere.app/api/chat/', {
-      method: 'POST',
-      headers: {
-        'Accept': '*/*',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-      },
-      body: JSON.stringify({
-        model: {
-          id: 'gpt-4',
-          name: 'GPT-4',
-          maxLength: 32000,
-          tokenLimit: 8000,
-          completionTokenLimit: 5000,
-          deploymentName: 'gpt-4'
-        },
-        messages: [{ pluginId: null, content: userText, role: 'user' }],
-        prompt: prompt,
-        temperature: 0.7
-      }),
-      signal: ctrl.signal
-    });
-    clearTimeout(tid);
-    if (res.ok) {
-      const data = await res.text();
-      if (isValid(data)) return data.trim();
-    }
-  } catch (_) {}
-
-  // 4. Airforce API (GPT-4o-mini)
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 7000);
+  // 3. Airforce API
+  const fetchAirforce = async () => {
     const res = await fetch('https://api.airforce/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: msgs,
+        messages: [{ role: 'system', content: prompt }, { role: 'user', content: userText }],
         temperature: 0.8,
-        max_tokens: 600
-      }),
-      signal: ctrl.signal
+        max_tokens: 500
+      })
     });
-    clearTimeout(tid);
-    if (res.ok) {
-      const data = await res.json();
-      const txt = data?.choices?.[0]?.message?.content;
-      if (isValid(txt)) return txt.trim();
-    }
-  } catch (_) {}
+    if (!res.ok) throw new Error('Airforce error');
+    const data = await res.json();
+    const txt = data?.choices?.[0]?.message?.content;
+    if (isValid(txt)) return txt.trim();
+    throw new Error('Invalid reply');
+  };
 
-  // 5. BK9 AI (GPT-4)
   try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch(`https://bk9.fun/ai/gpt4?q=${encodeURIComponent(userText)}`, {
-      signal: ctrl.signal
-    });
-    clearTimeout(tid);
-    if (res.ok) {
-      const data = await res.json();
-      const txt = data?.BK9 || data?.result || data?.message;
-      if (isValid(txt)) return txt.trim();
-    }
-  } catch (_) {}
-
-  // 6. Pollinations POST
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 8000);
-    const seed = Math.floor(Math.random() * 9999999);
-    const res = await fetch('https://text.pollinations.ai/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({ messages: msgs, model: 'openai', seed, temperature: 0.85 }),
-      signal: ctrl.signal
-    });
-    clearTimeout(tid);
-    if (res.ok) {
-      const txt = await res.text();
-      if (isValid(txt)) return txt.trim();
-    }
-  } catch (_) {}
-
+    return await Promise.any([fetchWritecream(), fetchNowtech(), fetchAirforce()]);
+  } catch (_) {
+    try {
+      const res = await fetch(`https://8pe3nv3qha.execute-api.us-east-1.amazonaws.com/default/llm_chat?query=${encodeURIComponent(JSON.stringify([{ role: 'user', content: userText }]))}&link=writecream.com`);
+      const json = await res.json();
+      if (isValid(json?.response_content)) return json.response_content.trim();
+    } catch (__) {}
+  }
   return null;
 }
 
