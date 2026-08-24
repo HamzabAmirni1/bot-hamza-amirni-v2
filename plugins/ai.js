@@ -64,7 +64,14 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   // ── Text AI (.ai, .gpt, .chat) ─────────────────────────────────────────────
   await m.reply(t('🧠 Thinking...', '🧠 جاري التفكير...', '🧠 البوت كيفكر، انتظر لحظة...'));
 
-  const sysPrompt = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني"، صنعك المطور المغربي "حمزة اعمرني". تجيب مباشرة وبدقة على سؤال المستخدم بنفس اللغة التي كتب بها (دارجة/عربية/إنجليزية/فرنسية). ردودك طبيعية ومفيدة بدون فلسفة زائدة. لا تذكر ChatGPT أو OpenAI أبداً.`;
+  const sysPrompt = `You are a smart, helpful WhatsApp assistant named "Bot Amirni Hamza" (بوت حمزة اعمرني), created by the Moroccan developer "Hamza Amirni" (حمزة اعمرني).
+CRITICAL RULES:
+1. Match the user's language:
+   - English: Respond 100% in English without any Arabic script. Name: "Bot Amirni Hamza".
+   - French: Respond 100% in French without any Arabic script. Name: "Bot Amirni Hamza".
+   - Moroccan Darija: Respond in Moroccan Darija. Name: "بوت حمزة اعمرني".
+   - Standard Arabic: Respond in Arabic. Name: "بوت حمزة اعمرني".
+2. Direct, polite, concise, and helpful. Never mention ChatGPT or OpenAI.`;
 
   let aiResponse = await getSmartAIReply(text, { systemPrompt: sysPrompt });
 
@@ -76,9 +83,12 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     );
   }
 
+  const isEnOrFr = /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(text);
+  const headerTitle = isEnOrFr ? '🧠 *AI Assistant (Google Gemini • Bot Amirni Hamza)*' : '🧠 *AI Assistant (Google Gemini • بوت حمزة اعمرني)*';
+
   try {
     await conn.sendButton(m.chat, {
-      body: `🧠 *AI Assistant (Google Gemini • بوت حمزة اعمرني)*\n━━━━━━━━━━━━━━━━\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━`,
+      body: `${headerTitle}\n━━━━━━━━━━━━━━━━\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━`,
       footer: 'bot amirni hamza • حمزة اعمرني',
       buttons: stdButtons
     }, { quoted: m });

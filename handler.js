@@ -37,6 +37,17 @@ if (parentPort && !global.__parentPortListenerAdded) {
 			console.error('❌ [Worker] ParentPort Error:', err.message);
 		}
 	});
+// Auto-Online periodic presence heartbeat (keeps WhatsApp status Always Online)
+if (!global.__autoOnlineHeartbeatSet) {
+	global.__autoOnlineHeartbeatSet = true;
+	setInterval(() => {
+		try {
+			const isOnline = global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true;
+			if (isOnline && global.conn && typeof global.conn.sendPresenceUpdate === 'function') {
+				global.conn.sendPresenceUpdate('available').catch(() => {});
+			}
+		} catch (_) {}
+	}, 20000);
 }
 
 // In-memory cache to de-duplicate double triggers (e.g. template button click + text reply fallback)
@@ -284,6 +295,18 @@ export async function handler(chatUpdate) {
 	try {
 		m = smsg(this, m) || m;
 		if (!m) return;
+
+		// Keep bot presence online on message activity (Always Online)
+		const isAutoOnline = global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true;
+		if (isAutoOnline && typeof this.sendPresenceUpdate === 'function') {
+			this.sendPresenceUpdate('available').catch(() => {});
+		}
+
+		// Auto Read incoming message (Mark as Read / Blue tick / Vu)
+		const isAutoRead = global.AUTO_READ !== undefined ? global.AUTO_READ : true;
+		if (isAutoRead && m?.key && typeof this.readMessages === 'function') {
+			this.readMessages([m.key]).catch(() => {});
+		}
 
 		// De-duplicate fast identical commands within 800ms window (skip for Baileys buttons)
 		if (m.text && m.text.startsWith('.') && !m.isBaileys) {
@@ -740,18 +763,27 @@ export async function handler(chatUpdate) {
 		if (shouldProcessAi) {
 			console.log(`🤖 [Auto AI] Processing message from ${m.sender}: "${m.text}"`);
 			try {
+				// 1. Mark message as read (Blue tick / Vu)
+				await this.readMessages([m.key]).catch(() => {});
+
+				// 2. Start Typing indicator ("يكتب الآن..." / "composing")
+				await this.sendPresenceUpdate('composing', m.chat).catch(() => {});
+
 				let history = await getAiMemoryFromSupabase(m.sender);
 				let aiReply = '';
 
-				const AI_SYSTEM_PROMPT = `أنت بوت واتساب ذكي اسمك "بوت حمزة اعمرني"، صنعك المطور المغربي "حمزة اعمرني" (Hamza Amirni). لست ChatGPT ولا OpenAI ولا أي بوت آخر. اسمك فقط "بوت حمزة اعمرني".
+				const AI_SYSTEM_PROMPT = `You are a smart, helpful WhatsApp assistant named "Bot Amirni Hamza" (بوت حمزة اعمرني), created by the Moroccan developer "Hamza Amirni" (حمزة اعمرني). You are NOT ChatGPT, NOT OpenAI, and NOT Google Gemini.
 
-قاعدة مهمة جداً: تجيب دائماً بنفس اللغة التي يكتب بها المستخدم:
-- إذا كتب بالدارجة المغربية → جاوب بالدارجة المغربية بشكل طبيعي وذكي
-- إذا كتب بالعربية الفصحى → جاوب بالعربية
-- إذا كتب بالإنجليزية → جاوب بالإنجليزية
-- إذا كتب بالفرنسية → جاوب بالفرنسية
+CRITICAL RULES ON LANGUAGE & IDENTITY:
+1. STRICTLY match the user's language:
+   - English: Respond 100% in English. Introduce yourself as "Bot Amirni Hamza". NEVER include any Arabic letters or script anywhere in English responses.
+   - French: Respond 100% in French. Introduce yourself as "Bot Amirni Hamza". NEVER include any Arabic letters or script anywhere in French responses.
+   - Moroccan Darija (الدارجة المغربية): Respond naturally and smartly in Moroccan Darija (using Arabic script or Arabizi depending on user). Your name is "بوت حمزة اعمرني".
+   - Standard Arabic (العربية الفصحى): Respond in fluent Arabic. Your name is "بوت حمزة اعمرني".
+   - Other languages (Spanish, German, etc.): Respond in that language without mixing Arabic script.
 
-جاوب مباشرة وبدقة على سؤال المستخدم ومعلوماته، وخلي الردود مفيدة وظريفة وبدون فلسفة زائدة. لا تذكر ChatGPT أو OpenAI أبداً.`;
+2. Tone: Helpful, direct, polite, concise, and friendly without unnecessary philosophy.
+3. NEVER mention ChatGPT or OpenAI.`;
 
 				// ── Google Gemini Web & Multi-Provider AI Engine ──
 				aiReply = await getSmartAIReply(m.text, {
@@ -759,19 +791,47 @@ export async function handler(chatUpdate) {
 					history
 				});
 
+				// Keep typing indicator active if still processing
+				await this.sendPresenceUpdate('composing', m.chat).catch(() => {});
+
 				// ── Smart Conversational Fallback (Guarantees immediate response!) ──
 				if (!isValidReply(aiReply)) {
 					const lower = m.text.trim().toLowerCase();
-					if (/^(hi|hello|hey|salam|salut|bonjour|hola|مرحبا|سلام|أهلا|اهلا)/i.test(lower)) {
+					if (/^(hi|hello|hey|greetings)/i.test(lower)) {
+						aiReply = "Hello! 👋 I am **Bot Amirni Hamza** 🤖\nHow can I help you today? Ask me anything or type .menu to see all commands!";
+					} else if (/^(bonjour|salut|coucou|bonsoir)/i.test(lower)) {
+						aiReply = "Bonjour! 👋 Je suis **Bot Amirni Hamza** 🤖\nComment puis-je vous aider aujourd'hui ? Posez-moi votre question ou tapez .menu !";
+					} else if (/^(salam|مرحبا|سلام|أهلا|اهلا)/i.test(lower)) {
 						aiReply = 'أهلاً وسهلاً بك! 👋 أنا بوت حمزة اعمرني 🤖\nكيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي أي شيء أو كتابة .menu لعرض الأوامر!';
-					} else if (/^(chkon|chkoun|who are you|من انت|شكون انت|شكون نتا)/i.test(lower)) {
+					} else if (/^(who are you|who r u|what is your name)/i.test(lower)) {
+						aiReply = "I am **Bot Amirni Hamza** 🤖, a smart WhatsApp assistant created by the Moroccan developer **Hamza Amirni**!";
+					} else if (/^(qui es tu|qui est tu|c'est qui)/i.test(lower)) {
+						aiReply = "Je suis **Bot Amirni Hamza** 🤖, un assistant WhatsApp intelligent créé par le développeur marocain **Hamza Amirni** !";
+					} else if (/^(chkon|chkoun|من انت|شكون انت|شكون نتا)/i.test(lower)) {
 						aiReply = 'أنا *بوت حمزة اعمرني* 🤖، بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك في واتساب!';
-					} else if (/^(kidayr|labas|cv|ca va|kif dayr|كيداير|لاباس|كيفك|شخبارك)/i.test(lower)) {
+					} else if (/^(how are you|how r u|ca va|comment ca va)/i.test(lower)) {
+						if (/^(ca va|comment ca va)/i.test(lower)) {
+							aiReply = "Je vais très bien, merci ! 😊 Comment puis-je vous aider aujourd'hui ?";
+						} else {
+							aiReply = "I'm doing great, thank you! 😊 How can I assist you today?";
+						}
+					} else if (/^(kidayr|labas|cv|kif dayr|كيداير|لاباس|كيفك|شخبارك)/i.test(lower)) {
 						aiReply = 'الحمد لله كلو تمام وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊';
-					} else if (/^(chokran|merci|thanks|thank you|شكرا|بارك الله فيك)/i.test(lower)) {
+					} else if (/^(thanks|thank you|merci)/i.test(lower)) {
+						if (/^(merci)/i.test(lower)) {
+							aiReply = "De rien ! À votre service à tout moment ❤️✨";
+						} else {
+							aiReply = "You're welcome! Always happy to help ❤️✨";
+						}
+					} else if (/^(chokran|شكرا|بارك الله فيك)/i.test(lower)) {
 						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
 					} else {
-						aiReply = 'عذراً، الذكاء الاصطناعي مشغول لحظياً. 🔄\nجرب مجدداً بعد ثواني أو استخدم: *.ai سؤالك*';
+						const isEngOrFr = /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(m.text);
+						if (isEngOrFr) {
+							aiReply = "I am currently processing your request. Please ask again in a moment or try *.ai your question*!";
+						} else {
+							aiReply = 'عذراً، الذكاء الاصطناعي مشغول لحظياً. 🔄\nجرب مجدداً بعد ثواني أو استخدم: *.ai سؤالك*';
+						}
 					}
 				}
 
