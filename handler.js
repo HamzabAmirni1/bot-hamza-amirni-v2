@@ -37,6 +37,8 @@ if (parentPort && !global.__parentPortListenerAdded) {
 			console.error('❌ [Worker] ParentPort Error:', err.message);
 		}
 	});
+}
+
 // Auto-Online periodic presence heartbeat (keeps WhatsApp status Always Online)
 if (!global.__autoOnlineHeartbeatSet) {
 	global.__autoOnlineHeartbeatSet = true;
