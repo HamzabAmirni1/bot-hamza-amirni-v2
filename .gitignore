@@ -1,0 +1,10 @@
+node_modules/
+sessions/
+session/
+*.bak
+*.zip
+database.json
+.env
+tmp/*
+!tmp/.gitkeep
+scratch/

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🤖 BOT HAMZA AMIRNI — الدخول</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #080c14;
+      --card: rgba(15,23,42,0.85);
+      --border: rgba(16,185,129,0.2);
+      --accent: #10b981;
+      --accent2: #059669;
+      --blue: #06b6d4;
+      --purple: #8b5cf6;
+      --red: #f43f5e;
+      --yellow: #f59e0b;
+      --text: #f8fafc;
+      --text2: #94a3b8;
+      --text3: #64748b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    /* Background */
+    .bg-orbs { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: orbFloat 8s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%); top: -100px; right: -100px; animation-delay: 0s; }
+    .orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(6,182,212,0.12), transparent 70%); bottom: -80px; left: -80px; animation-delay: -3s; }
+    .orb-3 { width: 280px; height: 280px; background: radial-gradient(circle, rgba(139,92,246,0.10), transparent 70%); top: 40%; left: 30%; animation-delay: -5s; }
+    @keyframes orbFloat {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, -30px) scale(1.1); }
+    }
+
+    /* Animated grid */
+    .bg-grid {
+      position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+    }
+
+    /* Main wrap */
+    .wrap {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .bot-logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      border-radius: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 16px;
+      box-shadow: 0 0 40px rgba(16,185,129,0.4), 0 8px 32px rgba(0,0,0,0.4);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+    @keyframes logoPulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(16,185,129,0.35), 0 8px 32px rgba(0,0,0,0.4); }
+      50%       { box-shadow: 0 0 55px rgba(16,185,129,0.55), 0 8px 32px rgba(0,0,0,0.4); }
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+    .header p { color: var(--text2); font-size: 13px; }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 30px 26px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+      animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes cardIn {
+      from { transform: translateY(30px) scale(0.96); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 5px;
+      margin-bottom: 26px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 9px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      color: var(--text2);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      box-shadow: 0 4px 16px rgba(16,185,129,0.35);
+    }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.07); color: var(--text); }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Form elements */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+    .field label i { color: var(--accent); }
+    .field input, .field select {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.09);
+      border-radius: 11px;
+      padding: 13px 15px;
+      font-size: 15px;
+      font-family: 'Cairo', sans-serif;
+      color: var(--text);
+      outline: none;
+      transition: all 0.3s;
+    }
+    .field input::placeholder { color: var(--text3); font-size: 13px; }
+    .field input:focus, .field select:focus {
+      border-color: var(--accent);
+      background: rgba(16,185,129,0.06);
+      box-shadow: 0 0 0 3px rgba(16,185,129,0.14);
+    }
+    .field input[type="password"] { letter-spacing: 2px; }
+
+    /* Password toggle */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-left: 44px; }
+    .pw-eye {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: var(--text3); cursor: pointer;
+      font-size: 14px; padding: 4px;
+    }
+    .pw-eye:hover { color: var(--accent); }
+
+    /* Submit btn */
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      margin-top: 6px;
+    }
+    .btn-login {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      box-shadow: 0 6px 24px rgba(16,185,129,0.35);
+    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(16,185,129,0.5); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-request {
+      background: linear-gradient(135deg, var(--blue), #0284c7);
+      color: #000;
+      box-shadow: 0 6px 24px rgba(6,182,212,0.35);
+    }
+    .btn-request:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(6,182,212,0.5); }
+    .btn-request:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Alert / status */
+    .alert {
+      padding: 12px 15px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+    .alert.show { display: flex; }
+    .alert.err  { background: rgba(244,63,94,0.12); border: 1px solid rgba(244,63,94,0.3); color: #f87171; }
+    .alert.ok   { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: var(--accent); }
+    .alert.info { background: rgba(6,182,212,0.10); border: 1px solid rgba(6,182,212,0.3); color: var(--blue); }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Credentials box (shown after approval) */
+    .creds-box {
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.08));
+      border: 2px dashed rgba(16,185,129,0.4);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      margin-top: 16px;
+      display: none;
+    }
+    .creds-box.show { display: block; }
+    .creds-box .creds-title {
+      font-size: 13px; font-weight: 700;
+      color: var(--accent); margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .cred-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.3);
+      border-radius: 9px; padding: 10px 14px;
+      margin-bottom: 8px; gap: 10px;
+    }
+    .cred-label { font-size: 11px; color: var(--text2); font-weight: 600; }
+    .cred-value {
+      font-size: 15px; font-weight: 800;
+      color: var(--text); letter-spacing: 1px; flex: 1; text-align: center;
+      font-family: monospace;
+    }
+    .copy-btn {
+      background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);
+      color: var(--accent); border-radius: 6px;
+      padding: 4px 10px; font-size: 11px; cursor: pointer;
+      font-family: 'Cairo', sans-serif; font-weight: 700;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: rgba(16,185,129,0.3); }
+
+    /* Spinner */
+    .spin {
+      width: 16px; height: 16px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .footer { text-align: center; margin-top: 18px; color: var(--text3); font-size: 12px; }
+    .footer span { color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="wrap">
+    <!-- Header -->
+    <div class="header">
+      <div class="bot-logo">🤖</div>
+      <h1>BOT HAMZA AMIRNI</h1>
+      <p>لوحة تحكم البوت الذكي • بوابة الدخول</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-login-btn" onclick="switchTab('login')">
+          <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+        </button>
+        <button class="tab-btn" id="tab-req-btn" onclick="switchTab('request')">
+          <i class="fas fa-user-plus"></i> طلب الدخول
+        </button>
+      </div>
+
+      <!-- ── Tab: Login ── -->
+      <div class="tab-panel active" id="tab-login">
+        <div class="alert err" id="login-alert"><i class="fas fa-circle-xmark"></i><span id="login-alert-msg">خطأ</span></div>
+
+        <div class="field">
+          <label><i class="fas fa-user"></i> اسم المستخدم</label>
+          <input type="text" id="login-user" placeholder="أدخل اسم المستخدم" autocomplete="username" />
+        </div>
+
+        <div class="field">
+          <label><i class="fas fa-lock"></i> كلمة المرور</label>
+          <div class="pw-wrap">
+            <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()" />
+            <button class="pw-eye" onclick="togglePw('login-pass', this)" type="button"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+
+        <button class="submit-btn btn-login" id="login-btn" onclick="doLogin()">
+          <i class="fas fa-unlock-alt"></i> دخول للوحة التحكم
+        </button>
+      </div>
+
+      <!-- ── Tab: Request Access ── -->
+      <div class="tab-panel" id="tab-request">
+        <div class="alert info show" id="req-info">
+          <i class="fas fa-circle-info"></i>
+          <span>أرسل طلبك وانتظر موافقة الأدمن — ستصلك بيانات الدخول</span>
+        </div>
+
+        <div class="alert err" id="req-alert"><i class="fas fa-circle-xmark"></i><span id="req-alert-msg">خطأ</span></div>
+        <div class="alert ok" id="req-ok"><i class="fas fa-circle-check"></i><span id="req-ok-msg">تم</span></div>
+
+        <div class="field">
+          <label><i class="fas fa-user"></i> الاسم الكامل</label>
+          <input type="text" id="req-name" placeholder="مثال: محمد الحسن" />
+        </div>
+
+        <div class="field">
+          <label><i class="fas fa-phone"></i> رقم واتساب (مع رمز البلد)</label>
+          <input type="tel" id="req-phone" placeholder="212612030829" inputmode="numeric" />
+        </div>
+
+        <div class="field">
+          <label><i class="fas fa-comment-alt"></i> سبب طلب الدخول</label>
+          <input type="text" id="req-reason" placeholder="مثال: أريد ربط بوتي بالنظام" />
+        </div>
+
+        <button class="submit-btn btn-request" id="req-btn" onclick="doRequest()">
+          <i class="fas fa-paper-plane"></i> إرسال الطلب
+        </button>
+
+        <!-- Check status -->
+        <div style="margin-top:16px; text-align:center;">
+          <div style="font-size:12px; color:var(--text2); margin-bottom:10px;">هل أرسلت طلباً من قبل؟ تحقق من حالته:</div>
+          <div style="display:flex; gap:8px;">
+            <input type="tel" id="check-phone" placeholder="رقم واتساب..." style="flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); border-radius:9px; padding:10px 13px; font-size:13px; font-family:'Cairo',sans-serif; color:var(--text); outline:none;" inputmode="numeric" />
+            <button onclick="checkStatus()" style="background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.3); color:#a78bfa; border-radius:9px; padding:10px 16px; font-family:'Cairo',sans-serif; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">تحقق</button>
+          </div>
+        </div>
+
+        <!-- Credentials box (shown when approved) -->
+        <div class="creds-box" id="creds-box">
+          <div class="creds-title"><i class="fas fa-key"></i> بيانات الدخول الخاصة بك</div>
+          <div class="cred-row">
+            <span class="cred-label">المستخدم</span>
+            <span class="cred-value" id="cred-user">—</span>
+            <button class="copy-btn" onclick="copyText(document.getElementById('cred-user').textContent)">نسخ</button>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">كلمة المرور</span>
+            <span class="cred-value" id="cred-pass">—</span>
+            <button class="copy-btn" onclick="copyText(document.getElementById('cred-pass').textContent)">نسخ</button>
+          </div>
+          <button class="submit-btn btn-login" style="margin-top:12px;" onclick="switchTab('login')">
+            <i class="fas fa-sign-in-alt"></i> انتقل لتسجيل الدخول
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer">مدعوم بواسطة <span>BOT HAMZA AMIRNI</span> © 2026</div>
+  </div>
+
+  <script>
+    // ── Tab Switch ────────────────────────────────────────────────────
+    function switchTab(tab) {
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-request').classList.toggle('active', tab === 'request');
+      document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-req-btn').classList.toggle('active', tab === 'request');
+    }
+
+    // ── Toggle password visibility ────────────────────────────────────
+    function togglePw(inputId, btn) {
+      const inp = document.getElementById(inputId);
+      const isHidden = inp.type === 'password';
+      inp.type = isHidden ? 'text' : 'password';
+      btn.querySelector('i').className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+    }
+
+    // ── Login ─────────────────────────────────────────────────────────
+    async function doLogin() {
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      const btn  = document.getElementById('login-btn');
+
+      if (!user || !pass) return showAlert('login-alert', 'login-alert-msg', '❌ أدخل اسم المستخدم وكلمة المرور');
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spin"></div> جاري التحقق...';
+
+      try {
+        const res  = await fetch('/api/auth-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          sessionStorage.setItem('bot_auth', 'ok');
+          sessionStorage.setItem('bot_user', user);
+          btn.innerHTML = '<i class="fas fa-check"></i> تم الدخول! جاري التحويل...';
+          setTimeout(() => { window.location.href = '/'; }, 600);
+        } else {
+          showAlert('login-alert', 'login-alert-msg', '❌ ' + (data.error || 'بيانات خاطئة'));
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-unlock-alt"></i> دخول للوحة التحكم';
+        }
+      } catch(e) {
+        showAlert('login-alert', 'login-alert-msg', '❌ فشل الاتصال بالسيرفر');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-unlock-alt"></i> دخول للوحة التحكم';
+      }
+    }
+
+    // ── Send Access Request ────────────────────────────────────────────
+    async function doRequest() {
+      const name   = document.getElementById('req-name').value.trim();
+      const phone  = document.getElementById('req-phone').value.replace(/[^0-9]/g, '');
+      const reason = document.getElementById('req-reason').value.trim();
+      const btn    = document.getElementById('req-btn');
+
+      if (!name) return showAlert('req-alert', 'req-alert-msg', '❌ أدخل الاسم الكامل');
+      if (!phone || phone.length < 10) return showAlert('req-alert', 'req-alert-msg', '❌ أدخل رقم واتساب صحيح مع رمز البلد');
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spin"></div> جاري الإرسال...';
+
+      try {
+        const res  = await fetch('/api/access-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, reason })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('req-info').classList.remove('show');
+          hideAlert('req-alert');
+          document.getElementById('req-ok-msg').textContent = '✅ تم إرسال طلبك! انتظر موافقة الأدمن وتحقق من حالة طلبك برقمك';
+          document.getElementById('req-ok').classList.add('show');
+          document.getElementById('req-name').value = '';
+          document.getElementById('req-phone').value = phone;
+          document.getElementById('req-reason').value = '';
+        } else {
+          showAlert('req-alert', 'req-alert-msg', '❌ ' + (data.error || 'حدث خطأ'));
+        }
+      } catch(e) {
+        showAlert('req-alert', 'req-alert-msg', '❌ فشل الاتصال');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الطلب';
+    }
+
+    // ── Check Request Status ───────────────────────────────────────────
+    async function checkStatus() {
+      const phone = document.getElementById('check-phone').value.replace(/[^0-9]/g, '');
+      if (!phone || phone.length < 10) return alert('أدخل رقم واتساب صحيح');
+
+      try {
+        const res  = await fetch('/api/access-requests?phone=' + phone);
+        const data = await res.json();
+
+        if (!data || data.error) {
+          return alert('❌ لم يُعثر على طلب بهذا الرقم');
+        }
+
+        if (data.status === 'pending') {
+          return alert('⏳ طلبك قيد المراجعة — انتظر موافقة الأدمن');
+        }
+
+        if (data.status === 'rejected') {
+          return alert('❌ تم رفض طلبك من قِبل الأدمن');
+        }
+
+        if (data.status === 'approved' && data.username && data.password) {
+          document.getElementById('cred-user').textContent = data.username;
+          document.getElementById('cred-pass').textContent = data.password;
+          document.getElementById('creds-box').classList.add('show');
+          document.getElementById('req-ok-msg').textContent = '✅ تمت الموافقة على طلبك! استخدم بيانات الدخول أدناه';
+          document.getElementById('req-ok').classList.add('show');
+          document.getElementById('req-info').classList.remove('show');
+        }
+      } catch(e) {
+        alert('❌ خطأ في الاتصال بالسيرفر');
+      }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────
+    function showAlert(alertId, msgId, msg) {
+      document.getElementById(msgId).textContent = msg;
+      document.getElementById(alertId).classList.add('show');
+      setTimeout(() => document.getElementById(alertId).classList.remove('show'), 4000);
+    }
+    function hideAlert(alertId) {
+      document.getElementById(alertId).classList.remove('show');
+    }
+    function copyText(txt) {
+      navigator.clipboard.writeText(txt).then(() => alert('✅ تم النسخ: ' + txt)).catch(() => {});
+    }
+
+    // ── Phone input: numbers only ──────────────────────────────────────
+    document.getElementById('req-phone').addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+    document.getElementById('check-phone').addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🤖 لوحة تحكم البوت — HAMZA AMIRNI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Auth Guard -->
+  <script>
+    (function() {
+      const auth = sessionStorage.getItem('bot_auth') || localStorage.getItem('bot_auth');
+      if (auth !== 'ok') {
+        window.location.href = '/login.html';
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Background Grids & Orbs -->
+  <div class="bg-grid"></div>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Topbar Header -->
+  <header class="topbar">
+    <button class="sb-toggle" onclick="toggleSB()"><i class="fas fa-bars"></i></button>
+
+    <div class="topbar-brand">
+      <div class="topbar-logo">🤖</div>
+      <div>
+        <div class="topbar-name">BOT HAMZA AMIRNI</div>
+        <div class="topbar-version">v2.5 • Official Panel</div>
+      </div>
+    </div>
+
+    <!-- Live Phone & Status -->
+    <div id="topbar-phone-box" class="topbar-phone" style="display:none;">
+      📱 <span id="topbar-phone-val">—</span>
+    </div>
+
+    <div id="topbar-status-box" class="topbar-status on">
+      <div class="pulse-dot"></div>
+      <span id="topbar-status-txt">جاري التحقق...</span>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="topbar-btn" onclick="goPage('sessions')" title="الجلسات والربط"><i class="fas fa-qrcode"></i></button>
+      <button class="topbar-btn" onclick="loadStats()" title="تحديث البيانات"><i class="fas fa-sync-alt"></i></button>
+      <button class="topbar-btn danger" onclick="doLogout()" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </header>
+
+  <!-- Sidebar Overlay for mobile -->
+  <div class="sb-overlay" id="sb-overlay" onclick="closeSB()"></div>
+
+  <!-- Collapsible Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="nav-scroll">
+
+        <div class="nav-group-label">الرئيسية</div>
+
+        <div class="nv active" onclick="goPage('dashboard', this)">
+          <div class="nv-icon"><i class="fas fa-chart-pie"></i></div>
+          <span class="nv-label">لوحة التحكم</span>
+        </div>
+
+        <div class="nv" onclick="goPage('sessions', this)">
+          <div class="nv-icon"><i class="fas fa-key"></i></div>
+          <span class="nv-label">ربط الرقم والجلسات</span>
+        </div>
+
+        <div class="nv" onclick="goPage('adminmode', this)">
+          <div class="nv-icon"><i class="fas fa-user-shield"></i></div>
+          <span class="nv-label">إدارة المشرفين والنمط</span>
+        </div>
+
+        <div class="nv" onclick="goPage('botdetails', this)">
+          <div class="nv-icon"><i class="fas fa-robot"></i></div>
+          <span class="nv-label">تفاصيل كُل بوت</span>
+        </div>
+
+        <div class="nv" onclick="goPage('botusers', this)">
+          <div class="nv-icon"><i class="fas fa-users"></i></div>
+          <span class="nv-label">المستخدمون</span>
+        </div>
+
+        <div class="nv" onclick="goPage('bannedusers', this)">
+          <div class="nv-icon" style="color:var(--red)"><i class="fas fa-user-slash"></i></div>
+          <span class="nv-label">إدارة الحظر (Banned)</span>
+        </div>
+
+        <div class="nv" onclick="goPage('aichat', this)">
+          <div class="nv-icon"><i class="fas fa-brain"></i></div>
+          <span class="nv-label">محادثات AI</span>
+        </div>
+
+        <div class="nav-group-label">التواصل والنظام</div>
+
+        <div class="nv" onclick="goPage('devmsg', this)">
+          <div class="nv-icon"><i class="fas fa-paper-plane"></i></div>
+          <span class="nv-label">مركز البث والرسائل</span>
+        </div>
+
+        <div class="nv" onclick="goPage('errors', this)">
+          <div class="nv-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <span class="nv-label">سجل الأخطاء</span>
+        </div>
+
+        <div class="nv" onclick="goPage('access-req', this)">
+          <div class="nv-icon"><i class="fas fa-user-clock"></i></div>
+          <span class="nv-label">طلبات الدخول</span>
+          <span class="nv-badge" id="req-badge" style="display:none;background:var(--red,#f43f5e);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:2px 6px;margin-right:auto;">0</span>
+        </div>
+
+        <div class="nv" onclick="goPage('commands', this)">
+          <div class="nv-icon"><i class="fas fa-terminal"></i></div>
+          <span class="nv-label">الأوامر المتاحة</span>
+        </div>
+
+        <div class="sb-divider"></div>
+
+        <div class="nv" onclick="goPage('settings', this)">
+          <div class="nv-icon"><i class="fas fa-cog"></i></div>
+          <span class="nv-label">الإعدادات</span>
+        </div>
+
+        <div class="nv nv-logout" onclick="doLogout()">
+          <div class="nv-icon"><i class="fas fa-power-off"></i></div>
+          <span class="nv-label">خروج</span>
+        </div>
+
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main View Area -->
+  <main class="main">
+
+    <!-- ════════════════ PAGE: DASHBOARD ════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="pg-head">
+        <div>
+          <h1>📊 لوحة التحكم والإحصائيات</h1>
+          <p>نظرة عامة على نشاط البوت والرسائل والنظام</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadStats()"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stat-grid mb-20">
+        <div class="stat-card g">
+          <div class="stat-icon-wrap"><i class="fas fa-comment-dots"></i></div>
+          <div class="sv" id="s-msgs">—</div>
+          <div class="sl">رسالة معالجة</div>
+        </div>
+        <div class="stat-card b">
+          <div class="stat-icon-wrap"><i class="fas fa-users"></i></div>
+          <div class="sv" id="s-users">—</div>
+          <div class="sl">مستخدم مسجل</div>
+        </div>
+        <div class="stat-card p">
+          <div class="stat-icon-wrap"><i class="fas fa-eye"></i></div>
+          <div class="sv" id="s-visits">—</div>
+          <div class="sl">زيارات اللوحة</div>
+        </div>
+        <div class="stat-card r">
+          <div class="stat-icon-wrap"><i class="fas fa-robot"></i></div>
+          <div class="sv" id="s-bots">—</div>
+          <div class="sl">بوتات نشطة</div>
+        </div>
+      </div>
+
+      <div class="g2 mb-20">
+        <!-- Top Commands -->
+        <div class="card">
+          <div class="ch">
+            <div class="ci green"><i class="fas fa-trophy"></i></div>
+            <div class="ct">أكثر الأوامر استخداماً</div>
+          </div>
+          <div id="top-cmds"><div class="sw"><div class="sp"></div></div></div>
+        </div>
+
+        <!-- Recent Dev Msg -->
+        <div class="card">
+          <div class="ch">
+            <div class="ci blue"><i class="fas fa-inbox"></i></div>
+            <div class="ct">آخر رسائل المطور</div>
+            <button class="btn btn-ghost sm" style="margin-right:auto" onclick="goPage('devmsg')">عرض الكل</button>
+          </div>
+          <div id="dash-devmsg"><div class="sw"><div class="sp"></div></div></div>
+        </div>
+      </div>
+
+      <!-- System Health Card -->
+      <div class="card">
+        <div class="ch">
+          <div class="ci purple"><i class="fas fa-server"></i></div>
+          <div class="ct">حالة واستجابة النظام</div>
+        </div>
+        <div class="g3">
+          <div style="text-align:center;padding:16px;background:var(--surface);border-radius:12px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px">استهلاك الذاكرة (RAM)</div>
+            <div id="sys-ram" style="font-size:22px;font-weight:900;color:var(--green)">—</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--surface);border-radius:12px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px">آخر تحديث للسيشن</div>
+            <div id="sys-update" style="font-size:12px;font-weight:700;color:var(--blue)">—</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--surface);border-radius:12px;border:1px solid var(--border2)">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px">قاعدة البيانات</div>
+            <div style="font-size:14px;font-weight:800;color:var(--purple)">Supabase Realtime ✅</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: SESSIONS & ADD NUMBER ════════════════ -->
+    <div class="page" id="page-sessions">
+      <div class="pg-head">
+        <div>
+          <h1>🔑 ربط رقم جديد والجلسات</h1>
+          <p>إدارة الاتصال بواتساب، توليد QR أو Pairing Code لربط أي رقم</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadBotStatus(); loadAuth();"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+
+      <!-- Active Bot Status & Quick Controls Card -->
+      <div class="card mb-20">
+        <div class="ch">
+          <div class="ci green"><i class="fab fa-whatsapp"></i></div>
+          <div class="ct">حالة البوت الحالي والتحكم السريع</div>
+        </div>
+        <div id="bot-control-wrap"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+
+      <!-- Add New Phone / Connect Widget Card -->
+      <div class="card mb-20" style="border-top:3px solid var(--green)">
+        <div class="ch">
+          <div class="ci blue"><i class="fas fa-mobile-alt"></i></div>
+          <div>
+            <div class="ct">ربط رقم جديد بالبوت</div>
+            <div style="font-size:11px;color:var(--text2)">اختر طريقة الإقران وأدخل الرقم مع كود الدولة</div>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label class="fl"><i class="fas fa-phone text-accent"></i> رقم واتساب (مع كود الدولة)</label>
+          <input type="tel" id="connect-phone-input" class="fi ltr" placeholder="212612030829" maxlength="15" />
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="pair-mode-toggle">
+          <button class="pair-mode-btn active-g" id="pmode-code-btn" onclick="switchConnectMode('code')">
+            <i class="fas fa-key"></i> كود الربط (Pairing Code)
+          </button>
+          <button class="pair-mode-btn" id="pmode-qr-btn" onclick="switchConnectMode('qr')">
+            <i class="fas fa-qrcode"></i> مسح QR Code
+          </button>
+        </div>
+
+        <!-- Submit Button -->
+        <button class="btn btn-g full lg" id="connect-submit-btn" onclick="executeConnect()">
+          <i class="fas fa-link" id="connect-btn-icon"></i>
+          <span id="connect-btn-txt">طلب كود الربط</span>
+        </button>
+
+        <!-- Dynamic Results Container -->
+        <div id="connect-results-wrap" style="display:none;" class="mt-20">
+          <div id="connect-status-bar" class="sbar info">
+            <div class="mspin"></div>
+            <span id="connect-status-txt">جاري المعالجة...</span>
+          </div>
+
+          <!-- Code Box -->
+          <div id="connect-code-result" style="display:none;" class="code-box">
+            <div style="font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:700">🔑 كود الإقران الخاص بك:</div>
+            <span class="code-digits" id="connect-code-val">--------</span>
+            <button class="btn btn-ghost sm mt-16" onclick="copyConnectCode()"><i class="fas fa-copy"></i> نسخ الكود</button>
+            <div style="font-size:12px;color:var(--blue);margin-top:16px;line-height:1.7;font-weight:700;background:rgba(2,132,199,0.08);padding:12px;border-radius:10px;border:1px solid rgba(2,132,199,0.2);">
+              ⚠️ <b>ملاحظة مهمة:</b> هذا الكود يُكتب يدوياً في الواتساب (لا تمسحه بالكاميرا!):<br>
+              📱 <b>واتساب</b> ➔ <b>الأجهزة المرتبطة</b> ➔ <b>ربط جهاز</b> ➔ <b>الربط برقم الهاتف</b> ➔ أدخل الكود أعلاه
+            </div>
+          </div>
+
+          <!-- QR Box -->
+          <div id="connect-qr-result" style="display:none;" class="qr-box">
+            <div style="font-size:12px;color:var(--blue);font-weight:800;margin-bottom:12px;background:rgba(2,132,199,0.08);padding:10px;border-radius:8px;">
+              💡 <b>تنبيه:</b> يفضل استخدام طريقة <b>"كود الربط (Pairing Code)"</b> لأنها الأسهل والأسرع 100%!
+            </div>
+            <img id="connect-qr-img" src="" alt="QR Code" />
+            <div style="font-size:12px;color:var(--green);font-weight:700;margin-top:10px">📷 امسح هذا الرمز الآن من تطبيق واتساب (الأجهزة المرتبطة ➔ ربط جهاز)</div>
+            <div id="connect-qr-timer" style="font-size:11px;color:var(--yellow);margin-top:4px"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Registered Sessions List Card -->
+      <div class="card">
+        <div class="ch">
+          <div class="ci purple"><i class="fas fa-network-wired"></i></div>
+          <div class="ct">قائمة الجلسات المسجلة في Supabase</div>
+        </div>
+        <div id="auth-wrap"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+    </div>
+
+
+
+
+    <!-- ════════════════ PAGE: BOT ADMIN & MODES ════════════════ -->
+    <div class="page" id="page-adminmode">
+      <div class="ph mb-20">
+        <div>
+          <h2><i class="fas fa-user-shield text-accent"></i> إدارة المشرفين والنمط</h2>
+          <p>التحكم في صلاحيات الوصول للبوت، تحديد وضع العمل (عام/خاص/مجموعات/أدمن) وإدارة قائمة مشرفي البوت</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadBotMode()"><i class="fas fa-sync-alt"></i> تحديث البيانات</button>
+      </div>
+
+      <!-- Quick Admin Stats Grid -->
+      <div class="grid-4 mb-25">
+        <div class="sc">
+          <div class="sc-icon yellow"><i class="fas fa-user-shield"></i></div>
+          <div class="sc-info">
+            <div class="sc-num" id="stat-admin-count">0</div>
+            <div class="sc-label">مشرفو البوت المسجلون</div>
+          </div>
+        </div>
+        <div class="sc">
+          <div class="sc-icon blue"><i class="fas fa-toggle-on"></i></div>
+          <div class="sc-info">
+            <div class="sc-num" id="stat-current-mode" style="font-size:16px;text-transform:uppercase">PUBLIC</div>
+            <div class="sc-label">وضع التشغيل الحالي</div>
+          </div>
+        </div>
+        <div class="sc">
+          <div class="sc-icon purple"><i class="fas fa-crown"></i></div>
+          <div class="sc-info">
+            <div class="sc-num" style="font-size:14px" id="stat-owner-num">المطور المالك</div>
+            <div class="sc-label">صاحب الصلاحية الكلية</div>
+          </div>
+        </div>
+        <div class="sc">
+          <div class="sc-icon green"><i class="fas fa-check-circle"></i></div>
+          <div class="sc-info">
+            <div class="sc-num" style="font-size:15px">نشط ومؤمن</div>
+            <div class="sc-label">حالة الحماية والأمان</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot Mode Selection Grid Card -->
+      <div class="card mb-20" style="border-top:3px solid var(--accent)">
+        <div class="ch">
+          <div class="ci yellow"><i class="fas fa-sliders-h"></i></div>
+          <div>
+            <div class="ct">اختيار وضع تشغيل البوت (Bot Mode)</div>
+            <div style="font-size:11px;color:var(--text2)">انقر على أحد الأوضاع أدناه لتغيير طريقة استجابة البوت في الحين</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:15px">
+          <button type="button" class="mode-card-btn" id="mcard-public" onclick="setBotMode('public')">
+            <div style="font-size:24px;margin-bottom:6px">🌍</div>
+            <div style="font-weight:800;font-size:14px">عام (Public)</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">البوت متاح للجميع في الخاص والمجموعات دون قيود</div>
+          </button>
+
+          <button type="button" class="mode-card-btn" id="mcard-private" onclick="setBotMode('private')">
+            <div style="font-size:24px;margin-bottom:6px">🔒</div>
+            <div style="font-weight:800;font-size:14px">خاص (Private)</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">يعمل فقط في الرسائل الخاصة ويتم تجاهل المجموعات</div>
+          </button>
+
+          <button type="button" class="mode-card-btn" id="mcard-group" onclick="setBotMode('group')">
+            <div style="font-size:24px;margin-bottom:6px">👥</div>
+            <div style="font-weight:800;font-size:14px">مجموعات (Group)</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">يعمل فقط في داخل المجموعات ويرفض رسائل الخاص</div>
+          </button>
+
+          <button type="button" class="mode-card-btn" id="mcard-admin" onclick="setBotMode('admin')">
+            <div style="font-size:24px;margin-bottom:6px">🛡️</div>
+            <div style="font-weight:800;font-size:14px">مشرفين (Admin)</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">استجابة حصرية للمالك ومشرفي البوت المسجلين فقط</div>
+          </button>
+        </div>
+
+        <div id="mode-active-desc" class="sbar info" style="font-weight:600">
+          📌 الوضع الحالي المفعل: <span id="current-mode-label" class="mono text-accent">PUBLIC</span>
+        </div>
+      </div>
+
+      <!-- Add New Admin Card -->
+      <div class="card mb-20" style="border-top:3px solid var(--green)">
+        <div class="ch">
+          <div class="ci green"><i class="fas fa-user-plus"></i></div>
+          <div>
+            <div class="ct">إضافة مشرف جديد (Add Bot Admin)</div>
+            <div style="font-size:11px;color:var(--text2)">أدخل رقم الهاتف مع كود الدولة لإضافته لقائمة المشرفين</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <input type="tel" id="admin-page-phone-input" class="fi ltr" placeholder="212612030829" style="font-size:15px;font-weight:700" />
+          </div>
+          <button class="btn btn-g lg" onclick="addBotAdminPage()">
+            <i class="fas fa-user-shield"></i> إضافة كـ مشرف
+          </button>
+        </div>
+      </div>
+
+      <!-- Admins List Table Card -->
+      <div class="card" style="border-top:3px solid var(--blue)">
+        <div class="ch mb-15">
+          <div class="ci blue"><i class="fas fa-users-cog"></i></div>
+          <div>
+            <div class="ct">قائمة مشرفي البوت الحاليين</div>
+            <div style="font-size:11px;color:var(--text2)">جميع الأشخاص الذين يملكون صلاحيات الإدارة واستخدام النمط الخاص</div>
+          </div>
+        </div>
+
+        <div id="bot-admins-table-wrap">
+          <div class="sw"><div class="sp"></div></div>
+        </div>
+      </div>
+    </div>
+
+
+
+
+    <!-- ════════════════ PAGE: BOT DETAILS (PER-BOT ANALYTICS) ════════════════ -->
+    <div class="page" id="page-botdetails">
+      <div class="pg-head">
+        <div>
+          <h1>🤖 تفاصيل وإحصائيات كُل بوت مخصص</h1>
+          <p>عرض تحليلات ومستخدمي وصندوق رسائل كل بوت بشكل معزول ومستقل تماماً</p>
+        </div>
+        <button class="btn btn-g sm" onclick="loadBotDetailsPage()"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+
+      <!-- Bot Selector Bar -->
+      <div class="card mb-20" style="border-top:3px solid var(--accent)">
+        <div class="row-between mb-10">
+          <div style="font-weight:700;font-size:15px;color:var(--txt)"><i class="fas fa-mobile-alt me-2" style="color:var(--accent)"></i> اختر البوت لمعاينة تفاصيله المعزولة:</div>
+        </div>
+        <div id="bd-selector-bar" class="row gap-10" style="flex-wrap:wrap;">
+          <div class="sw"><div class="sp"></div></div>
+        </div>
+      </div>
+
+      <!-- 4 Stat Cards for Selected Bot -->
+      <div class="stats-grid mb-25">
+        <div class="sc">
+          <div class="sc-top"><div class="sc-ico blue"><i class="fas fa-phone-alt"></i></div><span class="sc-lbl">البوت المحدد</span></div>
+          <div class="sc-val" id="bd-phone-val" style="font-size:18px;">—</div>
+          <div class="sc-sub" id="bd-status-badge">جاري التحميل...</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><div class="sc-ico green"><i class="fas fa-users"></i></div><span class="sc-lbl">مستخدمو هذا البوت</span></div>
+          <div class="sc-val" id="bd-users-count">—</div>
+          <div class="sc-sub">مستخدمين نشطين لهذا البوت</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><div class="sc-ico yellow"><i class="fas fa-bolt"></i></div><span class="sc-lbl">الأوامر المعالجة</span></div>
+          <div class="sc-val" id="bd-msgs-count">—</div>
+          <div class="sc-sub">إجمالي الأوامر والرسائل</div>
+        </div>
+        <div class="sc">
+          <div class="sc-top"><div class="sc-ico purple"><i class="fas fa-shield-alt"></i></div><span class="sc-lbl">وضع البوت</span></div>
+          <div class="sc-val" id="bd-mode-val" style="font-size:18px;">—</div>
+          <div class="sc-sub">Bot Mode الحالي</div>
+        </div>
+      </div>
+
+      <!-- Grid for Commands & Inbox -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;" class="mb-20">
+
+        <!-- Card: Top Commands for selected bot -->
+        <div class="card mb-0">
+          <div class="ch">
+            <div class="ci yellow"><i class="fas fa-fire"></i></div>
+            <div>
+              <h3>الأوامر الأكثر استخداماً في هذا البوت</h3>
+              <p>ترتيب الأوامر حسب تكرار استخدامها مع هذا الرقم</p>
+            </div>
+          </div>
+          <div id="bd-top-cmds-wrap">
+            <div class="sw"><div class="sp"></div></div>
+          </div>
+        </div>
+
+        <!-- Card: Isolated Inbox for selected bot (.msgtodev) -->
+        <div class="card mb-0">
+          <div class="ch">
+            <div class="ci green"><i class="fas fa-inbox"></i></div>
+            <div>
+              <h3>صندوق الرسائل الواردة لهذا البوت (.msgtodev)</h3>
+              <p>الرسائل الموجهة للمطور مباشرة عبر هذا البوت فقط مع إمكانية الرد بنفس الرقم</p>
+            </div>
+          </div>
+          <div id="bd-dev-msgs-wrap">
+            <div class="sw"><div class="sp"></div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Card: User Roster for selected bot -->
+      <div class="card">
+        <div class="ch">
+          <div class="ci blue"><i class="fas fa-user-friends"></i></div>
+          <div>
+            <h3>المستخدمون الخاصون بهذا البوت</h3>
+            <p>قائمة بالأعضاء والأشخاص الذين يتواصلون مع هذا الرقم بالخصوص</p>
+          </div>
+        </div>
+        <div id="bd-users-table-wrap">
+          <div class="sw"><div class="sp"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ════════════════ PAGE: BOT USERS ════════════════ -->
+    <div class="page" id="page-botusers">
+      <div class="pg-head">
+        <div>
+          <h1>👥 مستخدمو البوت المسجلون</h1>
+          <p>قائمة بكل الأشخاص الذين تواصلوا مع البوت ومسجلين فـ Supabase</p>
+        </div>
+        <button class="btn btn-g sm" onclick="loadBotUsers(1)"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+
+      <div class="card mb-20">
+        <div class="row-between">
+          <input id="users-search" type="text" class="fi" placeholder="🔍 بحث بالاسم أو الرقم..." style="max-width:320px;" oninput="filterBotUsers()" />
+          <div class="badge b-g" style="font-size:13px;padding:8px 16px;">
+            إجمالي المستخدمين: <span id="users-total-count">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div id="bot-users-wrap"><div class="sw"><div class="sp"></div></div></div>
+        <div id="bot-users-pagination" class="row" style="justify-content:center;margin-top:16px;"></div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: AI CHATS ════════════════ -->
+    <div class="page" id="page-aichat">
+      <div class="pg-head">
+        <div>
+          <h1>🧠 محادثات الذكاء الاصطناعي</h1>
+          <p>سجل ذاكرة المحادثات الذكية وحوارات المستخدمين مع البوت</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch">
+          <div class="ci purple"><i class="fas fa-brain"></i></div>
+          <div class="ct">المحادثات المخزنة</div>
+          <input type="text" class="fi" id="ai-search" placeholder="بحث بـ JID..." oninput="filterAI(this.value)" style="max-width:220px;margin-right:auto" />
+          <button class="btn btn-ghost sm" onclick="loadAI()"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div id="ai-wrap"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: BROADCAST & DEV MSG ════════════════ -->
+    <div class="page" id="page-devmsg">
+      <div class="pg-head">
+        <div>
+          <h1>📣 مركز البث ورسائل المطور</h1>
+          <p>إرسال نشرات جماعية لجميع مستخدمي البوت والرد على الاستفسارات</p>
+        </div>
+      </div>
+
+      <div class="bc-grid mb-20">
+
+        <!-- Compose Broadcast -->
+        <div class="card pa-0" style="overflow:hidden">
+          <div style="padding:16px 20px;background:rgba(34,211,103,0.08);border-bottom:1px solid var(--border2)" class="row-between">
+            <div class="row">
+              <div class="ci green"><i class="fas fa-satellite-dish"></i></div>
+              <div>
+                <div class="ct">إنشاء بث جماعي</div>
+                <div style="font-size:11px;color:var(--text2)" id="bc-user-count">جاري التحميل...</div>
+              </div>
+            </div>
+            <span class="badge b-g" id="bc-status-badge">جاهز</span>
+          </div>
+
+          <!-- Preview -->
+          <div style="padding:16px;background:var(--surface)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-align:center">معاينة الرسالة:</div>
+            <div id="bc-preview" style="background:var(--card);border-radius:12px;padding:14px;border-right:3px solid var(--green);font-size:13px;line-height:1.6">
+              <div style="font-weight:700;color:var(--green);font-size:12px;margin-bottom:4px">📣 رسالة من المطور — حمزة اعمرني</div>
+              <div id="bc-preview-text" style="color:var(--text2);font-style:italic">اكتب رسالتك لترى المعاينة هنا...</div>
+              <div id="bc-preview-img" style="display:none;margin-top:8px"></div>
+            </div>
+          </div>
+
+          <!-- Attach preview -->
+          <div id="bc-attach-preview" style="display:none;padding:0 16px 10px;">
+            <div style="position:relative;display:inline-block">
+              <img id="bc-attach-img" style="max-height:100px;border-radius:8px;border:1.5px solid var(--green)" />
+              <button onclick="removeBcAttach()" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px">✕</button>
+            </div>
+          </div>
+
+          <!-- Form inputs -->
+          <div style="padding:16px">
+            <div class="fg">
+              <textarea id="bc-msg-text" class="fi" rows="4" placeholder="اكتب نص البث الجماعي هنا..." oninput="updateBcPreview()"></textarea>
+            </div>
+
+<div class="row">
+              <button class="btn btn-ghost sm" onclick="document.getElementById('bc-file-input').click()"><i class="fas fa-paperclip"></i> إرفاق صورة</button>
+              <input type="file" id="bc-file-input" accept="image/*" style="display:none" onchange="bcAttachFile(this)" />
+
+              <button class="btn btn-g" id="bc-send-btn" style="flex:1" onclick="sendBroadcast()">
+                <i class="fas fa-satellite-dish"></i> إرسال البث للجميع
+              </button>
+            </div>
+
+            <div id="bc-progress-wrap" style="display:none;margin-top:12px">
+              <div class="ptrack"><div id="bc-progress-bar" class="pfill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="card pa-0" style="overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border2)" class="row-between">
+            <div class="row">
+              <div class="ci blue"><i class="fas fa-history"></i></div>
+              <div class="ct">سجل البثوث</div>
+            </div>
+            <button class="btn btn-ghost sm" onclick="loadBroadcastHistory()"><i class="fas fa-sync-alt"></i></button>
+          </div>
+          <div id="bc-history-wrap" style="max-height:450px;overflow-y:auto;padding:14px"><div class="sw"><div class="sp"></div></div></div>
+        </div>
+
+      </div>
+
+      <!-- User Messages Inbox -->
+      <div class="card pa-0" style="overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border2)" class="row-between">
+          <div class="row">
+            <div class="ci purple"><i class="fas fa-inbox"></i></div>
+            <div class="ct">رسائل واستفسارات المستخدمين للمطور</div>
+          </div>
+          <div class="row">
+            <select class="fi" id="devmsg-filter" onchange="filterDevMsg()" style="max-width:140px;padding:5px 10px;font-size:12px">
+              <option value="all">الكل</option>
+              <option value="false">غير مرد عليها</option>
+              <option value="true">تم الرد عليها</option>
+            </select>
+            <button class="btn btn-ghost sm" onclick="loadDevMsg()"><i class="fas fa-sync-alt"></i></button>
+          </div>
+        </div>
+        <div id="devmsg-wrap" style="max-height:380px;overflow-y:auto;padding:14px"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: ERROR LOGS ════════════════ -->
+    <div class="page" id="page-errors">
+      <div class="pg-head">
+        <div>
+          <h1>⚠️ سجل أخطاء البوت</h1>
+          <p>قائمة بالأخطاء البرمجية أو أخطاء الشبكة التي تم رصدها</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadErrors()"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+
+      <div class="card">
+        <div id="errors-wrap"><div class="sw"><div class="sp"></div></div></div>
+      </div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: COMMANDS LIST ════════════════ -->
+    <div class="page" id="page-commands">
+      <div class="pg-head">
+        <div>
+          <h1>⌨️ الأوامر المتاحة فـ البوت</h1>
+          <p>استعراض الأوامر وتصنيفاتها وإمكانية النسخ بنقرة واحدة</p>
+        </div>
+      </div>
+
+      <div class="g4" id="cmds-grid"></div>
+    </div>
+
+
+    <!-- ════════════════ PAGE: SETTINGS ════════════════ -->
+    <div class="page" id="page-settings">
+      <div class="pg-head">
+        <div>
+          <h1>⚙️ إعدادات النظام والبوت</h1>
+          <p>التحكم في هويات البوت، أوامر المالك، وحدود التحميل اليومي</p>
+        </div>
+      </div>
+
+      <!-- Settings Navigation Tabs -->
+      <div class="settings-tabs">
+        <button id="stab-bot" class="stab active" onclick="switchSettingsTab('bot')">🤖 إعدادات البوت</button>
+        <button id="stab-owner" class="stab" onclick="switchSettingsTab('owner')">👑 أوامر المالك</button>
+        <button id="stab-db" class="stab" onclick="switchSettingsTab('db')">🗄️ قاعدة البيانات</button>
+      </div>
+
+      <!-- BOT TAB -->
+      <div id="spanel-bot">
+
+        <!-- ⚡ Quick System Actions & Control Card -->
+        <div class="card mb-20" style="border-top:3px solid var(--yellow)">
+          <div class="ch">
+            <div class="ci yellow"><i class="fas fa-bolt"></i></div>
+            <div>
+              <div class="ct">⚡ التحكم المباشر بالنظام وإعادة التشغيل السريع</div>
+              <div style="font-size:11px;color:var(--text2)">Restart · Reset Session · Bot Mode Switcher · Toggles</div>
+            </div>
+          </div>
+          <!-- Restart & Reset Buttons -->
+          <div class="g2 mb-14" style="gap:12px;">
+            <button class="btn btn-warning lg" onclick="triggerBotRestart()"><i class="fas fa-sync-alt"></i> 🔄 إعادة تشغيل البوت (Restart)</button>
+            <button class="btn btn-danger lg" onclick="resetBotSessionAction()"><i class="fas fa-power-off"></i> ⚠️ مسح الجلسة وإعادة الاقتران</button>
+          </div>
+
+          <!-- Bot Mode Switcher -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent);">🌐 وضع البوت — Bot Mode:</div>
+            <div id="bot-mode-btns" class="row" style="gap:8px;flex-wrap:wrap;">
+              <button id="mode-btn-public"  class="btn btn-g sm"      onclick="setBotMode('public')">🟢 عام (Public)</button>
+              <button id="mode-btn-private" class="btn btn-ghost sm"  onclick="setBotMode('private')">🔒 خاص DM فقط</button>
+              <button id="mode-btn-group"   class="btn btn-ghost sm" style="color:var(--purple);border-color:var(--purple);" onclick="setBotMode('group')">👥 مجموعات فقط</button>
+              <button id="mode-btn-admin"   class="btn btn-danger sm" onclick="setBotMode('admin')">🛡️ مشرفين فقط</button>
+            </div>
+            <div id="bot-mode-status" style="margin-top:8px;font-size:12px;color:var(--text2);text-align:right">جاري التحميل...</div>
+          </div>
+
+          <!-- System Toggles -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent);">🔧 إعدادات النظام التلقائية:</div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">👁️ Vu Status (مشاهدة الستوري تلقائياً)</div>
+                <div class="tg-sub">يشاهد البوت حالات واتساب (Status Stories) تلقائياً فور نزولها</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autostatus" checked onchange="saveToggle('auto_status_read', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">📖 Auto Read (قراءة الرسائل تلقائياً)</div>
+                <div class="tg-sub">يقرأ البوت الرسائل تلقائياً مع تعليم العلامة الزرقاء</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autoread" checked onchange="saveToggle('auto_read', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">📵 Anti-Call (رفض المكالمات)</div>
+                <div class="tg-sub">يرفض ويحظر أي شخص يتصل بالبوت تلقائياً</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-anticall" checked onchange="saveToggle('anti_call', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">🔕 Silent Mode (وضع الصمت)</div>
+                <div class="tg-sub">لا يرد البوت في المجموعات إلا عند المنشن</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-silent" onchange="saveToggle('silent_mode', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">🟢 Auto Online (متصل دائماً)</div>
+                <div class="tg-sub">البوت يظهر متصلاً دائماً في واتساب</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autoonline" checked onchange="saveToggle('auto_online', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div>
+                <div class="tg-label">🧠 AI Chatbot (الرد التلقائي بالذكاء الاصطناعي العامة)</div>
+                <div class="tg-sub">يجيب البوت تلقائياً على المحادثات بالذكاء الاصطناعي مع حفظ سياق المحادثة فـ Supabase</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-autoai" onchange="onToggleAutoAi(this)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Per-Bot AI Selector Box with Checkboxes -->
+            <div id="per-bot-ai-card" style="margin-top:14px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:var(--accent);">🤖 تحديد وتأشير البوتات المفعل فيها الذكاء الاصطناعي (Check Bots):</div>
+                  <div style="font-size:11px;color:var(--text2)">قم بتأشير (Cocher) البوتات التي تريد أن يجيب فيها الذكاء الاصطناعي فقط</div>
+                </div>
+                <button type="button" class="btn btn-ghost sm" onclick="loadPerBotAiList()"><i class="fas fa-sync-alt"></i> تحديث</button>
+              </div>
+              <div id="per-bot-ai-list">
+                <div class="sw"><div class="sp"></div></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 🤖 Bot Identity -->
+        <div class="g2 mb-20">
+          <div class="card">
+            <div class="ch"><div class="ci green"><i class="fas fa-robot"></i></div><div class="ct">هوية البوت</div></div>
+            <div class="fg"><label class="fl">اسم البوت</label><input type="text" id="s-botname" class="fi" value="bot amirni hamza" /></div>
+            <div class="fg"><label class="fl">المطور</label><input type="text" id="s-author" class="fi" value="Hamza Amirni" /></div>
+            <div class="fg"><label class="fl">قناة الواتساب</label><input type="text" id="s-source" class="fi" value="https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" /></div>
+          </div>
+          <div class="card">
+            <div class="ch"><div class="ci purple"><i class="fas fa-crown"></i></div><div class="ct">أرقام المالكين</div></div>
+            <div class="fg"><label class="fl">المالك الأول</label><input type="tel" id="s-owner1" class="fi ltr" value="212624855939" /></div>
+            <div class="fg"><label class="fl">المالك الثاني</label><input type="tel" id="s-owner2" class="fi ltr" value="212612030829" /></div>
+            <div class="fg"><label class="fl">رقم الإقران الافتراضي</label><input type="tel" id="s-pairing" class="fi ltr" value="212612030829" /></div>
+          </div>
+        </div>
+
+        <!-- 📊 Commands Daily Limit -->
+        <div class="card mb-20" style="border-top:3px solid var(--accent)">
+          <div class="ch">
+            <div class="ci blue"><i class="fas fa-sliders-h"></i></div>
+            <div>
+              <div class="ct">حد الأوامر اليومي لجميع الأشخاص (Commands Daily Limit)</div>
+              <div style="font-size:11px;color:var(--text2)">اسحب الخط للآخر للحصول على <b>غير محدود ∞</b> — المشرفون والمالكون لهم صلاحية غير محدودة دائماً</div>
+            </div>
+          </div>
+          <div class="row-between mb-20" style="align-items:center;">
+            <div style="flex:1;margin-left:20px;">
+              <input type="range" id="user-cmd-limit-slider" min="1" max="100" value="20" step="1" oninput="syncUserCmdSlider(this.value)" />
+            </div>
+            <div style="text-align:center;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:14px;padding:10px 20px;min-width:135px;">
+              <div id="user-cmd-limit-big" style="font-size:26px;font-weight:900;color:var(--accent);font-family:monospace">20</div>
+              <div id="user-cmd-limit-unit" style="font-size:10px;color:var(--text2)">أمر / يوم</div>
+            </div>
+          </div>
+          <button class="btn btn-g full" onclick="saveUserCmdLimit()"><i class="fas fa-save"></i> حفظ حد الأوامر العام</button>
+        </div>
+
+        <!-- 📥 APK Limit Control -->
+        <div class="card mb-20" style="border-top:3px solid var(--green)">
+          <div class="ch">
+            <div class="ci green"><i class="fas fa-download"></i></div>
+            <div>
+              <div class="ct">حد تحميل APK اليومي</div>
+              <div style="font-size:11px;color:var(--text2)">عدد التنزيلات المسموح بها لكل مستخدم كل 24 ساعة</div>
+            </div>
+          </div>
+          <div class="row-between mb-20">
+            <div style="flex:1;margin-left:20px;">
+              <input type="range" id="apk-limit-slider" min="1" max="20" value="5" step="1" oninput="syncApkSlider(this.value)" />
+            </div>
+            <div style="text-align:center;background:rgba(34,211,103,0.1);border:1px solid rgba(34,211,103,0.25);border-radius:14px;padding:10px 20px;">
+              <div id="apk-limit-big" style="font-size:32px;font-weight:900;color:var(--green);font-family:monospace">5</div>
+              <div style="font-size:10px;color:var(--text2)">تطبيق / يوم</div>
+            </div>
+          </div>
+          <button class="btn btn-g full" onclick="saveApkLimit()"><i class="fas fa-save"></i> حفظ حد APK</button>
+        </div>
+
+        <!-- 👑 Bot Admins Manager -->
+        <div class="card mb-20" style="border-top:3px solid var(--purple)">
+          <div class="ch">
+            <div class="ci purple"><i class="fas fa-user-shield"></i></div>
+            <div>
+              <div class="ct">👑 إدارة أدمينات البوت (Bot Admins)</div>
+              <div style="font-size:11px;color:var(--text2)">الأشخاص الذين لهم صلاحيات كاملة ومحدودة غير محدودة مثل المالك</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label class="fl">رقم الأدمين الجديد (بدون +)</label>
+            <div class="row" style="gap:10px;">
+              <input type="tel" id="new-admin-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1" />
+              <button class="btn btn-b sm" onclick="addBotAdmin()"><i class="fas fa-plus"></i> إضافة</button>
+            </div>
+          </div>
+          <div id="admins-list" style="min-height:40px;">
+            <div class="sbar info" style="font-size:12px;">⏳ جاري تحميل الأدمينات...</div>
+          </div>
+        </div>
+
+        <button class="btn btn-g full lg" onclick="saveBotSettings()"><i class="fas fa-save"></i> حفظ جميع الإعدادات</button>
+      </div>
+
+
+      <!-- OWNER TAB -->
+      <div id="spanel-owner" style="display:none">
+        <div class="g3 mb-20">
+          <div class="card" style="border-top:2px solid var(--red)">
+            <div class="ch"><div class="ci red"><i class="fas fa-shield-alt"></i></div><div class="ct">الحماية والحظر</div></div>
+            <div class="ocmd" onclick="copyCmd('banuser')"><span class="mono text-red">.banuser</span><span style="font-size:10px;color:var(--text2)">حظر مستخدم</span></div>
+            <div class="ocmd" onclick="copyCmd('unbanuser')"><span class="mono text-accent">.unbanuser</span><span style="font-size:10px;color:var(--text2)">إلغاء الحظر</span></div>
+            <div class="ocmd" onclick="copyCmd('block')"><span class="mono text-red">.block</span><span style="font-size:10px;color:var(--text2)">بلوك للرقم</span></div>
+          </div>
+          <div class="card" style="border-top:2px solid var(--blue)">
+            <div class="ch"><div class="ci blue"><i class="fas fa-users-cog"></i></div><div class="ct">إدارة المجموعات</div></div>
+            <div class="ocmd" onclick="copyCmd('kick @user')"><span class="mono text-red">.kick</span><span style="font-size:10px;color:var(--text2)">طرد من الجروب</span></div>
+            <div class="ocmd" onclick="copyCmd('promote @user')"><span class="mono text-purple">.promote</span><span style="font-size:10px;color:var(--text2)">ترقية مشرف</span></div>
+            <div class="ocmd" onclick="copyCmd('hidetag hi')"><span class="mono text-blue">.hidetag</span><span style="font-size:10px;color:var(--text2)">منشن مخفي</span></div>
+          </div>
+          <div class="card" style="border-top:2px solid var(--green)">
+            <div class="ch"><div class="ci green"><i class="fas fa-sliders-h"></i></div><div class="ct">التحكم ف البوت</div></div>
+            <div class="ocmd" onclick="copyCmd('restart')"><span class="mono text-yellow">.restart</span><span style="font-size:10px;color:var(--text2)">إعادة تشغيل</span></div>
+            <div class="ocmd" onclick="copyCmd('off')"><span class="mono text-red">.off</span><span style="font-size:10px;color:var(--text2)">إيقاف البوت</span></div>
+            <div class="ocmd" onclick="copyCmd('on')"><span class="mono text-accent">.on</span><span style="font-size:10px;color:var(--text2)">تشغيل البوت</span></div>
+          </div>
+        </div>
+        <div id="copy-toast" style="display:none;" class="sbar success text-center">✅ تم نسخ الأمر!</div>
+      </div>
+
+      <!-- DB TAB -->
+      <div id="spanel-db" style="display:none">
+        <div class="card">
+          <div class="ch"><div class="ci blue"><i class="fas fa-database"></i></div><div class="ct">ربط قاعدة البيانات Supabase</div></div>
+          <div class="fg"><label class="fl">Supabase URL</label><input type="text" id="cfg-url" class="fi" /></div>
+          <div class="fg"><label class="fl">Anon Key</label><input type="text" id="cfg-key" class="fi" /></div>
+          <button class="btn btn-b full lg" onclick="saveConfig()"><i class="fas fa-plug"></i> الاتصال وحفظ الإعدادات</button>
+          <div id="cfg-status" class="mt-16"></div>
+        </div>
+      </div>
+    </div>
+
+      <!-- ════════════════ PAGE: BANNED USERS ════════════════ -->
+      <div class="page" id="page-bannedusers">
+        <div class="pg-head">
+          <div>
+            <h1>🚫 إدارة الحظر والمستخدمين المحظورين</h1>
+            <p>إدارة قائمة الأشخاص المحظورين، معزولة لكل بوت ومربوطة بالداتابيز تلقائياً</p>
+          </div>
+          <button class="btn btn-ghost sm" onclick="loadBannedUsers()"><i class="fas fa-sync-alt"></i> تحديث القائمة</button>
+        </div>
+
+        <!-- Quick Ban / Unblock Card -->
+        <div class="card mb-20" style="border-top:3px solid var(--red)">
+          <div class="ch">
+            <div class="ci red"><i class="fas fa-user-slash"></i></div>
+            <div>
+              <div class="ct">حظر أو فك حظر رقم مباشر فـ البوت</div>
+              <div style="font-size:11px;color:var(--text2)">أدخل رقم الهاتف للتحكم في حالة الحظر الخاصة به مباشرة في النظام وقاعدة البيانات Supabase</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label class="fl">رقم الهاتف (بدون +)</label>
+            <div class="row" style="gap:10px;flex-wrap:wrap;">
+              <input type="tel" id="quick-ban-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1;min-width:200px;" />
+              <button class="btn btn-danger sm" onclick="quickBanAction(true)"><i class="fas fa-ban"></i> 🔴 حظر (Block)</button>
+              <button class="btn btn-g sm" onclick="quickBanAction(false)"><i class="fas fa-check-circle"></i> 🟢 فك الحظر (Unblock)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Bar & Multi-Bot Selector -->
+        <div class="card mb-20" style="border-top:3px solid var(--blue)">
+          <div class="row-between mb-16" style="gap:14px;flex-wrap:wrap;align-items:center;">
+            <!-- Search Bar (bar drecherche) -->
+            <div style="flex:1;min-width:240px;">
+              <div style="position:relative;">
+                <input type="text" id="banned-search-inp" class="fi" placeholder="🔍 ابحث بالاسم أو رقم الهاتف..." oninput="searchBannedUsers(this.value)" style="padding-right:38px;" />
+                <i class="fas fa-search" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text2);"></i>
+              </div>
+            </div>
+
+            <!-- Bot Selector Dropdown (Multi-Bot Isolation) -->
+            <div style="min-width:180px;">
+              <select id="banned-bot-select" class="fi" onchange="loadBannedUsers()" style="background:var(--surface);color:var(--text);border-color:var(--border);">
+                <option value="all">🌐 جميع الأبوتات (All Bots)</option>
+              </select>
+            </div>
+
+            <!-- Badges Counter -->
+            <div class="row" style="gap:10px;">
+              <span id="stat-banned-cnt" class="badge b-r" style="font-size:12px;padding:8px 14px;">🔴 المحظورون: 0</span>
+              <span id="stat-total-cnt" class="badge b-b" style="font-size:12px;padding:8px 14px;">👥 إجمالي المسجلين: 0</span>
+            </div>
+          </div>
+
+          <!-- Banned Users Table Wrapper -->
+          <div id="banned-users-wrap">
+            <div class="sbar info">⏳ جاري تحميل قائمة الحظر...</div>
+          </div>
+        </div>
+      </div>
+
+    <!-- ════════════════ PAGE: ACCESS REQUESTS ════════════════ -->
+    <div class="page" id="page-access-req">
+      <div class="pg-head">
+        <div>
+          <h1>🔐 طلبات الدخول</h1>
+          <p>إدارة طلبات الأشخاص الذين يريدون الدخول للوحة التحكم</p>
+        </div>
+        <button class="btn btn-ghost sm" onclick="loadAccessRequests()"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+      <div id="access-req-wrap">
+        <div class="sbar info">⏳ جاري التحميل...</div>
+      </div>
+    </div>
+
+  </main>
+
+
+  <!-- ════════════════ MODALS ════════════════ -->
+
+  <!-- User Limit Modal -->
+  <div class="mo" id="modal-user-limit">
+    <div class="mbox" style="max-width:440px;">
+      <div class="mh">
+        <span class="mt">⚡ تعديل حد المستخدم: <span id="ulimit-user-name" class="text-accent"></span></span>
+        <button class="mx" onclick="closeM('modal-user-limit')"><i class="fas fa-times"></i></button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">📱 الرقم: <span id="ulimit-user-phone" class="mono text-white"></span></div>
+      
+      <div class="fg">
+        <label class="fl">حدد الحد اليومي للأوامر (اسحب للآخر للـ Unlimited):</label>
+        <div class="row-between mb-10" style="align-items:center;">
+          <input type="range" id="ulimit-slider" min="1" max="100" value="20" step="1" style="flex:1;margin-left:14px;" oninput="syncIndividualLimitSlider(this.value)" />
+          <div style="text-align:center;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:6px 14px;min-width:110px;">
+            <div id="ulimit-big" style="font-size:20px;font-weight:900;color:var(--accent);font-family:monospace">20</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row" style="gap:10px;margin-top:16px;">
+        <button class="btn btn-g lg" style="flex:1;" onclick="saveIndividualUserLimit()"><i class="fas fa-check"></i> حفظ التغييرات</button>
+        <button class="btn btn-ghost lg" style="flex:1;" onclick="closeM('modal-user-limit')">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Chat History Modal -->
+  <div class="mo" id="modal-user-chat">
+    <div class="mbox" style="max-width:640px;">
+      <div class="mh">
+        <span class="mt">💬 سجل محادثة: <span id="uchat-user-name" class="text-accent"></span></span>
+        <button class="mx" onclick="closeM('modal-user-chat')"><i class="fas fa-times"></i></button>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:12px" class="ltr">📱 <span id="uchat-user-phone" class="mono"></span></div>
+      <div id="uchat-body" style="max-height:400px;overflow-y:auto;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:14px;border:1px solid var(--border2)"></div>
+      <div class="row">
+        <input id="uchat-reply-input" type="text" class="fi" placeholder="اكتب رداً للمستخدم..." style="flex:1;" onkeypress="if(event.key==='Enter')sendUserChatReply()" />
+        <button class="btn btn-g" onclick="sendUserChatReply()"><i class="fas fa-paper-plane"></i> إرسال</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Direct Message Modal -->
+  <div class="mo" id="modal-direct-msg">
+    <div class="mbox">
+      <div class="mh">
+        <span class="mt">✉️ مراسلة: <span id="dm-user-name" class="text-accent"></span></span>
+        <button class="mx" onclick="closeM('modal-direct-msg')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="fg"><label class="fl">نص الرسالة</label><textarea id="dm-text-input" class="fi" rows="4" placeholder="اكتب الرسالة المباشرة..."></textarea></div>
+      <button class="btn btn-g full lg" onclick="sendDirectMsgAction()"><i class="fas fa-paper-plane"></i> إرسال الآن</button>
+    </div>
+  </div>
+
+  <!-- Reply Dev Message Modal -->
+  <div class="mo" id="modal-reply">
+    <div class="mbox">
+      <div class="mh">
+        <span class="mt">الرد على استفسار</span>
+        <button class="mx" onclick="closeM('modal-reply')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="fg"><label class="fl">الرد</label><textarea id="reply-text" class="fi" rows="4" placeholder="اكتب الرد هنا..."></textarea></div>
+      <input type="hidden" id="reply-id" />
+      <button class="btn btn-g full" onclick="sendReply()"><i class="fas fa-paper-plane"></i> إرسال الرد</button>
+    </div>
+  </div>
+
+  <!-- AI Modal -->
+  <div class="mo" id="modal-ai">
+    <div class="mbox">
+      <div class="mh"><span class="mt" id="modal-ai-title">محادثة AI</span><button class="mx" onclick="closeM('modal-ai')"><i class="fas fa-times"></i></button></div>
+      <div id="modal-ai-body"></div>
+    </div>
+  </div>
+
+  <!-- Custom Confirm Modal (Replaces browser confirm dialogs) -->
+  <div class="mo" id="modal-confirm">
+    <div class="mbox" style="max-width:440px;text-align:center;">
+      <div style="font-size:44px;margin-bottom:12px;" id="confirm-icon">⚠️</div>
+      <div style="font-size:18px;font-weight:900;margin-bottom:8px;" id="confirm-title">تأكيد الإجراء</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6;" id="confirm-text">هل أنت متأكد؟</div>
+      <div class="row" style="gap:10px;">
+        <button class="btn btn-danger lg" style="flex:1;" id="confirm-ok-btn">تأكيد</button>
+        <button class="btn btn-ghost lg" style="flex:1;" id="confirm-cancel-btn">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════ CUSTOM PROMPT MODAL (replaces window.prompt) ════ -->
+  <div class="mo" id="modal-prompt">
+    <div class="mbox" style="max-width:480px;">
+      <div class="mh">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="prompt-icon" style="font-size:26px;line-height:1;">✍️</div>
+          <div>
+            <div class="mt" id="prompt-title">إدخال نص</div>
+            <div id="prompt-subtitle" style="font-size:12px;color:var(--txt2);margin-top:2px;"></div>
+          </div>
+        </div>
+        <button class="mx" onclick="closePromptModal(false)"><i class="fas fa-times"></i></button>
+      </div>
+      <div style="margin-top:4px;">
+        <textarea
+          id="prompt-input"
+          class="fi"
+          rows="3"
+          style="resize:none;font-size:14px;line-height:1.6;"
+          placeholder="اكتب هنا..."
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();closePromptModal(true);}"
+        ></textarea>
+        <div style="font-size:11px;color:var(--txt2);margin-top:6px;text-align:left;">
+          <kbd style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:10px;">Enter</kbd> لإرسال &nbsp;|&nbsp;
+          <kbd style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:10px;">Shift+Enter</kbd> لسطر جديد
+        </div>
+      </div>
+      <div class="row" style="gap:10px;margin-top:16px;">
+        <button class="btn btn-g lg" style="flex:1;font-weight:700;" onclick="closePromptModal(true)">
+          <i class="fas fa-paper-plane"></i> إرسال
+        </button>
+        <button class="btn btn-ghost lg" style="flex:1;" onclick="closePromptModal(false)">
+          <i class="fas fa-times"></i> إلغاء
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <!-- ════ MOBILE BOTTOM NAV ════ -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <div class="bn-item active" onclick="goPage('dashboard', null); setBnActive(this)" data-page="dashboard">
+      <i class="fas fa-chart-pie"></i>
+      <span>الرئيسية</span>
+    </div>
+    <div class="bn-item" onclick="goPage('sessions', null); setBnActive(this)" data-page="sessions">
+      <i class="fas fa-key"></i>
+      <span>الجلسات</span>
+    </div>
+    <div class="bn-item" onclick="goPage('botusers', null); setBnActive(this)" data-page="botusers">
+      <i class="fas fa-users"></i>
+      <span>المستخدمون</span>
+    </div>
+    <div class="bn-item" onclick="goPage('aichat', null); setBnActive(this)" data-page="aichat">
+      <i class="fas fa-brain"></i>
+      <span>محادثات AI</span>
+    </div>
+    <div class="bn-item" onclick="goPage('devmsg', null); setBnActive(this)" data-page="devmsg">
+      <i class="fas fa-paper-plane"></i>
+      <span>البث</span>
+    </div>
+    <div class="bn-item" onclick="goPage('settings', null); setBnActive(this)" data-page="settings">
+      <i class="fas fa-cog"></i>
+      <span>الإعدادات</span>
+    </div>
+  </nav>
+
+  <!-- App Main JavaScript Logic -->
+  <script src="/app.js"></script>
+  <script>
+    // Bottom nav active state sync
+    function setBnActive(el) {
+      document.querySelectorAll('.bn-item').forEach(i => i.classList.remove('active'));
+      if (el) el.classList.add('active');
+    }
+    // Sync bottom nav when sidebar nav is clicked
+    const _origGoPage = window.goPage;
+    window.goPage = function(page, el) {
+      if (typeof _origGoPage === 'function') _origGoPage(page, el);
+      const bnItem = document.querySelector(`.bn-item[data-page="${page}"]`);
+      if (bnItem) setBnActive(bnItem);
+    };
+  </script>
+
+  <!-- ── Access Requests Page ── -->
+  <style>
+    #page-access-req .req-card {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: border-color 0.3s;
+    }
+    #page-access-req .req-card:hover { border-color: rgba(16,185,129,0.3); }
+    #page-access-req .req-avatar {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.25), rgba(6,182,212,0.2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    #page-access-req .req-info { flex: 1; min-width: 0; }
+    #page-access-req .req-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    #page-access-req .req-meta { font-size: 12px; color: var(--text2,#94a3b8); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+    #page-access-req .req-reason { font-size: 12px; color: var(--text2,#94a3b8); font-style: italic; margin-bottom: 12px; }
+    #page-access-req .req-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    #page-access-req .req-badge-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    }
+    #page-access-req .badge-pending  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    #page-access-req .badge-approved { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    #page-access-req .badge-rejected { background: rgba(244,63,94,0.15);  color: #f87171; border: 1px solid rgba(244,63,94,0.3); }
+    #page-access-req .creds-inline {
+      background: rgba(16,185,129,0.07);
+      border: 1px dashed rgba(16,185,129,0.3);
+      border-radius: 9px; padding: 8px 12px;
+      font-size: 12px; color: var(--text2,#94a3b8);
+      margin-top: 8px; font-family: monospace;
+    }
+    #page-access-req .creds-inline strong { color: #10b981; }
+  </style>
+
+</body>
+</html>

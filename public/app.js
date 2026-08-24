@@ -1,0 +1,2374 @@
+// ==============================================================================
+// BOT AMIRNI HAMZA — DASHBOARD FRONTEND LOGIC (app.js)
+// ==============================================================================
+
+const DEF_URL = 'https://tpchjgdnovfbtvlhhszq.supabase.co';
+const DEF_KEY = 'sb_publishable_gv0guj6Es3nZYktbwoHTdQ_QOkaU3us';
+
+let cfg = {
+  url: localStorage.getItem('sb_url') || DEF_URL,
+  key: localStorage.getItem('sb_key') || DEF_KEY,
+};
+
+let sb = null;
+let allAI = [], allDevMsg = [];
+let connectMode = 'code'; // 'code' or 'qr'
+let connectQrTimer = null;
+
+// Initialize Supabase
+function initSB() {
+  try {
+    sb = supabase.createClient(cfg.url, cfg.key);
+    return true;
+  } catch(e) {
+    toast('❌ خطأ في قاعدة البيانات: ' + e.message, 'err');
+    return false;
+  }
+}
+
+// ── Sidebar & Layout Toggles ──────────────────────────────────────────────────
+function toggleSB() {
+  const sbEl = document.getElementById('sidebar');
+  const overlay = document.getElementById('sb-overlay');
+  sbEl.classList.toggle('open');
+  overlay.classList.toggle('show');
+}
+
+function closeSB() {
+  const sbEl = document.getElementById('sidebar');
+  const overlay = document.getElementById('sb-overlay');
+  if (sbEl) sbEl.classList.remove('open');
+  if (overlay) overlay.classList.remove('show');
+}
+
+function showConfirm({ title = 'تأكيد الإجراء', text = 'هل أنت متأكد؟', confirmText = 'تأكيد', icon = '⚠️', isDanger = false } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal-confirm');
+    const titleEl = document.getElementById('confirm-title');
+    const textEl = document.getElementById('confirm-text');
+    const iconEl = document.getElementById('confirm-icon');
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+    if (!modal) { resolve(window.confirm(text)); return; }
+
+    iconEl.textContent = icon;
+    titleEl.textContent = title;
+    textEl.textContent = text;
+    okBtn.textContent = confirmText;
+
+    if (isDanger) {
+      okBtn.className = 'btn btn-danger lg';
+    } else {
+      okBtn.className = 'btn btn-b lg';
+    }
+
+    modal.classList.add('show');
+
+    function onOk() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    function cleanup() {
+      modal.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
+async function doLogout() {
+  const ok = await showConfirm({
+    title: 'تسجيل الخروج',
+    text: 'هل أنت متأكد من تسجيل الخروج من اللوحة؟',
+    confirmText: 'تسجيل الخروج',
+    icon: '🚪',
+    isDanger: true
+  });
+  if (!ok) return;
+  sessionStorage.removeItem('bot_auth');
+  sessionStorage.removeItem('bot_user');
+  localStorage.removeItem('bot_auth');
+  localStorage.removeItem('bot_user');
+  window.location.href = '/login.html';
+}
+
+async function triggerBotRestart() {
+  const ok = await showConfirm({
+    title: '🔄 إعادة تشغيل البوت',
+    text: 'سيتم إيقاف البوت مؤقتاً وإعادة تشغيله خلال ثوانٍ. هل أنت متأكد؟',
+    confirmText: '🔄 نعم، أعد التشغيل',
+    icon: '🔄',
+    isDanger: false
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (data.success) {
+      toast('🔄 جاري إعادة تشغيل البوت... انتظر 10 ثوانٍ', 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل إعادة التشغيل'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function resetBotSessionAction() {
+  const ok = await showConfirm({
+    title: '⚠️ مسح الجلسة وإعادة الاقتران',
+    text: 'سيتم حذف جلسة واتساب الحالية ويجب عليك إعادة ربط البوت برمز جديد. هل أنت متأكد؟',
+    confirmText: '⚠️ نعم، امسح الجلسة',
+    icon: '⚠️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/resetsession', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ تم مسح الجلسة! انتقل لصفحة الجلسات لإعادة الربط.', 'ok');
+      setTimeout(() => goPage('sessions'), 2500);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل المسح'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+function goPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nv').forEach(n => n.classList.remove('active'));
+  
+  const pageEl = document.getElementById('page-' + id);
+  if (pageEl) pageEl.classList.add('active');
+  
+  const targetNav = el || Array.from(document.querySelectorAll('.nv')).find(n => n.getAttribute('onclick')?.includes(`'${id}'`));
+  if (targetNav) targetNav.classList.add('active');
+  
+  closeSB();
+  localStorage.setItem('active_page', id);
+
+  // Trigger page specific loaders
+  if (id === 'aichat')      loadAI();
+  if (id === 'devmsg')      { loadDevMsg(); loadBroadcastHistory(); loadBcUserCount(); }
+  if (id === 'sessions')    { loadBotStatus(); loadAuth(); }
+  if (id === 'adminmode')   { loadBotMode(); }
+  if (id === 'errors')      loadErrors();
+  if (id === 'commands')    renderCmds();
+  if (id === 'settings')    loadCfgForm();
+  if (id === 'botusers')    loadBotUsers(1);
+  if (id === 'bannedusers') loadBannedUsers();
+  if (id === 'botdetails')  loadBotDetailsPage();
+
+  if (id === 'access-req')  loadAccessRequests();
+  if (id === 'dashboard' || id === 'mainbot') loadStats();
+}
+
+// ── Toast Notifications ────────────────────────────────────────────────────────
+function toast(msg, type='inf') {
+  const container = document.getElementById('toasts');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.innerHTML = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3400);
+}
+
+// ── Modals ─────────────────────────────────────────────────────────────────────
+function closeM(id) { 
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove('show'); 
+}
+
+// ── Dashboard Statistics Loader ───────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || Object.keys(data).length === 0) return;
+
+    animN('s-msgs',   data.messages_handled || 0);
+    animN('s-users',  data.total_users || 0);
+    animN('s-visits', data.visits || 0);
+    animN('s-bots',   data.active_bots || 0);
+
+    const ramEl = document.getElementById('sys-ram');
+    if (ramEl) ramEl.textContent = data.ram_usage || '—';
+    
+    const updateEl = document.getElementById('sys-update');
+    if (updateEl) updateEl.textContent = data.last_update ? new Date(data.last_update).toLocaleTimeString('ar') : '—';
+
+    // Update Topbar Status Header
+    const statusTxt = document.getElementById('topbar-status-txt');
+    const statusBox = document.getElementById('topbar-status-box');
+    const phoneVal = document.getElementById('topbar-phone-val');
+    const phoneBox = document.getElementById('topbar-phone-box');
+
+    if (data.phone) {
+      if (phoneVal) phoneVal.textContent = '+' + data.phone;
+      if (phoneBox) phoneBox.style.display = 'block';
+    }
+
+    if (data.bot_connected) {
+      if (statusTxt) statusTxt.textContent = 'متصل ونشط';
+      if (statusBox) statusBox.className = 'topbar-status on';
+    } else {
+      if (statusTxt) statusTxt.textContent = 'غير متصل';
+      if (statusBox) statusBox.className = 'topbar-status off';
+    }
+
+    // Top Commands
+    const tc = document.getElementById('top-cmds');
+    if (tc) {
+      const cmds = Array.isArray(data.top_commands) ? data.top_commands : [];
+      if (!cmds.length) { tc.innerHTML = empty('fas fa-chart-bar', 'لا توجد بيانات استخدام بعد'); }
+      else {
+        tc.innerHTML = cmds.slice(0, 5).map((c, i) => {
+          const name = typeof c === 'object' ? (c.cmd || c.command || c.name || '') : c;
+          const count = typeof c === 'object' ? (c.count || c.times || 0) : 0;
+          const pct = i === 0 ? 100 : Math.round((count / (cmds[0]?.count || 1)) * 100);
+          return `
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:13px;font-weight:700">.${name}</span>
+                <span style="font-size:11px;color:var(--text2)">${count} استخدام</span>
+              </div>
+              <div class="ptrack"><div class="pfill" style="width:${pct}%"></div></div>
+            </div>`;
+        }).join('');
+      }
+    }
+  } catch(e) {
+    console.error('Stats load error:', e);
+  }
+}
+
+// ── Connect & Add Phone Widget ─────────────────────────────────────────────────
+function switchConnectMode(mode) {
+  connectMode = mode;
+  const codeBtn = document.getElementById('pmode-code-btn');
+  const qrBtn = document.getElementById('pmode-qr-btn');
+  const btnTxt = document.getElementById('connect-btn-txt');
+  const btnIcon = document.getElementById('connect-btn-icon');
+
+  if (mode === 'code') {
+    codeBtn.className = 'pair-mode-btn active-g';
+    qrBtn.className = 'pair-mode-btn';
+    btnTxt.textContent = 'طلب كود الربط';
+    btnIcon.className = 'fas fa-key';
+  } else {
+    qrBtn.className = 'pair-mode-btn active-b';
+    codeBtn.className = 'pair-mode-btn';
+    btnTxt.textContent = 'طلب QR Code';
+    btnIcon.className = 'fas fa-qrcode';
+  }
+
+  document.getElementById('connect-results-wrap').style.display = 'none';
+  document.getElementById('connect-code-result').style.display = 'none';
+  document.getElementById('connect-qr-result').style.display = 'none';
+}
+
+async function executeConnect() {
+  const input = document.getElementById('connect-phone-input');
+  const phone = input ? input.value.trim().replace(/\D/g,'') : '';
+
+  if (!phone || phone.length < 10) {
+    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة (مثال: 212612030829)', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('connect-submit-btn');
+  btn.disabled = true;
+
+  const resultsWrap = document.getElementById('connect-results-wrap');
+  const statusBar = document.getElementById('connect-status-bar');
+  const statusTxt = document.getElementById('connect-status-txt');
+
+  resultsWrap.style.display = 'block';
+  statusBar.className = 'sbar loading';
+  statusTxt.textContent = 'جاري إرسال الطلب للسيرفر...';
+
+  document.getElementById('connect-code-result').style.display = 'none';
+  document.getElementById('connect-qr-result').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/requestpair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phone })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (connectMode === 'code') {
+        statusTxt.textContent = 'جاري توليد كود الإقران... (انتظر 8 ثوانٍ)';
+        await pollPairingCode(phone);
+      } else {
+        statusTxt.textContent = 'جاري جلب رمز QR...';
+        await loadConnectQR(phone);
+      }
+    } else {
+      statusBar.className = 'sbar error';
+      statusTxt.textContent = '❌ فشل الطلب: ' + (data.error || 'خطأ غير معروف');
+    }
+  } catch(e) {
+    statusBar.className = 'sbar error';
+    statusTxt.textContent = '❌ خطأ في الاتصال: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function pollPairingCode(phone, attempts = 0) {
+  if (attempts > 10) {
+    const statusBar = document.getElementById('connect-status-bar');
+    statusBar.className = 'sbar error';
+    document.getElementById('connect-status-txt').textContent = '❌ انتهت مهلة الانتظار. حاول مرة أخرى!';
+    return;
+  }
+
+  await new Promise(r => setTimeout(r, 2500));
+
+  try {
+    const res = await fetch(`/api/pairingcode?phone=${phone}`);
+    const data = await res.json();
+
+    if (data.status === 'connected') {
+      const statusBar = document.getElementById('connect-status-bar');
+      statusBar.className = 'sbar success';
+      document.getElementById('connect-status-txt').textContent = '✅ البوت متصل بالفعل بهذا الرقم!';
+      return;
+    }
+
+    if (data.pairing_code) {
+      const statusBar = document.getElementById('connect-status-bar');
+      statusBar.className = 'sbar success';
+      document.getElementById('connect-status-txt').textContent = '✅ تم توليد كود الإقران بنجاح!';
+
+      const formatted = data.pairing_code.replace(/(.{4})(.{4})/, '$1 - $2');
+      document.getElementById('connect-code-val').textContent = formatted;
+      document.getElementById('connect-code-result').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('connect-status-txt').textContent = `جاري التوليد... (${attempts + 1}/10)`;
+    await pollPairingCode(phone, attempts + 1);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function loadConnectQR(phone) {
+  try {
+    const res = await fetch(`/api/pairingcode?phone=${phone}`);
+    const data = await res.json();
+
+    if (data.status === 'connected') {
+      const statusBar = document.getElementById('connect-status-bar');
+      statusBar.className = 'sbar success';
+      document.getElementById('connect-status-txt').textContent = '✅ الرقم متصل بالفعل!';
+      return;
+    }
+
+    const qrUrl = data.qr_code || (data.pairing_code ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.pairing_code)}` : null);
+
+    if (qrUrl) {
+      const statusBar = document.getElementById('connect-status-bar');
+      statusBar.className = 'sbar success';
+      document.getElementById('connect-status-txt').textContent = '✅ تم جلب QR Code بنجاح!';
+
+      document.getElementById('connect-qr-img').src = qrUrl;
+      document.getElementById('connect-qr-result').style.display = 'block';
+    } else {
+      setTimeout(() => loadConnectQR(phone), 3000);
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function copyConnectCode() {
+  const code = document.getElementById('connect-code-val').textContent;
+  if (!code || code === '--------') return;
+  navigator.clipboard.writeText(code.replace(/\s|-/g, ''));
+  toast('✅ تم نسخ كود الإقران!', 'ok');
+}
+
+// ── Bot Control (Pause / Resume / Sessions) ──────────────────────────────────
+async function loadBotStatus() {
+  const wrap = document.getElementById('bot-control-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/bot-status');
+    const d = await res.json();
+
+    // New multi-bot format: { bots: [{phone, connected}] }
+    const bots = d.bots || [];
+
+    if (bots.length === 0) {
+      wrap.innerHTML = `
+        <div class="bot-row">
+          <div class="row">
+            <div class="bot-ava">
+              🤖
+              <div class="dot dot-off"></div>
+            </div>
+            <div>
+              <div style="font-weight:800;font-size:15px">bot amirni hamza</div>
+              <div class="mono text-accent" style="font-size:13px">—</div>
+              <div style="margin-top:4px"><span class="badge b-r">🔴 غير متصل</span></div>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const cards = bots.map(bot => {
+      const phone = bot.phone || '—';
+      const connected = !!bot.connected;
+      const dotClass = connected ? 'dot-on' : 'dot-off';
+      const stateBadge = connected
+        ? `<span class="badge b-g">🟢 متصل ونشط</span>`
+        : `<span class="badge b-r">🔴 غير متصل</span>`;
+
+      return `
+        <div class="bot-row" style="margin-bottom:12px">
+          <div class="row">
+            <div class="bot-ava">
+              🤖
+              <div class="dot ${dotClass}"></div>
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:800;font-size:15px">bot amirni hamza</div>
+              <div class="mono text-accent" style="font-size:13px">+${phone}</div>
+              <div style="margin-top:4px">${stateBadge}</div>
+            </div>
+            <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:6px 12px">
+              <i class="fas fa-trash"></i> مسح
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    wrap.innerHTML = cards;
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-triangle', 'فشل التحميل: ' + e.message);
+  }
+}
+
+
+async function botPause() {
+  const ok = await showConfirm({
+    title: 'إيقاف البوت مؤقتاً',
+    text: 'هل تريد إيقاف البوت مؤقتاً؟ لن يستقبل أي رسائل حتى تقوم بتشغيله مجدداً.',
+    confirmText: 'إيقاف البوت',
+    icon: '⏸️',
+    isDanger: false
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch('/api/bot-pause', { method: 'POST' });
+    const d = await r.json();
+    if (d.success) { toast('⏸️ تم إيقاف البوت', 'ok'); loadBotStatus(); }
+    else toast('❌ خطأ: ' + d.error, 'err');
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function botResume() {
+  try {
+    const r = await fetch('/api/bot-resume', { method: 'POST' });
+    const d = await r.json();
+    if (d.success) { toast('▶️ تم تشغيل البوت بنجاح!', 'ok'); setTimeout(loadBotStatus, 2500); }
+    else toast('❌ خطأ: ' + d.error, 'err');
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function botDelete() {
+  const ok = await showConfirm({
+    title: 'مسح الجلسة وإعادة التشغيل',
+    text: 'سيتم مسح السيشن الحالية وإعادة تشغيل البوت لتجهيزه لإقران جديد. هل أنت متأكد؟',
+    confirmText: 'مسح الجلسة',
+    icon: '🗑️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch('/api/bot-delete', { method: 'POST' });
+    const d = await r.json();
+    if (d.success) { toast('🗑️ تم مسح الجلسة وتجهيز البوت للربط', 'ok'); setTimeout(loadBotStatus, 4000); }
+    else toast('❌ خطأ: ' + d.error, 'err');
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function deleteSessionRow(phone) {
+  const ok = await showConfirm({
+    title: 'حذف الجلسة القديمة',
+    text: `هل أنت متأكد من مسح الجلسة القديمة للرقم +${phone} نهائياً من قاعدة البيانات؟`,
+    confirmText: 'مسح الجلسة',
+    icon: '🗑️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/delete-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تم مسح الجلسة +${phone} من Supabase بنجاح!`, 'ok');
+      loadAuth();
+    } else {
+      toast('❌ فشل مسح الجلسة: ' + (data.error || 'خطأ غير معروف'), 'err');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+// ── Bot Mode & Admin Management ──────────────────────────────────
+async function loadBotMode() {
+  try {
+    const res = await fetch('/api/bot-mode');
+    const d = await res.json();
+    const mode = d.mode || 'public';
+    const admins = d.admins || [];
+
+    // 1. Update stats & labels
+    const statCount = document.getElementById('stat-admin-count');
+    const statMode = document.getElementById('stat-current-mode');
+    const modeLabel = document.getElementById('current-mode-label');
+
+    if (statCount) statCount.textContent = admins.length;
+    if (statMode) statMode.textContent = mode.toUpperCase();
+    if (modeLabel) modeLabel.textContent = mode.toUpperCase();
+
+    // 2. Highlight active mode card button
+    ['public', 'private', 'group', 'admin'].forEach(m => {
+      const btn = document.getElementById(`mcard-${m}`);
+      if (btn) {
+        if (m === mode) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+
+    // 3. Render Admins Table
+    const tableWrap = document.getElementById('bot-admins-table-wrap');
+    if (tableWrap) {
+      if (admins.length === 0) {
+        tableWrap.innerHTML = empty('fas fa-user-slash', 'لا يوجد مشرفون مسجلون حالياً فـ البوت');
+      } else {
+        const rows = admins.map((jid, i) => {
+          const num = jid.split('@')[0];
+          return `
+            <tr>
+              <td>${i + 1}</td>
+              <td class="bold"><i class="fas fa-user-shield text-accent"></i> مشرف البوت</td>
+              <td class="mono font-bold text-accent">+${num}</td>
+              <td><span class="badge b-g">🟢 أدمين نشط</span></td>
+              <td>
+                <div style="display:flex;gap:6px">
+                  <button onclick="removeBotAdmin('${jid}')" class="btn btn-danger sm">
+                    <i class="fas fa-trash-alt"></i> حذف المشرف
+                  </button>
+                  <a href="https://wa.me/${num}" target="_blank" class="btn btn-ghost sm">
+                    <i class="fab fa-whatsapp"></i> مراسلة
+                  </a>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        tableWrap.innerHTML = `
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الرتبة</th>
+                  <th>رقم الهاتف</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      }
+    }
+  } catch(e) {
+    console.error('Failed to load bot mode/admins:', e);
+  }
+}
+
+async function addBotAdminPage() {
+  const input = document.getElementById('admin-page-phone-input');
+  if (!input || !input.value.trim()) return toast('⚠️ أدخل رقم الهاتف أولاً', 'err');
+  const phone = input.value.trim();
+  try {
+    const r = await fetch('/api/bot-admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast(`✅ تمت إضافة +${phone.replace(/[^0-9]/g, '')} كـ أدمين للبوت`, 'ok');
+      input.value = '';
+      loadBotMode();
+    } else {
+      toast('❌ خطأ: ' + d.error, 'err');
+    }
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function setBotMode(newMode) {
+  try {
+    const r = await fetch('/api/bot-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: newMode })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast(`✅ تم تغيير وضع البوت إلى: ${newMode.toUpperCase()}`, 'ok');
+      loadBotMode();
+    } else {
+      toast('❌ خطأ: ' + d.error, 'err');
+    }
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function addBotAdmin() {
+  const input = document.getElementById('admin-phone-input');
+  if (!input || !input.value.trim()) return toast('⚠️ أدخل رقم الهاتف أولاً', 'err');
+  const phone = input.value.trim();
+  try {
+    const r = await fetch('/api/bot-admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast(`✅ تمت إضافة +${phone.replace(/[^0-9]/g, '')} كـ أدمين`, 'ok');
+      input.value = '';
+      loadBotMode();
+    } else {
+      toast('❌ خطأ: ' + d.error, 'err');
+    }
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function removeBotAdmin(jid) {
+  const num = jid.split('@')[0];
+  const ok = await showConfirm({
+    title: 'حذف مشرف البوت',
+    text: `هل أنت متأكد من حذف +${num} من قائمة مشرفي البوت؟`,
+    confirmText: 'حذف',
+    icon: '👤',
+    isDanger: true
+  });
+  if (!ok) return;
+
+  try {
+    const r = await fetch('/api/bot-admins', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jid })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast(`✅ تم حذف +${num} من المشرفين`, 'ok');
+      loadBotMode();
+    } else {
+      toast('❌ خطأ: ' + d.error, 'err');
+    }
+  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
+}
+
+async function onToggleBotSpecificAi(phone, el) {
+  const willEnable = el.checked;
+  const key = 'auto_ai_' + phone;
+
+  localStorage.setItem('toggle_' + key, willEnable ? 'true' : 'false');
+  
+  // Update badge UI immediately
+  const badge = document.getElementById('ai-status-badge-' + phone);
+  if (badge) {
+    badge.className = `badge ${willEnable ? 'b-g' : 'b-r'}`;
+    badge.textContent = willEnable ? '🧠 AI مفعّل' : '🛑 AI موقف';
+  }
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: willEnable ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`${willEnable ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone}!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function loadPerBotAiList() {
+  const wrap = document.getElementById('per-bot-ai-list');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const [statusRes, settingsRes] = await Promise.all([
+      fetch('/api/bot-status').then(r => r.json()).catch(() => ({ bots: [] })),
+      fetch('/api/settings').then(r => r.json()).catch(() => ({}))
+    ]);
+
+    const bots = statusRes.bots || [];
+    const globalAiOn = settingsRes.auto_ai !== undefined 
+      ? (settingsRes.auto_ai === 'true' || settingsRes.auto_ai === true)
+      : (localStorage.getItem('toggle_auto_ai') !== 'false');
+
+    if (bots.length === 0) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:10px;">لا توجد بوتات متصلة حالياً.</div>';
+      return;
+    }
+
+    const html = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px;margin-top:8px;">` +
+      bots.map(bot => {
+        const phone = (bot.phone || '').replace(/\D/g, '');
+        if (!phone) return '';
+
+        const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+        let isAiOn = false;
+        if (localVal !== null) {
+          isAiOn = (localVal === 'true');
+        } else if (settingsRes['auto_ai_' + phone] !== undefined) {
+          isAiOn = (settingsRes['auto_ai_' + phone] === 'true' || settingsRes['auto_ai_' + phone] === true);
+        } else {
+          // Default to global AI setting state
+          isAiOn = globalAiOn;
+        }
+
+        const isConn = !!bot.connected;
+
+        return `
+          <div style="background:rgba(255,255,255,0.04);border:1px solid ${isAiOn ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'};border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:800;font-size:14px;color:var(--txt);">+${phone}</div>
+              <div style="font-size:11px;margin-top:3px;">
+                ${isConn ? '<span class="badge b-g" style="font-size:10px;">🟢 متصل ونشط</span>' : '<span class="badge b-r" style="font-size:10px;">🔴 غير متصل</span>'}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="ai-status-badge-${phone}" class="badge ${isAiOn ? 'b-g' : 'b-r'}" style="font-size:11px;font-weight:700;">
+                ${isAiOn ? '🧠 AI مفعّل' : '🛑 AI موقف'}
+              </span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="perbot-toggle-${phone}" ${isAiOn ? 'checked' : ''} onchange="onToggleBotSpecificAi('${phone}', this)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        `;
+      }).join('') + `</div>`;
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--red);padding:10px;">خطأ فـ تحميل البوتات: ' + e.message + '</div>';
+  }
+}
+
+async function loadAuth() {
+  const wrap = document.getElementById('auth-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) throw new Error(res.statusText);
+    const list = await res.json();
+    if (!list || !list.length) {
+      wrap.innerHTML = empty('fas fa-key', 'لا توجد جلسات مسجلة حالياً');
+      return;
+    }
+
+    let settings = {};
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch(_) {}
+
+    wrap.innerHTML = `
+      <div class="ov-x-auto"><table class="tbl">
+      <thead><tr><th>الرقم</th><th>رمز الإقران</th><th>الحالة</th><th>🧠 AI Chatbot</th><th>آخر تحديث</th><th>إجراءات</th></tr></thead>
+      <tbody>
+      ${list.map(s => {
+        const phone = (s.phone_number || '').replace(/\D/g, '');
+        const isConn = s.status === 'connected';
+        const isPend = s.status === 'pending' || s.status === 'requesting';
+        const badgeClass = isConn ? 'b-g' : (isPend ? 'b-y' : 'b-r');
+        const statusText = isConn ? (s.is_active ? '🟢 متصل ونشط' : '✅ متصل') : (isPend ? '⏳ في الانتظار' : '🔴 غير متصل');
+        
+        const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+        let isAiOn = false;
+        if (localVal !== null) {
+          isAiOn = (localVal === 'true');
+        } else if (settings['auto_ai_' + phone] !== undefined) {
+          isAiOn = (settings['auto_ai_' + phone] === 'true' || settings['auto_ai_' + phone] === true);
+        } else if (settings.auto_ai !== undefined) {
+          isAiOn = (settings.auto_ai === 'true' || settings.auto_ai === true);
+        }
+
+        return `<tr>
+          <td class="mono" style="font-weight:700">+${phone||'—'}</td>
+          <td><code class="badge b-g">${s.pairing_code||'—'}</code></td>
+          <td><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td>
+            <label class="toggle-switch sm" title="تفعيل/إيقاف AI Chatbot لهذا البوت فقط">
+              <input type="checkbox" id="toggle-botai-${phone}" ${isAiOn ? 'checked' : ''} onchange="onToggleBotSpecificAi('${phone}', this)">
+              <span class="toggle-slider"></span>
+            </label>
+          </td>
+          <td style="font-size:11px;color:var(--text2)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
+          <td>
+            <button class="btn btn-danger sm" onclick="deleteSessionRow('${phone||''}')" title="مسح الجلسة من قاعدة البيانات">
+              <i class="fas fa-trash-alt"></i> مسح
+            </button>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-circle', 'خطأ: ' + e.message);
+  }
+}
+
+// ── Bot Users Page Logic ───────────────────────────────────────────────────────
+let allBotUsersRaw = [];
+let currentUsersPage = 1;
+
+async function loadBotUsers(page = 1) {
+  currentUsersPage = page;
+  const wrap = document.getElementById('bot-users-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch(`/api/users-list?page=${page}`);
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    allBotUsersRaw = data.users || [];
+    const countEl = document.getElementById('users-total-count');
+    if (countEl) countEl.textContent = data.total || allBotUsersRaw.length;
+    renderBotUsers(allBotUsersRaw);
+    renderUsersPagination(data.total || 0, page, data.limit || 50);
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-users-slash', 'فشل تحميل المستخدمين: ' + e.message);
+  }
+}
+
+function filterBotUsers() {
+  const q = document.getElementById('users-search')?.value?.toLowerCase() || '';
+  if (!q) return renderBotUsers(allBotUsersRaw);
+  const filtered = allBotUsersRaw.filter(u =>
+    (u.phone_number || '').includes(q) ||
+    (u.name || '').toLowerCase().includes(q) ||
+    (u.jid || '').includes(q)
+  );
+  renderBotUsers(filtered);
+}
+
+function renderBotUsers(list) {
+  const wrap = document.getElementById('bot-users-wrap');
+  if (!list.length) { wrap.innerHTML = empty('fas fa-users-slash', 'لا يوجد مستخدمون'); return; }
+  wrap.innerHTML = `<div class="ov-x-auto">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>الاسم</th><th>الرقم</th><th>الحد (Limit)</th><th>أول ظهور</th><th>آخر نشاط</th><th>إجراءات</th></tr></thead>
+      <tbody>
+      ${list.map((u, i) => {
+        const phone = u.phone_number || u.jid?.replace('@s.whatsapp.net','') || '—';
+        const encName = encodeURIComponent(u.name || phone);
+        const first = u.first_seen ? new Date(u.first_seen).toLocaleDateString('ar') : '—';
+        const last = u.last_seen ? new Date(u.last_seen).toLocaleTimeString('ar', {hour:'2-digit',minute:'2-digit'}) : '—';
+        const userLim = u.limit !== undefined ? parseInt(u.limit) : null;
+        const isUnlim = userLim === -1 || userLim >= 100 || userLim === 999999;
+        const limBadge = isUnlim 
+          ? `<span class="badge" style="color:#eab308;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);font-weight:700">∞ غير محدود</span>`
+          : `<span class="badge b-b" style="font-weight:700">${userLim ?? 'افتراضي'}</span>`;
+
+        return `<tr>
+          <td style="color:var(--text3)">${(currentUsersPage - 1) * 50 + i + 1}</td>
+          <td style="font-weight:700">${u.name || phone}</td>
+          <td><a href="https://wa.me/${phone}" target="_blank" class="mono text-accent" style="text-decoration:none">+${phone}</a></td>
+          <td>${limBadge}</td>
+          <td style="font-size:11px;color:var(--text2)">${first}</td>
+          <td style="font-size:11px;color:var(--text2)">${last}</td>
+          <td>
+            <div class="row" style="gap:6px;">
+              <button class="btn btn-ghost sm" style="color:#eab308;border-color:rgba(234,179,8,0.3);" onclick="openUserLimitModal('${phone}', '${encName}', ${userLim ?? 20})">⚡ الحد</button>
+              <button class="btn btn-g sm" onclick="viewUserChatModal('${phone}', '${encName}')">💬 المحادثة</button>
+              <button class="btn btn-b sm" onclick="openDirectMsgModal('${phone}', '${encName}')">✉️ مراسلة</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderUsersPagination(total, page, limit) {
+  const el = document.getElementById('bot-users-pagination');
+  if (!el || total <= limit) { if(el) el.innerHTML = ''; return; }
+  const totalPages = Math.ceil(total / limit);
+  let html = '';
+  for (let p = 1; p <= totalPages; p++) {
+    html += `<button onclick="loadBotUsers(${p})" class="btn ${p===page?'btn-g':'btn-ghost'} sm">${p}</button>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── Modals & Individual User Chat History ─────────────────────────────────────
+let currentChatPhone = '', currentChatName = '';
+let targetDMPhone = '', targetDMName = '';
+
+function openDirectMsgModal(phone, encodedName) {
+  targetDMPhone = phone;
+  targetDMName = decodeURIComponent(encodedName) || phone;
+  document.getElementById('dm-user-name').textContent = targetDMName;
+  document.getElementById('dm-text-input').value = '';
+  document.getElementById('modal-direct-msg').classList.add('show');
+}
+
+async function sendDirectMsgAction() {
+  const text = document.getElementById('dm-text-input').value.trim();
+  if (!text) return toast('⚠️ اكتب نص الرسالة أولاً', 'err');
+
+  try {
+    const res = await fetch('/api/send-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: targetDMPhone, text: text })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تم إرسال الرسالة لـ ${targetDMName}!`, 'ok');
+      closeM('modal-direct-msg');
+    } else {
+      toast('❌ فشل الإرسال: ' + data.error, 'err');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function viewUserChatModal(phone, encodedName) {
+  currentChatPhone = phone;
+  currentChatName = decodeURIComponent(encodedName) || phone;
+  document.getElementById('uchat-user-name').textContent = currentChatName;
+  document.getElementById('uchat-user-phone').textContent = '+' + currentChatPhone;
+  const bodyEl = document.getElementById('uchat-body');
+  bodyEl.innerHTML = spin();
+  document.getElementById('modal-user-chat').classList.add('show');
+
+  try {
+    const res = await fetch(`/api/user-chat-history?phone=${phone}`);
+    if (!res.ok) throw new Error('فشل جلب المحادثة');
+    const data = await res.json();
+    
+    let messages = [];
+    if (Array.isArray(data.dev_messages)) {
+      data.dev_messages.forEach(m => {
+        if (m.text) messages.push({ role: 'user', content: m.text, time: m.timestamp });
+        if (m.replied && m.reply_text) messages.push({ role: 'bot', content: m.reply_text, time: m.reply_timestamp });
+      });
+    }
+    if (Array.isArray(data.ai_history)) {
+      data.ai_history.forEach(m => {
+        const text = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        messages.push({ role: m.role === 'user' ? 'user' : 'bot', content: text, time: null });
+      });
+    }
+
+    if (!messages.length) {
+      bodyEl.innerHTML = empty('fas fa-comment-slash', 'لا يوجد سجل محادثة لهذا المستخدم');
+      return;
+    }
+
+    bodyEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${messages.map(m => {
+          const isUser = m.role === 'user';
+          return `
+            <div style="display:flex;${isUser ? 'justify-content:flex-end' : 'justify-content:flex-start'}">
+              <div style="max-width:85%;padding:9px 13px;border-radius:12px;font-size:12px;line-height:1.5;
+                background:${isUser ? 'rgba(34,211,103,0.15)' : 'rgba(56,189,248,0.15)'};
+                border:1px solid ${isUser ? 'rgba(34,211,103,0.25)' : 'rgba(56,189,248,0.25)'};">
+                <div style="font-size:10px;font-weight:700;color:${isUser ? 'var(--green)' : 'var(--blue)'};margin-bottom:3px">
+                  ${isUser ? '👤 ' + currentChatName : '🤖 البوت'}
+                </div>
+                <div>${(m.content || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  } catch(e) {
+    bodyEl.innerHTML = empty('fas fa-exclamation-triangle', e.message);
+  }
+}
+
+async function sendUserChatReply() {
+  const input = document.getElementById('uchat-reply-input');
+  const text = input ? input.value.trim() : '';
+  if (!text || !currentChatPhone) return;
+
+  try {
+    const res = await fetch('/api/send-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: currentChatPhone, text: text })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ تم إرسال الرد!', 'ok');
+      if (input) input.value = '';
+      viewUserChatModal(currentChatPhone, encodeURIComponent(currentChatName));
+    } else {
+      toast('❌ فشل: ' + data.error, 'err');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+// ── AI Memory Page ─────────────────────────────────────────────────────────────
+async function loadAI() {
+  const wrap = document.getElementById('ai-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/aichat');
+    if (!res.ok) throw new Error(res.statusText);
+    allAI = await res.json() || [];
+    renderAI(allAI);
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-brain', 'خطأ: ' + e.message);
+  }
+}
+
+function filterAI(q) {
+  renderAI(allAI.filter(u => (u.jid||'').includes(q)));
+}
+
+function renderAI(list) {
+  const wrap = document.getElementById('ai-wrap');
+  if (!list.length) { wrap.innerHTML = empty('fas fa-brain','لا توجد ذاكرة AI مخزنة'); return; }
+  wrap.innerHTML = `<div class="ov-x-auto">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>المعرف (JID)</th><th>المنصة</th><th>التحديث</th><th>عرض</th></tr></thead>
+      <tbody>
+      ${list.map((u,i) => `<tr>
+        <td style="color:var(--text3)">${i+1}</td>
+        <td class="mono" style="font-size:11px">${u.jid||'—'}</td>
+        <td><span class="badge b-b">${u.jid?.includes('@s.whatsapp')?'WhatsApp':'Telegram'}</span></td>
+        <td style="font-size:11px;color:var(--text2)">${u.updated_at ? new Date(u.updated_at).toLocaleTimeString('ar') : '—'}</td>
+        <td><button class="btn btn-ghost sm" onclick="viewAI('${(u.jid||'').replace(/'/g,"\\'")}')">عرض</button></td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function viewAI(jid) {
+  document.getElementById('modal-ai-title').textContent = jid;
+  document.getElementById('modal-ai-body').innerHTML = spin();
+  document.getElementById('modal-ai').classList.add('show');
+  try {
+    const res = await fetch(`/api/aichat-detail?jid=${encodeURIComponent(jid)}`);
+    const data = await res.json();
+    const hist = Array.isArray(data.history) ? data.history : [];
+    document.getElementById('modal-ai-body').innerHTML = `
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">${hist.length} رسالة بالذاكرة</div>
+      <div style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+        ${hist.map(m => `<div style="padding:8px 12px;background:var(--surface);border-radius:8px;font-size:12px">
+          <b>${m.role==='user'?'👤 User':'🤖 Bot'}:</b> ${(typeof m.content==='string'?m.content:JSON.stringify(m.content)).substring(0,250)}
+        </div>`).join('')}
+      </div>`;
+  } catch(e) {
+    document.getElementById('modal-ai-body').innerHTML = empty('fas fa-exclamation', e.message);
+  }
+}
+
+// ── Broadcast Center & Dev Messages ───────────────────────────────────────────
+let bcMediaFile = null;
+
+function updateBcPreview() {
+  const text = document.getElementById('bc-msg-text').value.trim();
+  const prev = document.getElementById('bc-preview-text');
+  if (!text) {
+    prev.style.fontStyle = 'italic';
+    prev.style.color = 'var(--text2)';
+    prev.textContent = 'اكتب رسالتك لترى المعاينة هنا...';
+  } else {
+    prev.style.fontStyle = 'normal';
+    prev.style.color = 'var(--text)';
+    prev.textContent = text;
+  }
+}
+
+function bcAttachFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  bcMediaFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('bc-attach-img').src = e.target.result;
+    document.getElementById('bc-attach-preview').style.display = 'block';
+    toast('📎 تم إرفاق الصورة', 'ok');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBcAttach() {
+  bcMediaFile = null;
+  document.getElementById('bc-attach-preview').style.display = 'none';
+  document.getElementById('bc-file-input').value = '';
+}
+
+async function sendBroadcast() {
+  const text = document.getElementById('bc-msg-text').value.trim();
+  if (!text && !bcMediaFile) {
+    toast('❌ اكتب رسالة أو أرفق صورة للإرسال', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('bc-send-btn');
+  const badge = document.getElementById('bc-status-badge');
+  btn.disabled = true;
+  badge.textContent = 'جاري الإرسال';
+  badge.className = 'badge b-y';
+
+  try {
+    const formData = new FormData();
+    if (text) formData.append('text', text);
+    if (bcMediaFile) formData.append('image', bcMediaFile);
+
+    const res = await fetch('/api/broadcast', { method: 'POST', body: formData });
+    const result = await res.json();
+
+    badge.textContent = 'تم ✅';
+    badge.className = 'badge b-g';
+    toast(`✅ تم إرسال البث لـ ${result.sent || 0} مستخدم!`, 'ok');
+
+    document.getElementById('bc-msg-text').value = '';
+    updateBcPreview();
+    removeBcAttach();
+    loadBroadcastHistory();
+  } catch(e) {
+    badge.textContent = 'خطأ';
+    badge.className = 'badge b-r';
+    toast('❌ ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function loadBroadcastHistory() {
+  const wrap = document.getElementById('bc-history-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/broadcasts');
+    const data = await res.json();
+    if (!data || !data.length) { wrap.innerHTML = empty('fas fa-satellite-dish','لا توجد بثوث سابقة'); return; }
+    wrap.innerHTML = data.map(b => `
+      <div style="background:var(--surface);border-radius:10px;padding:12px;margin-bottom:10px;border-right:3px solid var(--green)">
+        <div class="row-between mb-8">
+          <span class="badge b-g">✅ ${b.sent_count||0} نجاح</span>
+          <span style="font-size:10px;color:var(--text2)">${b.created_at ? new Date(b.created_at).toLocaleDateString('ar') : ''}</span>
+        </div>
+        <div style="font-size:12px">${(b.text||'').substring(0,100)}</div>
+      </div>`).join('');
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation', e.message);
+  }
+}
+
+async function loadBcUserCount() {
+  try {
+    const res = await fetch('/api/users?count=1');
+    const d = await res.json();
+    const el = document.getElementById('bc-user-count');
+    if (el) el.textContent = `${d.count || 0} مستخدم مسجل بالسيرفر`;
+  } catch(_) {}
+}
+
+async function loadDevMsg() {
+  const wrap = document.getElementById('devmsg-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/devmsg');
+    const data = await res.json();
+    allDevMsg = data || [];
+    renderDevMsg(allDevMsg);
+
+    const dw = document.getElementById('dash-devmsg');
+    if (dw) {
+      const recent = allDevMsg.slice(0, 3);
+      if (!recent.length) { dw.innerHTML = empty('fas fa-inbox','لا توجد رسائل موجهة للمطور'); return; }
+      dw.innerHTML = recent.map(m => `
+        <div class="msg-item">
+          <div class="msg-meta">
+            <span class="badge ${m.replied ? 'b-g' : 'b-y'}">${m.replied ? 'مردود' : 'جديد'}</span>
+            <span style="font-size:12px;font-weight:700">${m.sender_name||'—'}</span>
+          </div>
+          <div class="msg-text">${(m.text||'').substring(0,75)}</div>
+        </div>`).join('');
+    }
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation', e.message);
+  }
+}
+
+function filterDevMsg() {
+  const f = document.getElementById('devmsg-filter').value;
+  if (f === 'all') renderDevMsg(allDevMsg);
+  else renderDevMsg(allDevMsg.filter(m => String(m.replied) === f));
+}
+
+function renderDevMsg(list) {
+  const wrap = document.getElementById('devmsg-wrap');
+  if (!list.length) { wrap.innerHTML = empty('fas fa-inbox','لا توجد رسائل'); return; }
+  wrap.innerHTML = list.map(m => `
+    <div class="msg-item">
+      <div class="msg-meta">
+        <span class="badge ${m.replied ? 'b-g':'b-y'}">${m.replied ? 'تم الرد':'جديد'}</span>
+        <b>${m.sender_name||'—'}</b>
+        <span class="mono" style="font-size:11px;color:var(--text2)">+${m.sender||''}</span>
+      </div>
+      <div class="msg-text">${m.text||'—'}</div>
+      ${m.reply_text ? `<div class="msg-reply"><b>الرد:</b> ${m.reply_text}</div>` : ''}
+      ${!m.replied ? `
+        <button class="btn btn-g sm mt-16" onclick="openReply('${(m.id||'').replace(/'/g,"\\'")}')">
+          <i class="fas fa-reply"></i> رد على الرسالة
+        </button>` : ''}
+    </div>`).join('');
+}
+
+function openReply(id) {
+  document.getElementById('reply-id').value = id;
+  document.getElementById('reply-text').value = '';
+  document.getElementById('modal-reply').classList.add('show');
+}
+
+async function sendReply() {
+  const id   = document.getElementById('reply-id').value;
+  const text = document.getElementById('reply-text').value.trim();
+  if (!text) return toast('❌ اكتب الرد أولاً', 'err');
+  const { error } = await sb.from('dev_messages').update({
+    replied: true, reply_text: text, reply_timestamp: new Date().toISOString()
+  }).eq('id', id);
+  if (error) return toast('❌ فشل الرد: ' + error.message, 'err');
+  toast('✅ تم إرسال الرد للمستخدم!', 'ok');
+  closeM('modal-reply');
+  loadDevMsg();
+}
+
+// ── Error Logs ─────────────────────────────────────────────────────────────────
+async function loadErrors() {
+  const wrap = document.getElementById('errors-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const res = await fetch('/api/errors');
+    const list = await res.json();
+    if (!list.length) { wrap.innerHTML = empty('fas fa-check-circle','لم يتم رصد أي أخطاء! 🎉'); return; }
+    wrap.innerHTML = `<div class="ov-x-auto"><table class="tbl">
+      <thead><tr><th>#</th><th>الأمر</th><th>الخطأ</th><th>التاريخ</th></tr></thead>
+      <tbody>
+      ${list.map((e,i) => `<tr>
+        <td style="color:var(--text3)">${i+1}</td>
+        <td><code class="text-accent">.${e.command||'—'}</code></td>
+        <td style="color:var(--red);font-size:12px">${e.error_message||'—'}</td>
+        <td style="font-size:11px;color:var(--text2)">${e.created_at ? new Date(e.created_at).toLocaleString('ar') : '—'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  } catch(e) {
+    wrap.innerHTML = empty('fas fa-exclamation-triangle', e.message);
+  }
+}
+
+// ── Commands Registry Display ──────────────────────────────────────────────────
+const CMDS = [
+  { icon:'📥', name:'ytmp3',   desc:'تنزيل أوديو يوتيوب', tag:'downloader' },
+  { icon:'📹', name:'ytmp4',   desc:'تنزيل فيديو يوتيوب', tag:'downloader' },
+  { icon:'🎵', name:'yts',     desc:'بحث يوتيوب',         tag:'downloader' },
+  { icon:'📲', name:'tiktok',  desc:'تنزيل تيك توك',      tag:'downloader' },
+  { icon:'🖼️', name:'pinterest',desc:'تنزيل بينتريست',    tag:'downloader' },
+  { icon:'🎤', name:'vocalremover',desc:'عزل صوت المغني AI',tag:'editor'    },
+  { icon:'📖', name:'quran',   desc:'تلاوة وآيات قرآنية',  tag:'islamic'    },
+  { icon:'🎧', name:'quranmp3',desc:'سورة كاملة MP3',    tag:'islamic'    },
+  { icon:'🕌', name:'salat',   desc:'مواقيت الصلاة',     tag:'islamic'    },
+  { icon:'⛅', name:'taqs',    desc:'حالة الطقس والجو',   tag:'tools'      },
+  { icon:'🎮', name:'rps',     desc:'حجرة ورقة مقص',     tag:'game'       },
+  { icon:'🎯', name:'truefalse',desc:'لعبة صح أم خطأ',   tag:'game'       },
+  { icon:'😂', name:'joke',    desc:'نكت مضحكة وهربانة', tag:'fun'        },
+  { icon:'💡', name:'fact',    desc:'حقائق ومعلومات',    tag:'fun'        },
+  { icon:'💖', name:'flirt',   desc:'كلام غزل هربان',    tag:'fun'        },
+  { icon:'🖼️', name:'meme',    desc:'ميمز كوميدية',       tag:'fun'        },
+];
+
+function copyCmd(cmd) {
+  navigator.clipboard.writeText('.' + cmd).catch(() => {});
+  toast('✅ تم نسخ الأمر: .' + cmd, 'ok');
+}
+
+function renderCmds() {
+  const grid = document.getElementById('cmds-grid');
+  if (!grid) return;
+  grid.innerHTML = CMDS.map(c => `
+    <div class="card" style="cursor:pointer" onclick="copyCmd('${c.name}')">
+      <div style="font-size:28px;margin-bottom:8px">${c.icon}</div>
+      <div class="mono" style="font-size:14px;font-weight:700;margin-bottom:4px">.${c.name}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">${c.desc}</div>
+      <span class="badge b-g">${c.tag}</span>
+    </div>`).join('');
+}
+
+// ── Settings Page Logic ────────────────────────────────────────────────────────
+function switchSettingsTab(tab) {
+  ['bot','owner','db'].forEach(t => {
+    const panel = document.getElementById('spanel-' + t);
+    const btn = document.getElementById('stab-' + t);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'db') loadCfgForm();
+  if (tab === 'bot') loadBotSettings();
+}
+
+function saveBotSettings() {
+  const data = {
+    botname: document.getElementById('s-botname').value.trim(),
+    author: document.getElementById('s-author').value.trim(),
+    source: document.getElementById('s-source').value.trim(),
+    owner1: document.getElementById('s-owner1').value.trim(),
+    owner2: document.getElementById('s-owner2').value.trim(),
+    pairing: document.getElementById('s-pairing').value.trim(),
+  };
+  localStorage.setItem('bot_settings', JSON.stringify(data));
+  toast('✅ تم حفظ إعدادات البوت', 'ok');
+}
+
+async function loadBotSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('bot_settings') || '{}');
+    if (saved.botname) document.getElementById('s-botname').value = saved.botname;
+    if (saved.author) document.getElementById('s-author').value = saved.author;
+    if (saved.source) document.getElementById('s-source').value = saved.source;
+    if (saved.owner1) document.getElementById('s-owner1').value = saved.owner1;
+    if (saved.owner2) document.getElementById('s-owner2').value = saved.owner2;
+    if (saved.pairing) document.getElementById('s-pairing').value = saved.pairing;
+
+    const res = await fetch('/api/settings');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.default_user_limit !== undefined) {
+        const lim = parseInt(cfg.default_user_limit);
+        const sliderVal = (lim === -1 || lim >= 100) ? 100 : lim;
+        syncUserCmdSlider(sliderVal);
+      }
+      if (cfg.apk_daily_limit !== undefined) {
+        syncApkSlider(cfg.apk_daily_limit);
+      }
+      // Load toggles (defaulting to enabled if not explicitly 'false')
+      const toggleMap = { 
+        auto_status_read: 'toggle-autostatus',
+        auto_read: 'toggle-autoread', 
+        anti_call: 'toggle-anticall', 
+        silent_mode: 'toggle-silent', 
+        auto_online: 'toggle-autoonline',
+        auto_ai: 'toggle-autoai'
+      };
+      const defaultsMap = {
+        auto_status_read: true,
+        auto_read: true,
+        anti_call: true,
+        silent_mode: false,
+        auto_online: true,
+        auto_ai: true
+      };
+      for (const [key, elId] of Object.entries(toggleMap)) {
+        const el = document.getElementById(elId);
+        if (el) {
+          const localVal = localStorage.getItem('toggle_' + key);
+          if (localVal !== null) {
+            el.checked = (localVal === 'true');
+          } else if (cfg[key] !== undefined) {
+            el.checked = (cfg[key] === 'true' || cfg[key] === true || cfg[key] === '1');
+            localStorage.setItem('toggle_' + key, el.checked ? 'true' : 'false');
+          } else {
+            el.checked = defaultsMap[key];
+          }
+        }
+      }
+    }
+  } catch(e) {}
+  // Load per-bot AI selector checkboxes list
+  await loadPerBotAiList();
+  // Load bot mode from API
+  await loadBotMode();
+  // Load admins list
+  await loadAdmins();
+}
+
+async function loadPerBotAiList() {
+  const wrap = document.getElementById('per-bot-ai-list');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) return;
+    const list = await res.json() || [];
+    if (!list.length) {
+      wrap.innerHTML = '<div style="font-size:11px;color:var(--text2)">لا توجد جلسات مسجلة بعد. قم بربط بوت أولاً من القائمة الجانبية.</div>';
+      return;
+    }
+
+    let settings = {};
+    try {
+      const sRes = await fetch('/api/settings');
+      if (sRes.ok) settings = await sRes.json();
+    } catch(_) {}
+
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;">
+        ${list.map(s => {
+          const phone = (s.phone_number || '').replace(/\D/g, '');
+          const isConn = s.status === 'connected';
+          const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
+          let isChecked = false;
+          if (localVal !== null) {
+            isChecked = (localVal === 'true');
+          } else if (settings['auto_ai_' + phone] !== undefined) {
+            isChecked = (settings['auto_ai_' + phone] === 'true' || settings['auto_ai_' + phone] === true);
+          } else if (settings.auto_ai !== undefined) {
+            isChecked = (settings.auto_ai === 'true' || settings.auto_ai === true);
+          }
+
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="chk-bot-ai-${phone}" ${isChecked ? 'checked' : ''} onchange="toggleBotAiCheckbox('${phone}', this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:var(--accent)">
+                <div>
+                  <div style="font-weight:800;font-size:13px;font-family:monospace;color:var(--accent)">+${phone}</div>
+                  <div style="font-size:10px;color:${isConn ? 'var(--green)' : 'var(--red)'};font-weight:600">${isConn ? '🟢 متصل ونشط' : '🔴 غير متصل'}</div>
+                </div>
+              </div>
+              <span class="badge ${isChecked ? 'b-g' : 'b-r'}" id="badge-bot-ai-${phone}">${isChecked ? '🧠 AI شغال' : '⏸️ AI موقف'}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--red)">فشل تحميل قائمة البوتات</div>';
+  }
+}
+
+async function toggleBotAiCheckbox(phone, isChecked) {
+  const key = 'auto_ai_' + phone;
+  localStorage.setItem('toggle_' + key, isChecked ? 'true' : 'false');
+  
+  const badge = document.getElementById(`badge-bot-ai-${phone}`);
+  if (badge) {
+    badge.className = `badge ${isChecked ? 'b-g' : 'b-r'}`;
+    badge.textContent = isChecked ? '🧠 AI شغال' : '⏸️ AI موقف';
+  }
+
+  // Also sync session table checkbox if present
+  const tblChk = document.getElementById(`toggle-botai-${phone}`);
+  if (tblChk) tblChk.checked = isChecked;
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: isChecked ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`${isChecked ? '✅ تم تفعيل' : '⛔ تم إيقاف'} الذكاء الاصطناعي للبوت +${phone}!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+function syncUserCmdSlider(val) {
+  val = parseInt(val);
+  const big = document.getElementById('user-cmd-limit-big');
+  const unit = document.getElementById('user-cmd-limit-unit');
+  const slider = document.getElementById('user-cmd-limit-slider');
+  if (slider) slider.value = val;
+  if (val >= 100) {
+    if (big) { big.innerHTML = '∞ غير محدود'; big.style.color = '#eab308'; }
+    if (unit) unit.textContent = 'استخدام مفتوح للجميع';
+  } else {
+    if (big) { big.textContent = val; big.style.color = 'var(--accent)'; }
+    if (unit) unit.textContent = 'أمر / يوم';
+  }
+}
+
+async function saveUserCmdLimit() {
+  const sliderVal = parseInt(document.getElementById('user-cmd-limit-slider').value);
+  const limit = (sliderVal >= 100) ? -1 : sliderVal;
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ default_user_limit: String(limit) })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const msg = limit === -1 ? '✅ تم جعل حد الأوامر غير محدود (∞ Unlimited) لجميع الأفراد!' : `✅ تم حفظ حد الأوامر: ${limit} أمر/يوم`;
+      toast(msg, 'ok');
+    }
+  } catch(e) {
+    toast('⚠️ خطأ بالحفظ: ' + e.message, 'warn');
+  }
+}
+
+let targetLimitPhone = '', targetLimitName = '';
+
+function openUserLimitModal(phone, encodedName, currentLimit) {
+  targetLimitPhone = phone;
+  targetLimitName = decodeURIComponent(encodedName) || phone;
+  const nameEl = document.getElementById('ulimit-user-name');
+  const phoneEl = document.getElementById('ulimit-user-phone');
+  if (nameEl) nameEl.textContent = targetLimitName;
+  if (phoneEl) phoneEl.textContent = '+' + phone;
+
+  const lim = parseInt(currentLimit);
+  const sliderVal = (isNaN(lim) || lim === -1 || lim >= 100) ? 100 : lim;
+  syncIndividualLimitSlider(sliderVal);
+  openM('modal-user-limit');
+}
+
+function syncIndividualLimitSlider(val) {
+  val = parseInt(val);
+  const big = document.getElementById('ulimit-big');
+  const slider = document.getElementById('ulimit-slider');
+  if (slider) slider.value = val;
+  if (val >= 100) {
+    if (big) { big.innerHTML = '∞ غير محدود'; big.style.color = '#eab308'; }
+  } else {
+    if (big) { big.textContent = val + ' أمر/يوم'; big.style.color = 'var(--accent)'; }
+  }
+}
+
+async function saveIndividualUserLimit() {
+  if (!targetLimitPhone) return;
+  const sliderVal = parseInt(document.getElementById('ulimit-slider').value);
+  const newLimit = (sliderVal >= 100) ? -1 : sliderVal;
+  try {
+    const res = await fetch('/api/user-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: targetLimitPhone, limit: newLimit })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const msgText = newLimit === -1 ? `✅ تم جعل حد +${targetLimitPhone} غير محدود (∞)` : `✅ تم تحديث حد +${targetLimitPhone} إلى ${newLimit} أمر/يوم`;
+      toast(msgText, 'ok');
+      closeM('modal-user-limit');
+      loadBotUsers(currentUsersPage);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل التحديث'), 'warn');
+    }
+  } catch(e) {
+    toast('⚠️ خطأ: ' + e.message, 'warn');
+  }
+}
+
+function syncApkSlider(val) {
+  val = parseInt(val);
+  const big = document.getElementById('apk-limit-big');
+  const slider = document.getElementById('apk-limit-slider');
+  if (big) big.textContent = val;
+  if (slider) slider.value = val;
+}
+
+async function saveApkLimit() {
+  const limit = parseInt(document.getElementById('apk-limit-slider').value);
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apk_daily_limit: String(limit) })
+    });
+    const data = await res.json();
+    if (data.success) toast(`✅ تم حفظ حد APK: ${limit} تطبيق/يوم`, 'ok');
+  } catch(e) {
+    toast('⚠️ خطأ بالحفظ: ' + e.message, 'warn');
+  }
+  localStorage.setItem('apk_daily_limit', String(limit));
+}
+
+/* ─────────────────────────────────────────────
+   BOT MODE SWITCHER
+   ───────────────────────────────────────────── */
+async function setBotMode(mode) {
+  try {
+    const res = await fetch('/api/bot-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const labels = { public: '🟢 عام (Public)', private: '🔒 خاص DM فقط', group: '👥 مجموعات فقط', admin: '🛡️ مشرفين فقط' };
+      toast('✅ تم تغيير وضع البوت إلى: ' + (labels[mode] || mode), 'ok');
+      updateModeBtnUI(mode);
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل تغيير الوضع'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function loadBotMode() {
+  try {
+    const res = await fetch('/api/bot-mode');
+    if (!res.ok) return;
+    const data = await res.json();
+    updateModeBtnUI(data.mode || 'public');
+  } catch(e) {}
+}
+
+function updateModeBtnUI(activeMode) {
+  const modeMap = {
+    public:  { id: 'mode-btn-public',  label: '🟢 عام (Public)' },
+    private: { id: 'mode-btn-private', label: '🔒 خاص DM فقط' },
+    group:   { id: 'mode-btn-group',   label: '👥 مجموعات فقط' },
+    admin:   { id: 'mode-btn-admin',   label: '🛡️ مشرفين فقط' }
+  };
+  const statusEl = document.getElementById('bot-mode-status');
+  Object.entries(modeMap).forEach(([mode, { id, label }]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (mode === activeMode) {
+      btn.classList.add('mode-btn-active');
+      btn.style.opacity = '1';
+      if (statusEl) statusEl.innerHTML = `<span style="color:var(--green)">✅ الوضع الحالي: <b>${label}</b></span>`;
+    } else {
+      btn.classList.remove('mode-btn-active');
+      btn.style.opacity = '0.6';
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   SYSTEM TOGGLES (auto_read, anti_call, etc.)
+   ───────────────────────────────────────────── */
+async function onToggleAutoAi(el) {
+  const willEnable = el.checked;
+  // Visually revert until confirmed
+  el.checked = !willEnable;
+
+  const confirmed = await showConfirm({
+    title: willEnable ? '🧠 تفعيل الرد التلقائي بالذكاء الاصطناعي' : '🛑 إيقاف الرد التلقائي بالذكاء الاصطناعي',
+    text: willEnable 
+      ? 'هل أنت متأكد من تفعيل الرد التلقائي بالذكاء الاصطناعي؟ سيظل البوت يجيب على المحادثات فـ الواتساب ومحفوظاً دائماً فـ الداتابيز حتى تقوم بإيقافه يدوياً.' 
+      : 'هل أنت متأكد من إيقاف الرد التلقائي بالذكاء الاصطناعي؟',
+    confirmText: willEnable ? 'تأكيد التفعيل' : 'تأكيد الإيقاف',
+    icon: willEnable ? '🧠' : '🛑',
+    isDanger: !willEnable
+  });
+
+  if (confirmed) {
+    el.checked = willEnable;
+    localStorage.setItem('toggle_auto_ai', willEnable ? 'true' : 'false');
+    await saveToggle('auto_ai', willEnable);
+    setTimeout(loadPerBotAiList, 400);
+  }
+}
+
+async function saveToggle(key, value) {
+  localStorage.setItem('toggle_' + key, value ? 'true' : 'false');
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    const labels = { 
+      auto_status_read: 'Vu Status (مشاهدة الستوري)', 
+      auto_read: 'Auto Read (قراءة الرسائل)', 
+      anti_call: 'Anti-Call (رفض المكالمات)', 
+      silent_mode: 'Silent Mode (وضع الصمت)', 
+      auto_online: 'Auto Online (متصل دائماً)',
+      auto_ai: 'AI Chatbot (الرد التلقائي بالذكاء الاصطناعي)'
+    };
+    if (data.success) {
+      toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key} وحفظه فـ الداتابيز!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+/* ─────────────────────────────────────────────
+   BOT ADMINS MANAGER
+   ───────────────────────────────────────────── */
+async function loadAdmins() {
+  const wrap = document.getElementById('admins-list');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/bot-admins');
+    const data = await res.json();
+    const admins = data.admins || [];
+    if (!admins.length) {
+      wrap.innerHTML = '<div class="sbar info" style="font-size:12px;">لا يوجد أدمينات مضافون حالياً</div>';
+      return;
+    }
+    wrap.innerHTML = admins.map(a => `
+      <div class="row-between" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">+${a}</div>
+          <div style="font-size:11px;color:var(--green)">👑 Bot Admin • صلاحيات كاملة</div>
+        </div>
+        <button class="btn btn-danger sm" onclick="removeBotAdmin('${a}')" title="حذف">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    `).join('');
+  } catch(e) {
+    wrap.innerHTML = '<div class="sbar warn" style="font-size:12px;">⚠️ فشل تحميل الأدمينات</div>';
+  }
+}
+
+async function addBotAdmin() {
+  const inp = document.getElementById('new-admin-phone');
+  const phone = inp ? inp.value.trim().replace(/[^0-9]/g, '') : '';
+  if (!phone || phone.length < 8) return toast('⚠️ أدخل رقماً صحيحاً', 'warn');
+  try {
+    const res = await fetch('/api/bot-admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تمت إضافة +${phone} كأدمين`, 'ok');
+      if (inp) inp.value = '';
+      await loadAdmins();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الإضافة'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function removeBotAdmin(phone) {
+  const ok = await showConfirm({
+    title: 'حذف الأدمين',
+    text: `هل تريد إزالة +${phone} من قائمة الأدمينات؟`,
+    confirmText: '🗑️ نعم، احذف',
+    icon: '⚠️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/bot-admins', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تمت إزالة +${phone} من الأدمينات`, 'ok');
+      await loadAdmins();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحذف'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+function loadCfgForm() {
+  document.getElementById('cfg-url').value = cfg.url;
+  document.getElementById('cfg-key').value = cfg.key;
+}
+
+async function saveConfig() {
+  cfg.url = document.getElementById('cfg-url').value.trim() || DEF_URL;
+  cfg.key = document.getElementById('cfg-key').value.trim() || DEF_KEY;
+  localStorage.setItem('sb_url', cfg.url);
+  localStorage.setItem('sb_key', cfg.key);
+  initSB();
+  toast('✅ تم تحديث إعدادات Supabase', 'ok');
+}
+
+function animN(id, target) {
+  const el = document.getElementById(id); if (!el) return;
+  let cur = 0; const step = Math.max(1, Math.ceil(target/25));
+  const t = setInterval(() => {
+    cur = Math.min(cur+step, target);
+    el.textContent = cur.toLocaleString('ar');
+    if (cur >= target) clearInterval(t);
+  }, 30);
+}
+
+function spin() { return '<div class="sw"><div class="sp"></div></div>'; }
+function empty(icon, msg) { return `<div class="empty"><i class="${icon}"></i><p>${msg}</p></div>`; }
+
+// ── Startup Initialization ────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  initSB();
+  const activePage = localStorage.getItem('active_page') || 'dashboard';
+  goPage(activePage);
+  await loadStats();
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── PAGE: BOT DETAILS — Per-bot analytics, inbox, and user roster ─────────────
+// ══════════════════════════════════════════════════════════════════════════════
+let _bdSelectedPhone = null;
+
+async function loadBotDetailsPage() {
+  const bar = document.getElementById('bd-selector-bar');
+  if (!bar) return;
+  bar.innerHTML = spin();
+
+  try {
+    const res = await fetch('/api/bots-list');
+    const data = await res.json();
+    const bots = data.bots || [];
+
+    if (!bots.length) {
+      bar.innerHTML = empty('fas fa-robot', 'لا توجد بوتات مسجلة بعد');
+      return;
+    }
+
+    bar.innerHTML = bots.map((b, idx) => {
+      const phone = b.phone_number;
+      const isOnline = b.connected;
+      const isSelected = (_bdSelectedPhone === phone) || (!_bdSelectedPhone && idx === 0);
+      const bg = isSelected ? 'var(--accent)' : 'var(--bg2, #f1f5f9)';
+      const col = isSelected ? '#ffffff' : 'var(--txt, #0f172a)';
+      const border = isSelected ? '2px solid var(--accent)' : '1px solid var(--bd, #cbd5e1)';
+      return `
+        <button class="btn bd-bot-btn" data-phone="${phone}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;background:${bg};color:${col};border:${border};" onclick="selectBotDetail('${phone}')">
+          <span style="width:10px;height:10px;border-radius:50%;background:${isOnline ? '#22c55e' : '#ef4444'};display:inline-block;flex-shrink:0;"></span>
+          <span style="direction:ltr;unicode-bidi:embed;display:inline-block;color:inherit;">+${phone}</span>
+        </button>`;
+    }).join('');
+
+    // Auto-select first bot if none selected
+    if (!_bdSelectedPhone && bots.length) {
+      await selectBotDetail(bots[0].phone_number);
+    } else if (_bdSelectedPhone) {
+      await fetchBotDetail(_bdSelectedPhone);
+    }
+  } catch (err) {
+    bar.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i><p>خطأ في تحميل البوتات: ${err.message}</p></div>`;
+  }
+}
+
+async function selectBotDetail(phone) {
+  _bdSelectedPhone = phone;
+  // Highlight selected button
+  const bar = document.getElementById('bd-selector-bar');
+  if (bar) {
+    bar.querySelectorAll('.bd-bot-btn').forEach(btn => {
+      const isThis = btn.dataset.phone === phone;
+      if (isThis) {
+        btn.style.background = 'var(--accent)';
+        btn.style.color = '#ffffff';
+        btn.style.border = '2px solid var(--accent)';
+        btn.style.boxShadow = '0 4px 12px rgba(99,102,241,0.3)';
+      } else {
+        btn.style.background = 'var(--bg2, #f1f5f9)';
+        btn.style.color = 'var(--txt, #0f172a)';
+        btn.style.border = '1px solid var(--bd, #cbd5e1)';
+        btn.style.boxShadow = 'none';
+      }
+    });
+  }
+  await fetchBotDetail(phone);
+}
+
+async function fetchBotDetail(phone) {
+  // Show spinners in all sections
+  ['bd-top-cmds-wrap', 'bd-dev-msgs-wrap', 'bd-users-table-wrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = spin();
+  });
+
+  try {
+    const res = await fetch(`/api/bot-details?phone=${encodeURIComponent(phone)}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+
+    // ── Stat Cards ──────────────────────────────────────────────
+    const phoneEl = document.getElementById('bd-phone-val');
+    const statusEl = document.getElementById('bd-status-badge');
+    const usersEl = document.getElementById('bd-users-count');
+    const msgsEl = document.getElementById('bd-msgs-count');
+    const modeEl = document.getElementById('bd-mode-val');
+
+    if (phoneEl) phoneEl.innerHTML = `<span style="direction:ltr;unicode-bidi:embed;display:inline-block;">+${phone}</span>`;
+    if (statusEl) statusEl.innerHTML = d.connected
+      ? '<span style="color:#22c55e;font-weight:700;">🟢 متصل الآن</span>'
+      : '<span style="color:#ef4444;font-weight:700;">🔴 غير متصل</span>';
+    if (usersEl) usersEl.textContent = (d.total_users || 0).toLocaleString('ar');
+    if (msgsEl)  msgsEl.textContent  = (d.messages_handled || 0).toLocaleString('ar');
+
+    const modeLabels = { public: '🌐 عام', private: '🔒 خاص', group: '👥 مجموعات', admin: '👑 أدمن' };
+    if (modeEl) modeEl.textContent = modeLabels[d.mode] || d.mode || '—';
+
+    // ── Top Commands ─────────────────────────────────────────────
+    const cmdsWrap = document.getElementById('bd-top-cmds-wrap');
+    if (cmdsWrap) {
+      const cmds = d.top_commands || [];
+      if (!cmds.length) {
+        cmdsWrap.innerHTML = empty('fas fa-terminal', 'لا توجد أوامر مسجلة بعد');
+      } else {
+        const max = cmds[0]?.count || 1;
+        cmdsWrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
+          ${cmds.slice(0, 10).map((c, i) => {
+            const pct = Math.round((c.count / max) * 100);
+            return `<div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:12px;font-weight:700;color:var(--accent);min-width:20px;">#${i+1}</span>
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-weight:600;font-size:13px;">.${c.cmd}</span>
+                  <span style="font-size:12px;color:var(--txt2);">${c.count.toLocaleString('ar')} مرة</span>
+                </div>
+                <div style="background:var(--bg2);border-radius:8px;height:6px;overflow:hidden;">
+                  <div style="background:var(--accent);height:100%;width:${pct}%;border-radius:8px;transition:width 0.5s;"></div>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    }
+
+    // ── Dev Messages Inbox (isolated to this bot) ─────────────────
+    const devWrap = document.getElementById('bd-dev-msgs-wrap');
+    if (devWrap) {
+      const msgs = d.dev_messages || [];
+      if (!msgs.length) {
+        devWrap.innerHTML = empty('fas fa-inbox', 'لا توجد رسائل واردة لهذا البوت بعد');
+      } else {
+        devWrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;max-height:360px;overflow-y:auto;padding-right:4px;">
+          ${msgs.map(msg => {
+            const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleString('ar-MA') : '—';
+            const replied = msg.replied;
+            const botP = msg.bot_phone || phone;
+            return `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px;background:var(--bg2);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-weight:700;font-size:13px;color:var(--txt);">👤 ${msg.sender_name || msg.sender_phone || '—'}</span>
+                <span style="font-size:11px;color:var(--txt2);">${ts}</span>
+              </div>
+              <p style="margin:0 0 8px;font-size:13px;color:var(--txt2);line-height:1.6;">${msg.text || '—'}</p>
+              <div style="display:flex;gap:8px;align-items:center;">
+                ${replied
+                  ? `<span class="badge b-g" style="font-size:11px;">✅ تم الرد</span><span style="font-size:12px;color:var(--txt2);">${msg.reply_text || ''}</span>`
+                  : `<button class="btn sm btn-g" onclick="bdReplyMsg('${msg.id}','${(msg.sender_name||'').replace(/'/g,'')}','${botP}')"><i class="fas fa-reply"></i> رد الآن</button>`
+                }
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    }
+
+    // ── User Roster ───────────────────────────────────────────────
+    const usersWrap = document.getElementById('bd-users-table-wrap');
+    if (usersWrap) {
+      const users = d.users || [];
+      if (!users.length) {
+        usersWrap.innerHTML = empty('fas fa-user-slash', 'لا يوجد مستخدمون مسجلون لهذا البوت بعد');
+      } else {
+        usersWrap.innerHTML = `<div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--bd);">
+                <th style="padding:10px 12px;text-align:right;color:var(--txt2);font-weight:600;">#</th>
+                <th style="padding:10px 12px;text-align:right;color:var(--txt2);font-weight:600;">الاسم</th>
+                <th style="padding:10px 12px;text-align:right;color:var(--txt2);font-weight:600;">الرقم</th>
+                <th style="padding:10px 12px;text-align:right;color:var(--txt2);font-weight:600;">آخر ظهور</th>
+                <th style="padding:10px 12px;text-align:center;color:var(--txt2);font-weight:600;">إجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map((u, i) => {
+                const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleDateString('ar-MA') : '—';
+                const num = u.phone_number || u.jid?.split('@')[0] || '—';
+                return `<tr style="border-bottom:1px solid var(--bd);transition:background 0.2s;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+                  <td style="padding:10px 12px;color:var(--txt2);">${i+1}</td>
+                  <td style="padding:10px 12px;font-weight:600;">${u.name || '—'}</td>
+                  <td style="padding:10px 12px;direction:ltr;color:var(--accent);">+${num}</td>
+                  <td style="padding:10px 12px;color:var(--txt2);">${lastSeen}</td>
+                  <td style="padding:10px 12px;text-align:center;">
+                    <button class="btn sm" style="font-size:11px;" onclick="bdSendMsg('${num}','${phone}')"><i class="fas fa-paper-plane"></i> رسالة</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }
+    }
+
+  } catch (err) {
+    ['bd-top-cmds-wrap', 'bd-dev-msgs-wrap', 'bd-users-table-wrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle"></i><p>خطأ: ${err.message}</p></div>`;
+    });
+  }
+}
+
+// ── Custom Prompt Modal (replaces browser window.prompt) ─────────────────────
+let _promptResolve = null;
+
+function openPromptModal({ title = 'إدخال نص', subtitle = '', icon = '✍️', placeholder = 'اكتب هنا...' } = {}) {
+  return new Promise((resolve) => {
+    _promptResolve = resolve;
+    document.getElementById('prompt-title').textContent     = title;
+    document.getElementById('prompt-subtitle').textContent  = subtitle;
+    document.getElementById('prompt-icon').textContent      = icon;
+    document.getElementById('prompt-input').placeholder     = placeholder;
+    document.getElementById('prompt-input').value           = '';
+    const mo = document.getElementById('modal-prompt');
+    mo.classList.add('show');
+    // Autofocus after animation frame
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('prompt-input').focus()));
+  });
+}
+
+function closePromptModal(confirmed) {
+  const mo = document.getElementById('modal-prompt');
+  mo.classList.remove('show');
+  const val = document.getElementById('prompt-input').value.trim();
+  if (_promptResolve) {
+    _promptResolve(confirmed && val ? val : null);
+    _promptResolve = null;
+  }
+}
+
+// ── Reply to a msgtodev message from the EXACT receiving bot ─────────────────
+async function bdReplyMsg(msgId, senderName, botPhone) {
+  const txt = await openPromptModal({
+    icon: '✍️',
+    title: `الرد على رسالة "${senderName}"`,
+    subtitle: `سيتم إرسال الرد من البوت +${botPhone}`,
+    placeholder: 'اكتب ردك هنا...'
+  });
+  if (!txt) return;
+  try {
+    const res = await fetch('/api/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: msgId, reply_text: txt })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast('✅ تم إرسال الرد بنجاح عبر البوت +' + botPhone, 'ok');
+      await fetchBotDetail(botPhone);
+    } else {
+      toast('❌ فشل الإرسال: ' + (d.error || 'خطأ غير معروف'), 'err');
+    }
+  } catch (err) {
+    toast('❌ خطأ: ' + err.message, 'err');
+  }
+}
+
+// ── Send a direct message from a specific bot ─────────────────────────────────
+async function bdSendMsg(toPhone, fromBotPhone) {
+  const txt = await openPromptModal({
+    icon: '📤',
+    title: `إرسال رسالة مباشرة إلى +${toPhone}`,
+    subtitle: `سيتم الإرسال من البوت +${fromBotPhone}`,
+    placeholder: 'اكتب نص الرسالة...'
+  });
+  if (!txt) return;
+  try {
+    const res = await fetch('/api/send-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: toPhone, text: txt, bot_phone: fromBotPhone })
+    });
+    const d = await res.json();
+    if (d.success) toast('✅ تم الإرسال بنجاح', 'ok');
+    else toast('❌ فشل الإرسال: ' + (d.error || ''), 'err');
+  } catch (err) {
+    toast('❌ خطأ: ' + err.message, 'err');
+  }
+}
+
+// ── Load Access Requests (Admin) ───────────────────────────────────────────────
+async function loadAccessRequests() {
+  const wrap = document.getElementById('access-req-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="sw"><div class="sp"></div></div>';
+  try {
+    const res = await fetch('/api/access-requests');
+    const rows = await res.json();
+    if (!rows || !rows.length) {
+      wrap.innerHTML = empty('fas fa-inbox', 'لا توجد طلبات دخول بعد');
+      return;
+    }
+
+    const statusBadge = (s) => {
+      if (s === 'approved') return `<span class="sbar success" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">✅ موافق عليه</span>`;
+      if (s === 'rejected') return `<span class="sbar error" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">❌ مرفوض</span>`;
+      return `<span class="sbar warn" style="display:inline-flex;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;margin:0">⏳ قيد المراجعة</span>`;
+    };
+
+    wrap.innerHTML = rows.map(r => `
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;gap:16px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.15));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👤</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;margin-bottom:6px">${r.name || '—'}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text2);margin-bottom:10px">
+              <span><i class="fas fa-phone"></i> ${r.phone || '—'}</span>
+              <span><i class="fas fa-clock"></i> ${r.created_at ? new Date(r.created_at).toLocaleString('ar') : '—'}</span>
+              ${statusBadge(r.status)}
+            </div>
+            ${r.reason ? `<div style="font-size:12px;color:var(--text2);font-style:italic;margin-bottom:12px">"${r.reason}"</div>` : ''}
+            ${r.status === 'approved' && r.username ? `
+              <div style="background:rgba(16,185,129,0.07);border:1px dashed rgba(16,185,129,0.3);border-radius:9px;padding:10px 14px;font-size:12px;margin-bottom:12px;font-family:monospace">
+                👤 المستخدم: <strong style="color:#10b981">${r.username}</strong> &nbsp;|&nbsp; 🔑 كلمة السر: <strong style="color:#10b981">${r.password}</strong>
+              </div>` : ''}
+            ${r.status === 'pending' ? `
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-g sm" onclick="handleAccessReq('${r.id}','approve')"><i class="fas fa-check"></i> موافقة وإنشاء حساب</button>
+                <button class="btn btn-danger sm" onclick="handleAccessReq('${r.id}','reject')"><i class="fas fa-times"></i> رفض</button>
+              </div>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Update pending badge count in sidebar
+    const pending = rows.filter(r => r.status === 'pending').length;
+    const badge = document.getElementById('req-badge');
+    if (badge) {
+      badge.textContent = pending;
+      badge.style.display = pending > 0 ? 'inline-block' : 'none';
+    }
+  } catch (err) {
+    wrap.innerHTML = `<div class="sbar error">❌ خطأ في تحميل الطلبات: ${err.message}</div>`;
+  }
+}
+
+async function handleAccessReq(id, action) {
+  const label = action === 'approve' ? 'الموافقة على الطلب وإنشاء حساب تلقائي' : 'رفض الطلب';
+  const ok = await showConfirm({ title: label, text: 'هل أنت متأكد؟', confirmText: label, isDanger: action === 'reject' });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/access-requests', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast(action === 'approve' ? '✅ تمت الموافقة وإنشاء الحساب' : '✅ تم الرفض', 'ok');
+      loadAccessRequests();
+    } else {
+      toast('❌ ' + (d.error || 'خطأ'), 'err');
+    }
+  } catch (err) {
+    toast('❌ ' + err.message, 'err');
+  }
+}
+
+/* ─────────────────────────────────────────────
+   BANNED USERS MANAGEMENT (Multi-Bot Isolated)
+   ───────────────────────────────────────────── */
+let allBannedUsersList = [];
+
+async function loadBannedUsers() {
+  const wrap = document.getElementById('banned-users-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="sw"><div class="sp"></div></div>';
+
+  const botSelect = document.getElementById('banned-bot-select');
+  const selectedBot = botSelect ? botSelect.value : 'all';
+
+  try {
+    const res = await fetch(`/api/banned-users?bot_phone=${selectedBot}`);
+    const data = await res.json();
+    allBannedUsersList = data.users || [];
+
+    // Populate bot selector dropdown if not populated
+    if (botSelect && data.bots && data.bots.length) {
+      const currentVal = botSelect.value;
+      let optsHtml = '<option value="all">🌐 جميع الأبوتات (All Bots)</option>';
+      data.bots.forEach(bPhone => {
+        optsHtml += `<option value="${bPhone}" ${currentVal === bPhone ? 'selected' : ''}>🤖 بوت +${bPhone}</option>`;
+      });
+      botSelect.innerHTML = optsHtml;
+    }
+
+    const bannedCount = data.totalBanned || allBannedUsersList.filter(u => u.banned).length;
+    const totalCount = data.totalUsers || allBannedUsersList.length;
+
+    const bEl = document.getElementById('stat-banned-cnt');
+    const tEl = document.getElementById('stat-total-cnt');
+    if (bEl) bEl.textContent = `🔴 المحظورون: ${bannedCount}`;
+    if (tEl) tEl.textContent = `👥 إجمالي المسجلين: ${totalCount}`;
+
+    renderBannedUsersTable(allBannedUsersList);
+  } catch (err) {
+    wrap.innerHTML = `<div class="sbar error">❌ خطأ في التحميل: ${err.message}</div>`;
+  }
+}
+
+function searchBannedUsers(query) {
+  query = (query || '').toLowerCase().trim();
+  if (!query) {
+    renderBannedUsersTable(allBannedUsersList);
+    return;
+  }
+  const filtered = allBannedUsersList.filter(u => 
+    (u.name || '').toLowerCase().includes(query) ||
+    (u.phone || '').includes(query) ||
+    (u.jid || '').toLowerCase().includes(query)
+  );
+  renderBannedUsersTable(filtered);
+}
+
+function renderBannedUsersTable(list) {
+  const wrap = document.getElementById('banned-users-wrap');
+  if (!wrap) return;
+  if (!list.length) {
+    wrap.innerHTML = '<div class="sbar info">لا يوجد مستخدمون يطابقون البحث</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);color:var(--text2);">
+            <th style="padding:10px;text-align:right;">#</th>
+            <th style="padding:10px;text-align:right;">المستخدم</th>
+            <th style="padding:10px;text-align:right;">رقم الهاتف</th>
+            <th style="padding:10px;text-align:center;">البوت المخصص</th>
+            <th style="padding:10px;text-align:center;">الحالة (Status)</th>
+            <th style="padding:10px;text-align:center;">الإجراء (Action)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((u, i) => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:10px;color:var(--text2);">${i + 1}</td>
+              <td style="padding:10px;font-weight:600;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span>${u.banned ? '🚫' : '👤'}</span>
+                  <span>${u.name || u.phone}</span>
+                </div>
+              </td>
+              <td style="padding:10px;direction:ltr;text-align:right;color:var(--sky);font-family:monospace;">+${u.phone}</td>
+              <td style="padding:10px;text-align:center;color:var(--text2);font-size:11px;">
+                ${u.bot_phone ? `📱 +${u.bot_phone}` : '🌐 عام'}
+              </td>
+              <td style="padding:10px;text-align:center;">
+                ${u.banned 
+                  ? '<span class="badge b-r">🔴 محظور (Banned)</span>' 
+                  : '<span class="badge b-g">🟢 نشط (Active)</span>'}
+              </td>
+              <td style="padding:10px;text-align:center;">
+                ${u.banned
+                  ? `<button class="btn btn-g sm" onclick="toggleUserBanAction('${u.phone}', false, '${u.bot_phone || ''}')"><i class="fas fa-unlock"></i> 🟢 فك الحظر</button>`
+                  : `<button class="btn btn-danger sm" onclick="toggleUserBanAction('${u.phone}', true, '${u.bot_phone || ''}')"><i class="fas fa-ban"></i> 🔴 حظر</button>`
+                }
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function quickBanAction(isBan) {
+  const phoneInp = document.getElementById('quick-ban-phone');
+  const phone = phoneInp ? phoneInp.value.trim() : '';
+  if (!phone) return toast('⚠️ أدخل رقم الهاتف أولاً', 'warn');
+  const botSelect = document.getElementById('banned-bot-select');
+  const botPhone = botSelect && botSelect.value !== 'all' ? botSelect.value : '';
+  await toggleUserBanAction(phone, isBan, botPhone);
+  if (phoneInp) phoneInp.value = '';
+}
+
+async function toggleUserBanAction(phone, isBan, botPhone = '') {
+  const actionText = isBan ? 'حظر (Block)' : 'فك حظر (Unblock)';
+  const ok = await showConfirm({
+    title: `${isBan ? '🔴' : '🟢'} ${actionText} المستخدم`,
+    text: `هل أنت متأكد من ${actionText} الرقم +${phone}؟`,
+    confirmText: `نعم، ${actionText}`,
+    icon: isBan ? '🔴' : '🟢',
+    isDanger: isBan
+  });
+  if (!ok) return;
+
+  try {
+    const res = await fetch('/api/ban-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, ban: isBan, bot_phone: botPhone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تم ${actionText} الرقم +${phone} بنجاح!`, 'ok');
+      await loadBannedUsers();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الإجراء'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+// Automatically load bot settings and toggles when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadBotSettings);
+} else {
+  loadBotSettings();
+}
+
+
