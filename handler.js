@@ -931,7 +931,15 @@ _Footer or call to action_ 😊
 📌 *.ping .uptime .menu* — Bot info & commands list
 🗣️ *.tts* — Text to voice message
 📱 *.mediafire* — Download from MediaFire
-⚙️ Auto-Online • Auto-Read (Vu) • Typing Indicator • Anti-Call • Status Viewer • Name Memory`;
+⚙️ Auto-Online • Auto-Read (Vu) • Typing Indicator • Status Viewer • Name Memory
+
+═══════════════════════════
+🔗 OFFICIAL SOCIAL LINKS
+═══════════════════════════
+👑 *Developer:* Hamza Amirni (حمزة اعمرني)
+📸 *Instagram:* https://www.instagram.com/hamza_amirni_01
+📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
+When asked for social media, Instagram, channel, developer links, or contact info, ALWAYS include both links!`;
 
 
 				// ── Google Gemini Web & Multi-Provider AI Engine ──
@@ -947,17 +955,17 @@ _Footer or call to action_ 😊
 				if (!isValidReply(aiReply)) {
 					const lower = m.text.trim().toLowerCase();
 					if (/^(hi|hello|hey|greetings)/i.test(lower)) {
-						aiReply = "Hello! 👋 I am **Bot Amirni Hamza** 🤖\nHow can I help you today? Ask me anything or type .menu to see all commands!";
+						aiReply = `Hello! 👋 I am *Bot Amirni Hamza* 🤖\nHow can I help you today? Ask me anything or type *.menu* to see all commands!\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(bonjour|salut|coucou|bonsoir)/i.test(lower)) {
-						aiReply = "Bonjour! 👋 Je suis **Bot Amirni Hamza** 🤖\nComment puis-je vous aider aujourd'hui ? Posez-moi votre question ou tapez .menu !";
+						aiReply = `Bonjour! 👋 Je suis *Bot Amirni Hamza* 🤖\nComment puis-je vous aider aujourd'hui ? Posez-moi votre question ou tapez *.menu* !\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Canal WhatsApp:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(salam|مرحبا|سلام|أهلا|اهلا)/i.test(lower)) {
-						aiReply = 'أهلاً وسهلاً بك! 👋 أنا بوت حمزة اعمرني 🤖\nكيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي أي شيء أو كتابة .menu لعرض الأوامر!';
+						aiReply = `أهلاً وسهلاً بك! 👋 أنا *بوت حمزة اعمرني* 🤖\nكيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي أي شيء أو كتابة *.menu* لعرض الأوامر!\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(who are you|who r u|what is your name)/i.test(lower)) {
-						aiReply = "I am **Bot Amirni Hamza** 🤖, a smart WhatsApp assistant created by the Moroccan developer **Hamza Amirni**!";
+						aiReply = `I am *Bot Amirni Hamza* 🤖, a smart WhatsApp assistant created by the Moroccan developer *Hamza Amirni*!\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(qui es tu|qui est tu|c'est qui)/i.test(lower)) {
-						aiReply = "Je suis **Bot Amirni Hamza** 🤖, un assistant WhatsApp intelligent créé par le développeur marocain **Hamza Amirni** !";
+						aiReply = `Je suis *Bot Amirni Hamza* 🤖, un assistant WhatsApp intelligent créé par le développeur marocain *Hamza Amirni* !\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Canal WhatsApp:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(chkon|chkoun|من انت|شكون انت|شكون نتا)/i.test(lower)) {
-						aiReply = 'أنا *بوت حمزة اعمرني* 🤖، بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك في واتساب!';
+						aiReply = `أنا *بوت حمزة اعمرني* 🤖، بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك في واتساب!\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
 					} else if (/^(how are you|how r u|ca va|comment ca va)/i.test(lower)) {
 						if (/^(ca va|comment ca va)/i.test(lower)) {
 							aiReply = "Je vais très bien, merci ! 😊 Comment puis-je vous aider aujourd'hui ?";
@@ -1176,7 +1184,7 @@ global.dfail = (type, m, conn) => {
  * @param {Array} callEvents
  */
 export async function callUpdate(callEvents = []) {
-	const defaultSettings = { public: true, autoread: true, anticall: true, gconly: false };
+	const defaultSettings = { public: true, autoread: true, anticall: false, gconly: false };
 
 	if (global.db?.data) {
 		if (!global.db.data.settings) global.db.data.settings = {};
@@ -1208,7 +1216,7 @@ export async function callUpdate(callEvents = []) {
 		}
 	}
 
-	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
+	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : false;
 	if (!isAntiCallOn) return;
 
 	for (const call of callEvents) {

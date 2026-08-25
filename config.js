@@ -19,6 +19,10 @@ global.owner = [
 global.namebot = 'bot amirni hamza';
 global.author = 'Hamza Amirni';
 global.source = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
+global.channel = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
+global.instagram = 'https://www.instagram.com/hamza_amirni_01';
+global.anticall = false;
+global.ANTI_CALL = false;
 
 global.wait = 'Loading... | جاري الانتظار';
 global.eror = 'There is an error... | وقع خطأ';
