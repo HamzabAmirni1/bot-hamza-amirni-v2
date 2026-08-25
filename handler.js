@@ -382,6 +382,8 @@ async function syncGlobalConfigsFromSupabase() {
  */
 export async function handler(chatUpdate) {
 	if (!chatUpdate) return;
+	const conn = this;
+	global.conn = this;
 	this.pushMessage(chatUpdate.messages).catch(console.error);
 	let m = chatUpdate.messages[chatUpdate.messages.length - 1];
 	if (!m) return;
@@ -1088,7 +1090,7 @@ When asked for social media, Instagram, channel, developer links, or contact inf
  * @param {import('baileys').BaileysEventMap<unknown>['group-participants.update']} groupsUpdate
  */
 export async function participantsUpdate({ id, participants, action, simulate = false }) {
-	// if (id in conn.chats) return // First login will spam
+	const conn = this;
 	if (this.isInit && !simulate) return;
 	if (global.db.data == null) await loadDatabase();
 	let chat = global.db.data.chats[id] || {};
@@ -1131,6 +1133,7 @@ export async function participantsUpdate({ id, participants, action, simulate = 
  * @param {import('baileys').BaileysEventMap<unknown>['groups.update']} groupsUpdate
  */
 export async function groupsUpdate(groupsUpdate) {
+	const conn = this;
 	for (const groupUpdate of groupsUpdate) {
 		const id = groupUpdate.id;
 		if (!id) continue;
@@ -1147,6 +1150,7 @@ export async function groupsUpdate(groupsUpdate) {
 }
 
 export async function deleteUpdate(message) {
+	const conn = this;
 	try {
 		const { fromMe, id, participant } = message;
 		if (fromMe) return;
@@ -1218,6 +1222,7 @@ global.dfail = (type, m, conn) => {
  * @param {Array} callEvents
  */
 export async function callUpdate(callEvents = []) {
+	const conn = this;
 	const defaultSettings = { public: true, autoread: true, anticall: false, gconly: false };
 
 	if (global.db?.data) {
