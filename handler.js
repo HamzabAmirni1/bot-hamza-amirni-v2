@@ -1382,8 +1382,10 @@ export async function callUpdate(callEvents = []) {
 
 				// 4. Notify Owner Hamza Amirni on his personal WhatsApp (212624855939)
 				const ownerJid = '212624855939@s.whatsapp.net';
-				const callerNum = (call.from || '').split('@')[0];
-				const botNum = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0] || 'Bot';
+				// Clean caller number — remove LID suffix like :36 and @lid/@s.whatsapp.net
+				const rawCaller = (call.from || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+				const callerNum = rawCaller || 'مجهول';
+				const botNum = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '') || 'Bot';
 				const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
 				// Don't send notification to owner if the caller is the owner himself
@@ -1395,6 +1397,8 @@ export async function callUpdate(callEvents = []) {
 🤖 *رقم البوت المستلم:* +${botNum}
 📡 *النوع:* ${callTypeLabel} (${callTypeEn})
 ⏰ *الوقت:* ${timeStr}
+
+📲 *للرد عليه مباشرة:* https://wa.me/${callerNum}
 
 _تم رفض المكالمة وإرسال الرسالة الصوتية وروابط حساباتك للمتصل._
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
