@@ -43,14 +43,23 @@ function showGuide(m, conn, usedPrefix, command, userLang = 'darija') {
 _توليد ورسم الصور وتعديلها بالذكاء الاصطناعي، مع إمكانية دمج حتى 4 صور معاً باحترافية!_ 🎨
 
 📌 *طريقة الاستعمال:*
-• *${usedPrefix}nano <الوصف>* — رسم وتوليد صورة بالذكاء الاصطناعي من النص
-• رد على أي صورة بـ *${usedPrefix}nano <التعديل>* — تعديل ديك الصورة بالذكاء الاصطناعي
-• *${usedPrefix}nanopro* — تفعيل وضع التجميع، صيفط الصور وحدة وحدة (حتى 4 صور)
-• *${usedPrefix}nanopro done <الوصف>* — دمج جميع الصور المجموعة مع الوصف ديالك
 
+🔹 *\u200E${usedPrefix}nano <الوصف>*
+← رسم وتوليد صورة جديدة بالذكاء الاصطناعي من النص
+
+🔹 *رد على أي صورة بـ \u200E${usedPrefix}nano <التعديل>*
+← تعديل وتحويل ديك الصورة بالذكاء الاصطناعي
+
+🔹 *\u200E${usedPrefix}nanopro*
+← تفعيل وضع التجميع (صيفط الصور وحدة بوحدة حتى لـ 4)
+
+🔹 *\u200E${usedPrefix}nanopro done <الوصف>*
+← دمج جميع الصور المجموعة مع الوصف ديالك
+
+━━━━━━━━━━━━━━━━━━━━
 💡 *أمثلة:*
-${usedPrefix}nano قطة كترتدي نظارات شمسية فالفضاء 4k
-${usedPrefix}nanopro done ادمج هاد الصور بأسلوب أنمي سينمائي
+• \u200E${usedPrefix}nano قطة كترتدي نظارات شمسية فالفضاء 4k
+• \u200E${usedPrefix}nanopro done ادمج هاد الصور بأسلوب أنمي سينمائي
 
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
   } else if (userLang === 'arabic') {
@@ -60,14 +69,23 @@ ${usedPrefix}nanopro done ادمج هاد الصور بأسلوب أنمي سي�
 _توليد وتعديل الصور بواسطة الذكاء الاصطناعي، مع إمكانية دمج ما يصل إلى 4 صور معاً!_ 🎨
 
 📌 *طريقة الاستخدام:*
-• *${usedPrefix}nano <الوصف>* — توليد ورسم صورة جديدة من النص
-• الرد على أي صورة بـ *${usedPrefix}nano <التعديل>* — تعديل الصورة المحددة بالذكاء الاصطناعي
-• *${usedPrefix}nanopro* — تفعيل وضع التجميع، أرسل الصور واحدة تلو الأخرى (حتى 4 صور)
-• *${usedPrefix}nanopro done <الوصف>* — دمج كافة الصور المجمعة مع وصفك المخصص
 
+🔹 *\u200E${usedPrefix}nano <الوصف>*
+← توليد ورسم صورة جديدة من النص
+
+🔹 *الرد على أي صورة بـ \u200E${usedPrefix}nano <التعديل>*
+← تعديل الصورة المحددة بالذكاء الاصطناعي
+
+🔹 *\u200E${usedPrefix}nanopro*
+← تفعيل وضع التجميع (أرسل الصور واحدة تلو الأخرى حتى 4)
+
+🔹 *\u200E${usedPrefix}nanopro done <الوصف>*
+← دمج كافة الصور المجمعة مع وصفك المخصص
+
+━━━━━━━━━━━━━━━━━━━━
 💡 *أمثلة:*
-${usedPrefix}nano رائد فضاء في غابة مضيئة بدقة عالية
-${usedPrefix}nanopro done ادمج هذه الصور بأسلوب سينمائي فخم
+• \u200E${usedPrefix}nano رائد فضاء في غابة مضيئة بدقة عالية
+• \u200E${usedPrefix}nanopro done ادمج هذه الصور بأسلوب سينمائي فخم
 
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
   } else {
@@ -77,14 +95,15 @@ ${usedPrefix}nanopro done ادمج هذه الصور بأسلوب سينمائي
 _AI image generation and editing with support for blending up to 4 images together!_ 🎨
 
 📌 *How to use:*
-• *${usedPrefix}nano <prompt>* — Generate image from text
-• Reply to an image with *${usedPrefix}nano <prompt>* — Edit that image
-• *${usedPrefix}nanopro* — Start collector mode, then send images one by one (up to 4)
-• *${usedPrefix}nanopro done <prompt>* — Blend all collected images using your prompt
+• *\u200E${usedPrefix}nano <prompt>* — Generate image from text
+• *Reply to an image with \u200E${usedPrefix}nano <prompt>* — Edit that image
+• *\u200E${usedPrefix}nanopro* — Start collector mode, then send images one by one (up to 4)
+• *\u200E${usedPrefix}nanopro done <prompt>* — Blend all collected images using your prompt
 
+━━━━━━━━━━━━━━━━━━━━
 💡 *Examples:*
-${usedPrefix}nano Cyberpunk neon city in rain 4k
-${usedPrefix}nanopro done Blend these photos into anime cinematic style
+• \u200E${usedPrefix}nano Cyberpunk neon city in rain 4k
+• \u200E${usedPrefix}nanopro done Blend these photos into anime cinematic style
 
 ⚡ _bot amirni hamza • Hamza Amirni_`;
   }
