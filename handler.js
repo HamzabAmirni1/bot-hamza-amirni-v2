@@ -289,6 +289,35 @@ function detectUserName(text) {
 
 
 let lastConfigSync = 0;
+
+// ── One-time startup: push auto_ai=true to Supabase bot_configs so it always starts enabled ──
+let __autoAiPushed = false;
+async function ensureAutoAiEnabledInSupabase() {
+	if (__autoAiPushed) return;
+	__autoAiPushed = true;
+	try {
+		// Upsert auto_ai = true in bot_configs
+		await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs', {
+			method: 'POST',
+			headers: {
+				'apikey': SB_KEY,
+				'Authorization': 'Bearer ' + SB_KEY,
+				'Content-Type': 'application/json',
+				'Prefer': 'resolution=merge-duplicates'
+			},
+			body: JSON.stringify({ key: 'auto_ai', value: 'true' })
+		}).catch(() => {});
+		// Also clear any ai_memory config_auto_ai that might set it to false
+		await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_auto_ai', {
+			method: 'DELETE',
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+		}).catch(() => {});
+		console.log('✅ [Config] auto_ai forced to TRUE in Supabase on startup');
+	} catch (_) {}
+}
+// Fire on startup
+ensureAutoAiEnabledInSupabase();
+
 async function syncGlobalConfigsFromSupabase() {
 	const now = Date.now();
 	if (now - lastConfigSync < 8000) return;
@@ -313,6 +342,9 @@ async function syncGlobalConfigsFromSupabase() {
 					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
 					if (r.key.startsWith('auto_ai_')) global[r.key.toUpperCase()] = (r.value === 'true' || r.value === true);
 				});
+				// ── DEFAULT: If auto_ai not found in Supabase, keep it true ──
+				const hasAutoAi = rows.some(r => r.key === 'auto_ai');
+				if (!hasAutoAi) global.AUTO_AI = true;
 			}
 		}
 
@@ -339,6 +371,8 @@ async function syncGlobalConfigsFromSupabase() {
 				});
 			}
 		}
+		// Always guarantee AUTO_AI = true unless explicitly set to false in Supabase
+		if (global.AUTO_AI === undefined) global.AUTO_AI = true;
 	} catch (_) {}
 }
 
