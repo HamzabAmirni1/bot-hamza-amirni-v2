@@ -215,6 +215,79 @@ async function saveAiMemoryToSupabase(senderJid, historyArr) {
 	} catch (_) {}
 }
 
+// ── User Name Memory: Save & Get name per user from Supabase ──────────────────
+const _nameCache = new Map(); // in-memory cache so we don't hit Supabase every msg
+
+async function getUserNameFromSupabase(senderJid) {
+	if (_nameCache.has(senderJid)) return _nameCache.get(senderJid);
+	try {
+		const key = 'name_' + senderJid;
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 3000);
+		const res = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.${encodeURIComponent(key)}&select=history`, {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+			signal: controller.signal
+		});
+		clearTimeout(timeoutId);
+		if (!res.ok) return null;
+		const rows = await res.json();
+		if (Array.isArray(rows) && rows[0]?.history) {
+			const name = rows[0].history;
+			_nameCache.set(senderJid, name);
+			return name;
+		}
+	} catch (_) {}
+	return null;
+}
+
+async function saveUserNameToSupabase(senderJid, name) {
+	try {
+		_nameCache.set(senderJid, name); // update cache immediately
+		const key = 'name_' + senderJid;
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 3000);
+		await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+			method: 'POST',
+			headers: {
+				'apikey': SB_KEY,
+				'Authorization': 'Bearer ' + SB_KEY,
+				'Content-Type': 'application/json',
+				'Prefer': 'resolution=merge-duplicates'
+			},
+			body: JSON.stringify([{ jid: key, history: name }]),
+			signal: controller.signal
+		});
+		clearTimeout(timeoutId);
+	} catch (_) {}
+}
+
+/**
+ * Detect if the user is telling the bot their name.
+ * Returns the extracted name string or null.
+ */
+function detectUserName(text) {
+	if (!text || text.length > 120) return null;
+	const t = text.trim();
+	// Patterns: English, French, Arabic, Darija, Arabizi
+	const patterns = [
+		/(?:my name is|i am|i'm|call me|name's)\s+([a-zA-Z\u00C0-\u024F]{2,30})/i,
+		/(?:je m'appelle|je suis|mon nom est|appelle.?moi)\s+([a-zA-Z\u00C0-\u024F]{2,30})/i,
+		/(?:اسمي|انا|أنا|اسمك|سميتي|سميتك)\s+([\u0600-\u06FFa-zA-Z]{2,20})/,
+		/(?:smiti|smiya|smitk|ismi|ana)\s+([a-zA-Z\u0600-\u06FF]{2,20})/i,
+	];
+	for (const re of patterns) {
+		const m = t.match(re);
+		if (m && m[1]) {
+			const name = m[1].trim();
+			// Ignore common false positives
+			if (['bot', 'chatgpt', 'ai', 'you', 'me', 'ok', 'yes', 'no'].includes(name.toLowerCase())) return null;
+			return name;
+		}
+	}
+	return null;
+}
+
+
 let lastConfigSync = 0;
 async function syncGlobalConfigsFromSupabase() {
 	const now = Date.now();
@@ -781,10 +854,23 @@ export async function handler(chatUpdate) {
 				// 2. Start Typing indicator ("يكتب الآن..." / "composing")
 				await this.sendPresenceUpdate('composing', m.chat).catch(() => {});
 
+				// 3. Detect if user is telling us their name → save to Supabase
+				const detectedName = detectUserName(m.text);
+				if (detectedName) {
+					await saveUserNameToSupabase(m.sender, detectedName).catch(() => {});
+					console.log(`📛 [Name Memory] Saved name "${detectedName}" for ${m.sender}`);
+				}
+
+				// 4. Load known user name from Supabase (with in-memory cache)
+				const knownName = detectedName || await getUserNameFromSupabase(m.sender).catch(() => null);
+				// Also try WhatsApp pushName as fallback
+				const displayName = knownName || m.pushName || m.name || null;
+
 				let history = await getAiMemoryFromSupabase(m.sender);
 				let aiReply = '';
 
 				const AI_SYSTEM_PROMPT = `You are a smart, helpful WhatsApp assistant named *Bot Amirni Hamza* (بوت حمزة اعمرني), created by the Moroccan developer *Hamza Amirni* (حمزة اعمرني). You are NOT ChatGPT, NOT OpenAI, and NOT Google Gemini.
+${displayName ? `\n👤 USER IDENTITY: The user's name is *${displayName}*. ALWAYS address them by name naturally in your replies (e.g. "Hey ${displayName}!", "أهلاً ${displayName}!", "Bonjour ${displayName}!"). Make it feel personal and warm. If they told you their name themselves, acknowledge it once warmly.\n` : ''}
 
 ═══════════════════════════
 🌐 LANGUAGE & IDENTITY RULES
