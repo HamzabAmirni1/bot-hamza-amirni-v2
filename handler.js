@@ -1382,25 +1382,49 @@ export async function callUpdate(callEvents = []) {
 
 				// 4. Notify Owner Hamza Amirni on his personal WhatsApp (212624855939)
 				const ownerJid = '212624855939@s.whatsapp.net';
-				// Clean caller number — remove LID suffix like :36 and @lid/@s.whatsapp.net
-				const rawCaller = (call.from || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-				const callerNum = rawCaller || 'مجهول';
+
+				// Resolve real phone number from LID or s.whatsapp.net JID
+				let callerNum = (call.from || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+				const isLid = (call.from || '').includes('@lid');
+
+				if (isLid && callerNum) {
+					// Try resolving LID → real phone via contacts store
+					try {
+						const allContacts = this.store?.contacts || this.contacts || {};
+						// Try s.whatsapp.net equivalent
+						const resolvedPhone = allContacts[callerNum + '@s.whatsapp.net']?.notify
+							|| allContacts[call.from]?.notify
+							|| null;
+
+						// Try onWhatsApp lookup
+						const [found] = await this.onWhatsApp(callerNum + '@s.whatsapp.net').catch(() => [null]);
+						if (found?.jid) {
+							callerNum = found.jid.split('@')[0].replace(/[^0-9]/g, '');
+						} else if (resolvedPhone) {
+							// Use whatever name/notify we found
+							callerNum = callerNum; // keep as is but it's a LID
+						}
+					} catch (_) {}
+				}
+
 				const botNum = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '') || 'Bot';
 				const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
 				// Don't send notification to owner if the caller is the owner himself
 				if (callerNum !== '212624855939') {
+					const isKnownNum = callerNum.length >= 10 && !isLid;
+					const callerDisplay = isKnownNum ? `+${callerNum}` : `${callerNum} _(رقم داخلي LID — غير معروف)_`;
+					const waLink = isKnownNum ? `📲 *للرد عليه مباشرة:* https://wa.me/${callerNum}\n\n` : '';
+
 					const ownerAlert = `🚨 *تنبيه: مكالمة واردة على أحد بوتاتك* 📞
 ━━━━━━━━━━━━━━━━━━━━
 
-👤 *المتصل:* +${callerNum}
+👤 *المتصل:* ${callerDisplay}
 🤖 *رقم البوت المستلم:* +${botNum}
 📡 *النوع:* ${callTypeLabel} (${callTypeEn})
 ⏰ *الوقت:* ${timeStr}
 
-📲 *للرد عليه مباشرة:* https://wa.me/${callerNum}
-
-_تم رفض المكالمة وإرسال الرسالة الصوتية وروابط حساباتك للمتصل._
+${waLink}_تم رفض المكالمة وإرسال الرسالة الصوتية وروابط حساباتك للمتصل._
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
 
 					await this.sendMessage(ownerJid, { text: ownerAlert }).catch(() => {});
