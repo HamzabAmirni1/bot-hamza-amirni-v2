@@ -388,6 +388,14 @@ export async function handler(chatUpdate) {
 	let m = chatUpdate.messages[chatUpdate.messages.length - 1];
 	if (!m) return;
 
+	// Ensure this.user is populated even before connectionUpdate event
+	if (!this.user || (!this.user.id && !this.user.jid)) {
+		this.user = this.authState?.creds?.me || {
+			id: (process.env.PAIRING_NUMBER || '212619416368') + '@s.whatsapp.net',
+			jid: (process.env.PAIRING_NUMBER || '212619416368') + '@s.whatsapp.net'
+		};
+	}
+
 	// ── Auto Status Read (مشاهدة الستوري تلقائياً) ──
 	if (m.key?.remoteJid === 'status@broadcast' || m.chat === 'status@broadcast') {
 		const isAutoStatusOn = global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true;
@@ -397,10 +405,6 @@ export async function handler(chatUpdate) {
 		}
 		return;
 	}
-
-	// ── Guard: skip if bot user not yet initialized (still reconnecting) ──
-
-	if (!this.user?.id && !this.user?.jid) return;
 
 	// ── Guard: skip CIPHERTEXT / undecryptable messages (arrive after reconnect) ──
 	const mtype = Object.keys(m.message || {})[0] || '';
@@ -414,6 +418,7 @@ export async function handler(chatUpdate) {
 	try {
 		m = smsg(this, m) || m;
 		if (!m) return;
+		console.log(`📩 [Handler Msg] From: ${m.sender} | Chat: ${m.chat} | Text: "${m.text || ''}"`);
 
 		// Keep bot presence online on message activity (Always Online)
 		const isAutoOnline = global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true;
