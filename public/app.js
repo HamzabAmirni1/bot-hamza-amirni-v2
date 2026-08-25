@@ -219,7 +219,10 @@ async function loadStats() {
     const phoneBox = document.getElementById('topbar-phone-box');
 
     if (data.phone) {
-      if (phoneVal) phoneVal.textContent = '+' + data.phone;
+      if (phoneVal) {
+        const phoneList = String(data.phone).split(',').map(p => p.trim().replace(/^\++/, '')).filter(Boolean);
+        phoneVal.innerHTML = phoneList.map(p => `<a href="https://wa.me/${p}" target="_blank" style="color:#25d366;text-decoration:none;font-weight:700;margin:0 3px;" title="تحدث مع البوت +${p} في واتساب">+${p} <i class="fab fa-whatsapp"></i></a>`).join(' • ');
+      }
       if (phoneBox) phoneBox.style.display = 'block';
     }
 
@@ -841,7 +844,9 @@ async function loadAuth() {
         }
 
         return `<tr>
-          <td class="mono" style="font-weight:700">+${phone||'—'}</td>
+          <td class="mono" style="font-weight:700">
+            ${phone ? `<a href="https://wa.me/${phone}" target="_blank" style="color:var(--accent,#25d366);text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="فتح الدردشة في واتساب">+${phone} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>` : '—'}
+          </td>
           <td><code class="badge b-g">${s.pairing_code||'—'}</code></td>
           <td><span class="badge ${badgeClass}">${statusText}</span></td>
           <td>
@@ -852,9 +857,16 @@ async function loadAuth() {
           </td>
           <td style="font-size:11px;color:var(--text2)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
           <td>
-            <button class="btn btn-danger sm" onclick="deleteSessionRow('${phone||''}')" title="مسح الجلسة من قاعدة البيانات">
-              <i class="fas fa-trash-alt"></i> مسح
-            </button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              ${phone ? `
+                <a href="https://wa.me/${phone}" target="_blank" class="btn btn-g sm" style="background:#25d366;color:#fff;border-color:#25d366;font-weight:700;display:inline-flex;align-items:center;gap:5px;text-decoration:none;padding:5px 10px;border-radius:8px;" title="تحدث مع هذا البوت مباشرة في واتساب">
+                  <i class="fab fa-whatsapp"></i> واتساب
+                </a>
+              ` : ''}
+              <button class="btn btn-danger sm" onclick="deleteSessionRow('${phone||''}')" title="مسح الجلسة من قاعدة البيانات">
+                <i class="fas fa-trash-alt"></i> مسح
+              </button>
+            </div>
           </td>
         </tr>`;
       }).join('')}
