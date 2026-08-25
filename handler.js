@@ -478,7 +478,9 @@ export async function handler(chatUpdate) {
 		// if (global.db.data.settings[this.user.jid].gconly && !m.isGroup && !isOwner && !isPrems) return;
 		// if (!global.db.data.settings[this.user.jid].public && !isOwner && !m.fromMe) return;
 
-		if (m.isBaileys) return;
+		// Only skip messages that the bot itself sent (fromMe = true) AND are Baileys-generated
+		// Do NOT skip messages from real users — modern WA IDs may not match old device regex
+		if (m.isBaileys && m.fromMe) return;
 		m.exp += Math.ceil(Math.random() * 10);
 
 		let usedPrefix = '';
