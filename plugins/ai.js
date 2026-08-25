@@ -62,38 +62,53 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 
   // ── Text AI (.ai, .gpt, .chat) ─────────────────────────────────────────────
-  await m.reply(t('🧠 Thinking...', '🧠 جاري التفكير...', '🧠 البوت كيفكر، انتظر لحظة...'));
+  await m.reply(t(
+    '🧠 *Thinking...*\n_Bot Amirni Hamza is processing your request..._',
+    '🧠 *جاري التفكير...*\n_بوت حمزة اعمرني يعالج سؤالك..._',
+    '🧠 *البوت كيفكر...*\n_انتظر لحظة أ صاحبي..._'
+  ));
 
-  const sysPrompt = `You are a smart, helpful WhatsApp assistant named "Bot Amirni Hamza" (بوت حمزة اعمرني), created by the Moroccan developer "Hamza Amirni" (حمزة اعمرني).
-CRITICAL RULES:
-1. Match the user's language:
-   - English: Respond 100% in English without any Arabic script. Name: "Bot Amirni Hamza".
-   - French: Respond 100% in French without any Arabic script. Name: "Bot Amirni Hamza".
-   - Moroccan Darija: Respond in Moroccan Darija. Name: "بوت حمزة اعمرني".
-   - Standard Arabic: Respond in Arabic. Name: "بوت حمزة اعمرني".
-2. Direct, polite, concise, and helpful. Never mention ChatGPT or OpenAI.`;
+  const sysPrompt = `You are a smart, helpful WhatsApp assistant named *Bot Amirni Hamza* (بوت حمزة اعمرني), created by the Moroccan developer *Hamza Amirni* (حمزة اعمرني).
+
+LANGUAGE RULES:
+• English → Respond 100% in English. Name: *Bot Amirni Hamza*. NO Arabic script.
+• French → Respond 100% in French. Name: *Bot Amirni Hamza*. NO Arabic script.
+• Moroccan Darija → Respond in Darija. Name: *بوت حمزة اعمرني*.
+• Standard Arabic → Respond in Arabic. Name: *بوت حمزة اعمرني*.
+
+WHATSAPP FORMATTING — ALWAYS apply:
+• Use *bold* for titles, key words, commands
+• Use _italic_ for definitions, examples, subtitles
+• Use • or ➤ for lists
+• Separate sections with ─────────
+• Use emojis to make replies visual and engaging
+• Structure: title → content → short closing
+• NEVER dump a plain wall of text — always format nicely
+• NEVER mention ChatGPT or OpenAI`;
 
   let aiResponse = await getSmartAIReply(text, { systemPrompt: sysPrompt });
 
   if (!aiResponse) {
     aiResponse = t(
-      'Sorry, the AI service is temporarily busy. Please ask again in a moment.',
-      'عذراً، خدمة الذكاء الاصطناعي مشغولة حالياً. حاول إعادة السؤال بعد قليل.',
-      'سمح ليا أ عشيري، خدمة الذكاء الاصطناعي عليها ضغط حالياً 😅 عاود سولني دابا نيت!'
+      '❌ *AI Busy*\n─────────\n_Sorry, the AI service is temporarily busy._\nPlease try again in a moment 🙏',
+      '❌ *الذكاء الاصطناعي مشغول*\n─────────\n_عذراً، خدمة الذكاء الاصطناعي مشغولة حالياً._\nحاول مجدداً بعد قليل 🙏',
+      '❌ *البوت مشغول دابا*\n─────────\n_سمح ليا أ صاحبي، عليه ضغط دابا 😅_\nعاود سولني بعد شوية 🙏'
     );
   }
 
-  const isEnOrFr = /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(text);
-  const headerTitle = isEnOrFr ? '🧠 *AI Assistant (Google Gemini • Bot Amirni Hamza)*' : '🧠 *AI Assistant (Google Gemini • بوت حمزة اعمرني)*';
+  const isEnOrFr = /^[a-zA-Z0-9\s.,!?'"()\-]+$/.test(text);
+  const headerTitle = isEnOrFr
+    ? '🤖 *Bot Amirni Hamza — AI*\n━━━━━━━━━━━━━━━━'
+    : '🤖 *بوت حمزة اعمرني — الذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━';
 
   try {
     await conn.sendButton(m.chat, {
-      body: `${headerTitle}\n━━━━━━━━━━━━━━━━\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━`,
-      footer: 'bot amirni hamza • حمزة اعمرني',
+      body: `${headerTitle}\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━\n_🔗 Powered by Google Gemini_`,
+      footer: '⚡ bot amirni hamza • حمزة اعمرني',
       buttons: stdButtons
     }, { quoted: m });
   } catch (_) {
-    await m.reply(aiResponse);
+    await m.reply(`${headerTitle}\n\n${aiResponse}\n\n━━━━━━━━━━━━━━━━\n_⚡ bot amirni hamza_`);
   }
 };
 
