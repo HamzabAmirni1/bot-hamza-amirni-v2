@@ -40,8 +40,8 @@ global.author = 'Hamza Amirni';
 global.source = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 global.channel = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 global.instagram = 'https://www.instagram.com/hamza_amirni_01';
-global.anticall = false;
-global.ANTI_CALL = false;
+global.anticall = true;
+global.ANTI_CALL = true;
 global.AUTO_AI = true;
 global.auto_ai = true;
 

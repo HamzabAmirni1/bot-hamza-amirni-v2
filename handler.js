@@ -958,23 +958,68 @@ _Footer or call to action_ 😊
 • Keep answers short and to the point — no unnecessary philosophy
 
 ═══════════════════════════
-🛠️ YOUR FEATURES (answer when asked)
+🛠️ YOUR COMPLETE FEATURES & COMMANDS (Guide users accurately!)
 ═══════════════════════════
-🤖 *.ai .gemini .bard* — AI chat powered by Google Gemini
-🍌 *.nano .nanopro .nanobanana* — Nano-Banana AI Image Generator & Editor (multi-image blending)
-📞 *.voipcall .videocall .audiocall* — WhatsApp VoIP Calls & Scheduled Audio/Video Calls
-💎 *.drich .card .rich* — WhatsApp Rich Interactive Cards & Buttons
-✨ *.texttrick .fancy* — Transform text into fancy Unicode styles
-🎨 *.imagine .draw* — Generate images from text
-🎵 *.ytmp3 .ytmp4 .tiktok .ig* — Download media from YouTube, TikTok, IG
-🖼️ *.sticker .s* — Convert images/videos to stickers
-🌐 *.wiki .weather .tr* — Wikipedia, weather, translation
-🎮 *.joke .truth .dare .quote* — Fun & games
-👑 *.kick .add .promote .mute* — Group admin tools
-📌 *.ping .uptime .menu* — Bot info & commands list
-🗣️ *.tts* — Text to voice message
-📱 *.mediafire* — Download from MediaFire
-⚙️ Auto-Online • Auto-Read (Vu) • Typing Indicator • Status Viewer • Name Memory
+📱 *تطبيقات وألعاب أندرويد (APK Apps & Games):*
+• *.apk <app name>* أو *.apkdl <app name>* — البحث وتحميل أي تطبيق أو لعبة أندرويد بصيغة APK مباشرة!
+
+🎵 *الموسيقى والأغاني (Music & Songs):*
+• *.song <اسم الأغنية>* أو *.play <اسم الأغنية>* — البحث وتحميل أي أغنية أو مقطع صوتي MP3 فوري
+• *.music .aghani* — تحميل وتشغيل الموسيقى
+• *.applemusic <link>* — تحميل الأغاني من Apple Music
+• *.remusic* — ريمكسات وتوليد موسيقى
+• *.lyric <song name>* — جلب كلمات ونصوص الأغاني
+• *.vocalremover .3azlsawt* — عزل وفصل صوت المغني عن الموسيقى بالذكاء الاصطناعي
+• *.tovn* — تحويل أي مقطع صوتي إلى فويس واتساب (Voice Note)
+• *.tts <text>* — تحويل النص المكتوب إلى صوت ناطق
+
+📥 *تحميل الفيديوهات والميديا (Video & Media Downloaders):*
+• *.facebook <link> .fb <link>* — تحميل فيديوهات وريلز فيسبوك بجودة HD
+• *.instagram <link> .ig <link> .reels <link>* — تحميل ريلز، بوستات، وستوريات إنستغرام
+• *.tiktok <link> .ttdl <link> .savetik <link>* — تحميل مقاطع تيك توك بدون علامة مائية + الصوت
+• *.ytmp4 <link> .video <link> .ytv <link>* — تحميل فيديو يوتيوب MP4 بجودة عالية
+• *.ytmp3 <link>* — تحميل الصوت من فيديو يوتيوب MP3
+• *.yts <search>* — البحث في يوتيوب واختيار الفيديوهات
+• *.alldownload <link> .dl <link>* — تحميل شامل من جميع المنصات بمجرد إرسال الرابط!
+• *.capcut <link>* — تحميل قوالب وفيديوهات كاب كات CapCut
+• *.pinterest <query> .pindl <link>* — البحث وتحميل صور وفيديوهات بينترست
+• *.twitter <link> .tw <link>* — تحميل فيديوهات تويتر / X
+• *.mediafire <link> .gdrive <link> .sfile <link>* — تحميل الملفات من ميديافاير، جوجل درايف وsfile
+• *.github <user/repo>* — تحميل مستودعات وسورسات GitHub كملف ZIP
+
+🎨 *تعديل الصور والرسم بالذكاء الاصطناعي (Image AI & Editor):*
+• *.imagine <prompt> .dalle <prompt>* — توليد ورسم الصور بالذكاء الاصطناعي
+• *.nano <prompt> .nanopro* — محرك نانو بنانا المتقدم لتعديل ودمج الصور
+• *.hd .remini .enhance* — توضيح وتصفية الصور ورفع جودتها إلى HD
+• *.editimage .removebg .nobg* — إزالة وقص خلفية الصور باحترافية
+• *.colorize* — تلوين الصور القديمة بالأبيض والأسود
+• *.compress* — تصغير حجم الصور بدون التأثير على جودتها
+• *.brat <text> .texttrick <text>* — زخرفة وكتابة النصوص بأشكال وتأثيرات عصرية
+• *.ssweb <url>* — التقاط صورة شاشة كاملة لأي موقع ويب
+
+🖼️ *الملصقات والوسائط (Stickers & Media):*
+• *.sticker .s* — تحويل أي صورة أو فيديو إلى ملصق واتساب متحرك أو ثابت
+• *.toimg* — تحويل الملصق إلى صورة
+• *.rvo .read* — استرجاع وقراءة رسائل العرض لمرة واحدة (View Once)
+
+📞 *المكالمات والبطاقات التفاعلية (VoIP & Cards):*
+• *.voipcall .videocall* — طلب وإجراء مكالمات واتساب برمجية
+• *.drich .card* — إنشاء بطاقات وكروت واتساب تفاعلية أنيقة بأزرار
+
+🕌 *الإسلاميات والقرآن الكريم (Islamic & Quran):*
+• *.quran .quranmp3 .quranaudio* — قراءة واستماع لسور القرآن الكريم بصوت كبار القراء
+• *.ad3iya .dua* — أدعية وأذكار يومية
+• *.salat <city>* — مواقيت وأوقات الصلاة لجميع المدن
+
+📰 *الأخبار المباشرة (Live News):*
+• *.news .hespress .aljazeera .alarabiya .le360* — متابعة آخر الأخبار العاجلة
+
+🛠️ *أدوات عامة ومعلومات البوت:*
+• *.menu* — فتح القائمة الشاملة لجميع الأوامر
+• *.lang* — تغيير لغة البوت (دارجة / عربية / إنجليزية)
+• *.ping .dashboard* — سرعة استجابة وإحصائيات البوت
+• *.tourl* — رفع الصور والملفات على الإنترنت والحصول على رابط مباشر
+• *.google <query>* — البحث في محرك جوجل
 
 ═══════════════════════════
 🔗 OFFICIAL SOCIAL LINKS
@@ -1262,7 +1307,7 @@ export async function callUpdate(callEvents = []) {
 		}
 	}
 
-	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : false;
+	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
 	if (!isAntiCallOn) return;
 
 	for (const call of callEvents) {
@@ -1293,7 +1338,7 @@ export async function callUpdate(callEvents = []) {
 					}).catch(() => {});
 				});
 
-				// 3. Send structured text message
+				// 3. Send structured text message with social accounts
 				const warnMsg = `⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*
 ━━━━━━━━━━━━━━━━
 
@@ -1302,6 +1347,10 @@ export async function callUpdate(callEvents = []) {
 
 📝 *المرجو ترك رسالة نصية هنا وسيقوم بالرد عليك في أقرب وقت.*
 
+━━━━━━━━━━━━━━━━
+🔗 *حسابات وقنوات المطور الرسمية:*
+📸 *Instagram:* https://www.instagram.com/hamza_amirni_01
+📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 ━━━━━━━━━━━━━━━━
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
 
