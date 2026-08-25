@@ -78,7 +78,7 @@ import http from 'http';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
-const BOT_PHONE = (process.env.PAIRING_NUMBER || '212612030829').toString().replace(/[^0-9]/g, '');
+const BOT_PHONE = (process.env.PAIRING_NUMBER || '212624855939').toString().replace(/[^0-9]/g, '');
 // Mutable: updated when a pairing code is captured, so backup always uses the real connected phone
 let currentBotPhone = BOT_PHONE;
 

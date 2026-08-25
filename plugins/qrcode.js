@@ -4,10 +4,10 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
 	if (!text) {
 		const promptMsg = lang === 'english'
-			? `📱 *QR Code Generator*\n\nUsage:\n${usedPrefix + command} <text or link>\n\n*Example:*\n${usedPrefix + command} https://wa.me/212612030829`
+			? `📱 *QR Code Generator*\n\nUsage:\n${usedPrefix + command} <text or link>\n\n*Example:*\n${usedPrefix + command} https://wa.me/212624855939`
 			: lang === 'arabic'
-			? `📱 *مولّد رمز QR*\n\nالاستخدام:\n← ${usedPrefix + command} <نص أو رابط>\n\n*مثال:*\n← ${usedPrefix + command} https://wa.me/212612030829`
-			: `📱 *صنع رمز QR*\n\nالاستخدام:\n← ${usedPrefix + command} <نص ولا رابط>\n\n*مثال:*\n← ${usedPrefix + command} https://wa.me/212612030829`;
+			? `📱 *مولّد رمز QR*\n\nالاستخدام:\n← ${usedPrefix + command} <نص أو رابط>\n\n*مثال:*\n← ${usedPrefix + command} https://wa.me/212624855939`
+			: `📱 *صنع رمز QR*\n\nالاستخدام:\n← ${usedPrefix + command} <نص ولا رابط>\n\n*مثال:*\n← ${usedPrefix + command} https://wa.me/212624855939`;
 		return m.reply(promptMsg);
 	}
 

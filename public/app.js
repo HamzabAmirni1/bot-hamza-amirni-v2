@@ -290,7 +290,7 @@ async function executeConnect() {
   const phone = input ? input.value.trim().replace(/\D/g,'') : '';
 
   if (!phone || phone.length < 10) {
-    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة (مثال: 212612030829)', 'err');
+    toast('⚠️ أدخل رقم هاتف صحيح مع كود الدولة (مثال: 212624855939)', 'err');
     return;
   }
 
