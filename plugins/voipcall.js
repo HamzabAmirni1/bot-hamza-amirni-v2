@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 📞 VoIP Call & Scheduled Call Creator
  * Allows users to create realistic WhatsApp VoIP Calls & Scheduled Audio/Video Calls
  */
@@ -22,54 +22,52 @@ let handler = async (m, { conn, text, usedPrefix, command, args }) => {
 		return m.reply(guide);
 	}
 
-	await m.reply('📞 *Creating VoIP Call message...*');
-
 	try {
-		// 1. Scheduled Call Creation Message in Baileys
-		const callType = isVideo ? 2 : 1; // 1: AUDIO, 2: VIDEO
-		const scheduledTime = Date.now() + 60000; // scheduled in 1 min or immediate
+		const isVideo = /video/i.test(command) || /video/i.test(text || '');
+		const cleanTarget = (args[0] || '').replace(/[^0-9]/g, '');
+		const targetNum = cleanTarget.length >= 8 ? cleanTarget : '212624855939';
 
-		const callMsg = generateWAMessageFromContent(
-			m.chat,
-			{
-				scheduledCallCreationMessage: {
-					scheduledTimestampMs: scheduledTime,
-					callType: callType,
-					title: cleanTitle
-				}
-			},
-			{ quoted: m }
-		);
-
-		await conn.relayMessage(m.chat, callMsg.message, { messageId: callMsg.key.id });
-
-		// 2. Also send Interactive Call Action Button card
-		const botPhone = (conn.user?.id || conn.user?.jid || '').split(':')[0].split('@')[0] || '212708869993';
 		const callButtons = [
 			{
 				name: 'cta_call',
 				buttonParamsJson: JSON.stringify({
-					display_text: isVideo ? '📹 Join Video Call' : '📞 Call Now (VoIP)',
-					id: `+${botPhone}`
+					display_text: isVideo ? '📹 Join Video Call' : '📞 Join Voice Call',
+					id: `+${targetNum}`
+				})
+			},
+			{
+				name: 'cta_url',
+				buttonParamsJson: JSON.stringify({
+					display_text: '📸 Instagram',
+					url: 'https://www.instagram.com/hamza_amirni_01',
+					merchant_url: 'https://www.instagram.com/hamza_amirni_01'
+				})
+			},
+			{
+				name: 'cta_url',
+				buttonParamsJson: JSON.stringify({
+					display_text: userLang === 'english' ? '📢 WhatsApp Channel' : '📢 قناة الواتساب',
+					url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
+					merchant_url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p'
 				})
 			},
 			{
 				name: 'quick_reply',
 				buttonParamsJson: JSON.stringify({
-					display_text: '👑 Owner Contact',
+					display_text: userLang === 'english' ? '👑 Owner' : '👑 مالك البوت',
 					id: `${usedPrefix}owner`
 				})
 			}
 		];
 
-		if (conn.sendButton) {
-			await conn.sendButton(m.chat, {
-				title: isVideo ? '📹 *WhatsApp Video Call*' : '📞 *WhatsApp VoIP Call*',
-				body: `*${cleanTitle}*\n───────────\n👤 *Organizer:* ${m.name || m.pushName || 'Hamza Amirni'}\n⏰ *Time:* ${new Date(scheduledTime).toLocaleTimeString()}\n📡 *Type:* ${isVideo ? 'HD Video Call' : 'Encrypted VoIP Audio'}`,
-				footer: '⚡ bot amirni hamza • حمزة اعمرني',
-				buttons: callButtons
-			}, { quoted: m }).catch(() => {});
-		}
+		const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+		await conn.sendButton(m.chat, {
+			title: isVideo ? '📹 *WhatsApp Video Call*' : '📞 *WhatsApp VoIP Call*',
+			body: `*+${targetNum}*\n━━━━━━━━━━━━━━━━━━━━\n👤 *Organizer:* Hamza Amirni (حمزة اعمرني)\n⏰ *Time:* ${timeStr}\n📡 *Type:* ${isVideo ? 'HD Video Call 📹' : 'Encrypted VoIP Audio 📞'}`,
+			footer: '⚡ bot amirni hamza • حمزة اعمرني',
+			buttons: callButtons
+		}, { quoted: m });
 
 	} catch (e) {
 		console.error('VoIP Call Error:', e);
