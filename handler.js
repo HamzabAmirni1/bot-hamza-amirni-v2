@@ -42,11 +42,19 @@ if (parentPort && !global.__parentPortListenerAdded) {
 // Auto-Online periodic presence heartbeat (keeps WhatsApp status Always Online)
 if (!global.__autoOnlineHeartbeatSet) {
 	global.__autoOnlineHeartbeatSet = true;
+	let _lastOnlineLog = 0;
 	setInterval(() => {
 		try {
 			const isOnline = global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true;
 			if (isOnline && global.conn && typeof global.conn.sendPresenceUpdate === 'function') {
 				global.conn.sendPresenceUpdate('available').catch(() => {});
+				// Log only once every 5 minutes to avoid spam
+				const now = Date.now();
+				if (now - _lastOnlineLog > 300000) {
+					_lastOnlineLog = now;
+					const phone = global.conn?.user?.id?.split(':')[0]?.split('@')[0] || '?';
+					console.log(`🟢 [Auto-Online] Heartbeat active for +${phone}`);
+				}
 			}
 		} catch (_) {}
 	}, 20000);
@@ -300,6 +308,8 @@ export async function handler(chatUpdate) {
 
 		// Keep bot presence online on message activity (Always Online)
 		const isAutoOnline = global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true;
+		// Always keep global.conn updated to THIS worker's conn so the heartbeat interval also works
+		global.conn = this;
 		if (isAutoOnline && typeof this.sendPresenceUpdate === 'function') {
 			this.sendPresenceUpdate('available').catch(() => {});
 		}
@@ -778,14 +788,33 @@ export async function handler(chatUpdate) {
 
 CRITICAL RULES ON LANGUAGE & IDENTITY:
 1. STRICTLY match the user's language:
-   - English: Respond 100% in English. Introduce yourself as "Bot Amirni Hamza". NEVER include any Arabic letters or script anywhere in English responses.
-   - French: Respond 100% in French. Introduce yourself as "Bot Amirni Hamza". NEVER include any Arabic letters or script anywhere in French responses.
-   - Moroccan Darija (الدارجة المغربية): Respond naturally and smartly in Moroccan Darija (using Arabic script or Arabizi depending on user). Your name is "بوت حمزة اعمرني".
+   - English: Respond 100% in English. Introduce yourself as "Bot Amirni Hamza". NEVER include Arabic letters or script in English responses.
+   - French: Respond 100% in French. Introduce yourself as "Bot Amirni Hamza". NEVER include Arabic letters or script in French responses.
+   - Moroccan Darija (الدارجة المغربية): Respond naturally in Moroccan Darija. Your name is "بوت حمزة اعمرني".
    - Standard Arabic (العربية الفصحى): Respond in fluent Arabic. Your name is "بوت حمزة اعمرني".
-   - Other languages (Spanish, German, etc.): Respond in that language without mixing Arabic script.
+   - Other languages: Respond in that language without mixing Arabic script.
 
-2. Tone: Helpful, direct, polite, concise, and friendly without unnecessary philosophy.
-3. NEVER mention ChatGPT or OpenAI.`;
+2. Tone: Helpful, direct, polite, concise, and friendly.
+3. NEVER mention ChatGPT or OpenAI.
+
+YOUR FEATURES (when user asks what you can do / ما تقدر تدير / quelles sont tes fonctionnalités):
+🤖 AI & Chat: .ai .gemini .bard — Ask me anything (powered by Google Gemini)
+🎨 Image Generation: .imagine .dalle .draw — Generate images from text
+🎵 Media Download: .ytmp3 .ytmp4 .tiktok .ig .fb — Download from YouTube, TikTok, Instagram, Facebook
+🖼️ Sticker: .sticker .s — Convert images/videos to WhatsApp stickers
+📄 Info Tools: .getpp .bio .gclink — Get profile pictures, bios, group links
+🌐 Web Tools: .wiki .google .weather — Search Wikipedia, Google, weather info
+🎮 Games & Fun: .truth .dare .joke .quote — Fun games and quotes
+📊 Translation: .tr — Translate text to any language
+🔗 URL Shortener: .shorturl — Shorten any URL
+👑 Group Admin Tools: .kick .add .promote .demote .mute .unmute — Group management (admin only)
+📌 Bot Status: .ping .uptime .speed — Check bot performance
+🗣️ Text to Speech: .tts — Convert text to voice message
+🔍 Search: .lyrics .gimage — Search song lyrics, Google images
+📱 Social: .mediafire — Download from MediaFire links
+💾 Backup & Memory: Bot remembers conversation history per user (via Supabase)
+⚙️ Auto Features: Auto-Online (always connected), Auto-Read (blue ticks / Vu), Auto-Typing indicator, Auto-Status viewer, Anti-Call blocker`;
+
 
 				// ── Google Gemini Web & Multi-Provider AI Engine ──
 				aiReply = await getSmartAIReply(m.text, {
