@@ -839,14 +839,14 @@ export async function handler(chatUpdate) {
 		const perBotKey = `AUTO_AI_${myPhone}`;
 		const isAutoAiOn = (global[perBotKey] !== undefined)
 			? global[perBotKey]
-			: (global.AUTO_AI !== undefined ? global.AUTO_AI : false);
+			: (global.AUTO_AI !== undefined ? global.AUTO_AI : true);
 
 		const botJid = this.user?.jid || conn.user?.jid || '';
 		const isBotMentionedInGroup = m.isGroup && ((m.mentionedJid || []).includes(botJid) || (m.quoted && m.quoted.sender === botJid));
 		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && (!m.isGroup || isBotMentionedInGroup);
 
 		if (shouldProcessAi) {
-			console.log(`🤖 [Auto AI] Processing message from ${m.sender}: "${m.text}"`);
+			console.log(`🤖 [Auto AI] Processing message from ${m.sender} in ${m.chat}: "${m.text}"`);
 			try {
 				// 1. Mark message as read (Blue tick / Vu)
 				await this.readMessages([m.key]).catch(() => {});

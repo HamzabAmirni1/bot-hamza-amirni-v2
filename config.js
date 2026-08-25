@@ -23,6 +23,8 @@ global.channel = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 global.instagram = 'https://www.instagram.com/hamza_amirni_01';
 global.anticall = false;
 global.ANTI_CALL = false;
+global.AUTO_AI = true;
+global.auto_ai = true;
 
 global.wait = 'Loading... | جاري الانتظار';
 global.eror = 'There is an error... | وقع خطأ';

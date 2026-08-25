@@ -713,10 +713,10 @@ ${reply_text}
         } catch (_) {}
 
         // Fallback: fill from live globals if not found in DB
-        if (cfg.auto_ai === undefined) cfg.auto_ai = String(global.AUTO_AI !== undefined ? global.AUTO_AI : false);
+        if (cfg.auto_ai === undefined) cfg.auto_ai = String(global.AUTO_AI !== undefined ? global.AUTO_AI : true);
         if (cfg.auto_read === undefined) cfg.auto_read = String(global.AUTO_READ !== undefined ? global.AUTO_READ : true);
         if (cfg.auto_status_read === undefined) cfg.auto_status_read = String(global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true);
-        if (cfg.anti_call === undefined) cfg.anti_call = String(global.ANTI_CALL !== undefined ? global.ANTI_CALL : true);
+        if (cfg.anti_call === undefined) cfg.anti_call = String(global.ANTI_CALL !== undefined ? global.ANTI_CALL : false);
         if (cfg.silent_mode === undefined) cfg.silent_mode = String(global.SILENT_MODE !== undefined ? global.SILENT_MODE : false);
         if (cfg.auto_online === undefined) cfg.auto_online = String(global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true);
 
@@ -1855,10 +1855,10 @@ async function initGlobalConfigs() {
 
       global.AUTO_READ = cfg.auto_read !== undefined ? (cfg.auto_read === 'true' || cfg.auto_read === true) : true;
       global.AUTO_STATUS_READ = cfg.auto_status_read !== undefined ? (cfg.auto_status_read === 'true' || cfg.auto_status_read === true) : true;
-      global.ANTI_CALL = cfg.anti_call !== undefined ? (cfg.anti_call === 'true' || cfg.anti_call === true) : true;
+      global.ANTI_CALL = cfg.anti_call !== undefined ? (cfg.anti_call === 'true' || cfg.anti_call === true) : false;
       global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
       global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
-      global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : false;
+      global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : 20;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
       global.BOT_MODE = cfg.bot_mode || 'public';
