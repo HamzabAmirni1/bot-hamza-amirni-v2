@@ -1380,6 +1380,28 @@ export async function callUpdate(callEvents = []) {
 
 				await this.sendMessage(call.from, { text: warnMsg }).catch(() => {});
 
+				// 4. Notify Owner Hamza Amirni on his personal WhatsApp (212624855939)
+				const ownerJid = '212624855939@s.whatsapp.net';
+				const callerNum = (call.from || '').split('@')[0];
+				const botNum = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0] || 'Bot';
+				const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+				// Don't send notification to owner if the caller is the owner himself
+				if (callerNum !== '212624855939') {
+					const ownerAlert = `🚨 *تنبيه: مكالمة واردة على أحد بوتاتك* 📞
+━━━━━━━━━━━━━━━━━━━━
+
+👤 *المتصل:* +${callerNum}
+🤖 *رقم البوت المستلم:* +${botNum}
+📡 *النوع:* ${callTypeLabel} (${callTypeEn})
+⏰ *الوقت:* ${timeStr}
+
+_تم رفض المكالمة وإرسال الرسالة الصوتية وروابط حساباتك للمتصل._
+⚡ _bot amirni hamza • حمزة اعمرني_`;
+
+					await this.sendMessage(ownerJid, { text: ownerAlert }).catch(() => {});
+				}
+
 			} catch (err) {
 				console.error('❌ [Anti-Call Handler Error]:', err);
 			}

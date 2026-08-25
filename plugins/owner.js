@@ -2,10 +2,9 @@ let handler = async (m, { conn, usedPrefix }) => {
     let user = global.db?.data?.users?.[m.sender] || {};
     let lang = user.language || 'darija';
 
-    // 1. Send VCards (Contacts) for Owner numbers
+    // 1. Send VCards (Contacts) for Owner number
     const owners = [
-        { name: 'Hamza Amirni (المطور والمالك)', number: '212612030829' },
-        { name: 'Hamza Amirni (المالك الثاني)', number: '212624855939' }
+        { name: 'Hamza Amirni (حمزة اعمرني • المطور المالك)', number: '212624855939' }
     ];
     
     const contacts = owners.map(o => ({
@@ -35,9 +34,7 @@ let handler = async (m, { conn, usedPrefix }) => {
             `👑 *Bot Owner & Developer Profile* 👑\n` +
             `${'─'.repeat(30)}\n\n` +
             `👤 *Name:* Hamza Amirni\n` +
-            `📱 *Owner Numbers:*\n` +
-            `  ▸ +212 612-030829\n` +
-            `  ▸ +212 624-855939\n\n` +
+            `📱 *Owner WhatsApp:* +212 624-855939\n\n` +
             `💻 *Role:* Lead Developer & Programmer\n` +
             `🌐 *Specialization:* Web Development, AI & Bot Engineering\n\n` +
             `📫 *Official Accounts:*\n` +
@@ -54,9 +51,7 @@ let handler = async (m, { conn, usedPrefix }) => {
             `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
             `${'─'.repeat(30)}\n\n` +
             `👤 *الاسم:* حمزة اعمرني (Hamza Amirni)\n` +
-            `📱 *أرقام المالك:*\n` +
-            `  ▸ +212 612-030829\n` +
-            `  ▸ +212 624-855939\n\n` +
+            `📱 *رقم الواتساب المباشر:* +212 624-855939\n\n` +
             `💻 *الدور:* مطور البوت والمبرمج الرئيسي\n` +
             `🌐 *مجال العمل:* مبرمج ويب، ذكاء اصطناعي، وتطوير البوتات\n\n` +
             `📫 *حساباتي للتواصل الفوري:*\n` +
@@ -73,9 +68,7 @@ let handler = async (m, { conn, usedPrefix }) => {
             `👑 *بطاقة تعريف مالك ومطور البوت* 👑\n` +
             `${'─'.repeat(30)}\n\n` +
             `👤 *الاسم:* حمزة اعمرني (Hamza Amirni)\n` +
-            `📱 *نمرة المالك:*\n` +
-            `  ▸ +212 612-030829\n` +
-            `  ▸ +212 624-855939\n\n` +
+            `📱 *نمرة الواتساب المباشرة:* +212 624-855939\n\n` +
             `💻 *الدور:* المطور والمبرمج الرئيسي للبوت\n` +
             `🌐 *التخصص:* تطوير الويب والذكاء الاصطناعي\n\n` +
             `📫 *الحسابات الرسمية للتواصل:*\n` +
