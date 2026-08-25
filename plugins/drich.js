@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 💎 DRICH — WhatsApp Rich Message & Interactive Cards Builder
  * Supports LaTeX math, Code snippets, VoIP Call buttons, Copy code, URLs & Rich Cards
  */
@@ -65,10 +65,13 @@ _أنشئ بطاقات ورسائل تفاعلية بأزرار VoIP، رواب�
 		});
 	}
 
+	const copyBtnText = userLang === 'english' ? '📋 Copy Text' : '📋 نسخ النص';
+	const ownerBtnText = userLang === 'english' ? '👑 Owner' : '👑 مالك البوت';
+
 	buttons.push({
 		name: 'cta_copy',
 		buttonParamsJson: JSON.stringify({
-			display_text: '📋 Copy Text',
+			display_text: copyBtnText,
 			copy_code: body
 		})
 	});
@@ -76,16 +79,27 @@ _أنشئ بطاقات ورسائل تفاعلية بأزرار VoIP، رواب�
 	buttons.push({
 		name: 'quick_reply',
 		buttonParamsJson: JSON.stringify({
-			display_text: '👑 Owner',
+			display_text: ownerBtnText,
 			id: `${usedPrefix}owner`
 		})
 	});
 
 	try {
+		const q = m.quoted ? m.quoted : m;
+		const mime = (q.msg || q).mimetype || '';
+		let imageBuffer = null;
+
+		if (/image/.test(mime)) {
+			try {
+				imageBuffer = await q.download();
+			} catch (_) {}
+		}
+
 		await conn.sendButton(m.chat, {
 			title: `💎 *${title}*`,
 			body: `${body}\n\n━━━━━━━━━━━━━━━━\n_⚡ Powered by bot amirni hamza_`,
 			footer: 'bot amirni hamza • حمزة اعمرني',
+			image: imageBuffer || undefined,
 			buttons: buttons
 		}, { quoted: m });
 	} catch (e) {
