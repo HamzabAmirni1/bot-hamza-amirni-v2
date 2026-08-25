@@ -11,6 +11,25 @@ global.ButtonV2 = ButtonV2;
 global.Carousel = Carousel;
 global.AIRich = AIRich;
 
+const defaultSettings = { public: true, autoread: true, anticall: false, gconly: false };
+const safeSettingsProxy = new Proxy({}, {
+	get(target, prop) {
+		if (prop === '__isProxy') return true;
+		if (typeof prop === 'symbol') return target[prop];
+		if (!target[prop]) {
+			target[prop] = { ...defaultSettings };
+		}
+		return target[prop];
+	}
+});
+
+if (!global.db) global.db = { sqlite: null, data: null };
+if (!global.db.data) {
+	global.db.data = { users: {}, chats: {}, stats: {}, msgs: {}, sticker: {}, settings: safeSettingsProxy };
+} else if (!global.db.data.settings || !global.db.data.settings.__isProxy) {
+	global.db.data.settings = safeSettingsProxy;
+}
+
 global.pairingNumber = process.env.PAIRING_NUMBER || '';
 global.owner = [
 	['212624855939', 'Hamza Amirni', true],
