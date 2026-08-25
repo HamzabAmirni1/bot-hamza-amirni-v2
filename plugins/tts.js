@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 🗣️ TTS (Text-to-Speech) / تحويل النص إلى رسالة صوتية (Voice Note)
  */
 
@@ -36,13 +36,41 @@ _اكتب النص لي بغيتي البوت يحولو لأوديو صوتي_
 	await m.reply('🗣️ *جاري تسجيل المقطع الصوتي...*');
 
 	try {
+		const { default: axios } = await import('axios');
 		const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(qText)}&tl=${lang}&client=tw-ob`;
 
-		await conn.sendMessage(m.chat, {
-			audio: { url: ttsUrl },
-			mimetype: 'audio/mp4',
-			ptt: true
-		}, { quoted: m });
+		const res = await axios.get(ttsUrl, {
+			responseType: 'arraybuffer',
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+				'Referer': 'https://translate.google.com/'
+			},
+			timeout: 10000
+		});
+
+		const audioBuffer = Buffer.from(res.data);
+		let sent = false;
+
+		try {
+			const { toPTT } = await import('../lib/converter.js');
+			const ptt = await toPTT(audioBuffer, 'mp3');
+			if (ptt?.data) {
+				await conn.sendMessage(m.chat, {
+					audio: ptt.data,
+					mimetype: 'audio/ogg; codecs=opus',
+					ptt: true
+				}, { quoted: m });
+				sent = true;
+			}
+		} catch (_) {}
+
+		if (!sent) {
+			await conn.sendMessage(m.chat, {
+				audio: audioBuffer,
+				mimetype: 'audio/mpeg',
+				ptt: false
+			}, { quoted: m });
+		}
 	} catch (e) {
 		console.error('TTS Error:', e);
 		m.reply(`❌ فشل توليد الصوت: ${e.message}`);

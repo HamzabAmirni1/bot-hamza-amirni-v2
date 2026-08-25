@@ -1324,19 +1324,43 @@ export async function callUpdate(callEvents = []) {
 				const voiceText = "حمزة اعمرني مكاينش دابا. هاد النمرة ما كتستقبلش المكالمات الصوتية أو مكالمات الفيديو. المرجو ترك رسالة نصية.";
 				const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(voiceText)}&tl=ar&client=tw-ob`;
 
-				// Send Voice Note PTT
-				await this.sendMessage(call.from, {
-					audio: { url: ttsUrl },
-					mimetype: 'audio/mp4',
-					ptt: true
-				}).catch(async () => {
-					// Fallback audio format
-					await this.sendMessage(call.from, {
-						audio: { url: ttsUrl },
-						mimetype: 'audio/mpeg',
-						ptt: true
-					}).catch(() => {});
-				});
+				try {
+					const { default: axios } = await import('axios');
+					const audioRes = await axios.get(ttsUrl, {
+						responseType: 'arraybuffer',
+						headers: {
+							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+							'Referer': 'https://translate.google.com/'
+						},
+						timeout: 10000
+					});
+
+					const audioBuffer = Buffer.from(audioRes.data);
+					let sentPtt = false;
+
+					try {
+						const { toPTT } = await import('./lib/converter.js');
+						const ptt = await toPTT(audioBuffer, 'mp3');
+						if (ptt?.data) {
+							await this.sendMessage(call.from, {
+								audio: ptt.data,
+								mimetype: 'audio/ogg; codecs=opus',
+								ptt: true
+							});
+							sentPtt = true;
+						}
+					} catch (_) {}
+
+					if (!sentPtt) {
+						await this.sendMessage(call.from, {
+							audio: audioBuffer,
+							mimetype: 'audio/mpeg',
+							ptt: false
+						}).catch(() => {});
+					}
+				} catch (audioErr) {
+					console.error('[Anti-Call Audio Error]:', audioErr?.message || audioErr);
+				}
 
 				// 3. Send structured text message with social accounts
 				const warnMsg = `⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*
