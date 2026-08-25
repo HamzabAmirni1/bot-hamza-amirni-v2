@@ -1176,6 +1176,38 @@ global.dfail = (type, m, conn) => {
  * @param {Array} callEvents
  */
 export async function callUpdate(callEvents = []) {
+	const defaultSettings = { public: true, autoread: true, anticall: true, gconly: false };
+
+	if (global.db?.data) {
+		if (!global.db.data.settings) global.db.data.settings = {};
+		const botJids = [
+			this?.user?.jid,
+			this?.user?.id,
+			this?.user?.id?.split(':')[0] + '@s.whatsapp.net',
+			global.conn?.user?.jid,
+			global.conn?.user?.id,
+			global.conn?.user?.id?.split(':')[0] + '@s.whatsapp.net',
+		].filter(Boolean);
+
+		for (const jid of botJids) {
+			if (!global.db.data.settings[jid]) {
+				global.db.data.settings[jid] = { ...defaultSettings };
+			}
+		}
+
+		if (!global.db.data.settings.__isProxy) {
+			global.db.data.settings = new Proxy(global.db.data.settings, {
+				get(target, prop) {
+					if (prop === '__isProxy') return true;
+					if (typeof prop === 'string' && !target[prop]) {
+						target[prop] = { ...defaultSettings };
+					}
+					return target[prop];
+				}
+			});
+		}
+	}
+
 	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
 	if (!isAntiCallOn) return;
 
