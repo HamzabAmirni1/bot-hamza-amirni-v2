@@ -97,8 +97,8 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 };
 
-handler.help = ['igdl'];
-handler.command = ['igdl'];
+handler.help = ['ig', 'igdl', 'insta', 'instagram', 'reels'];
+handler.command = /^(ig|igdl|insta|instagram|reels|ريلز|انستا|إنستغرام|انستقرام)$/i;
 handler.tags = ['downloader'];
 handler.limit = false;
 export default handler;

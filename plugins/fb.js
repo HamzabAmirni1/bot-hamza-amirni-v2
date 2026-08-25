@@ -144,8 +144,8 @@ ${usedPrefix + command} https://www.facebook.com/share/r/184NbDt7Lw/
   }
 }
 
-handler.help = ['fb']
-handler.command = ['fb']
+handler.help = ['fb', 'facebook', 'fbdl']
+handler.command = /^(fb|facebook|fbdl|فيس|فيسبوك)$/i
 handler.tags = ['downloader']
 handler.limit = false
 export default handler

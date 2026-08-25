@@ -125,7 +125,8 @@ Download audio from YouTube straight into this chat.
   }
 }
 
-handler.help = handler.command = ['ytmp3']
+handler.help = ['ytmp3', 'yta', 'ytaudio', 'mp3']
+handler.command = /^(ytmp3|yta|ytaudio|mp3|صوت_يوتيوب)$/i
 handler.tags = ['downloader']
 handler.limit = false
 

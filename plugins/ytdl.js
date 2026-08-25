@@ -145,7 +145,8 @@ ${data.downloadUrl}`,
   )
 }
 
-handler.help = handler.command = ['ytdl']
+handler.help = ['ytdl', 'youtube', 'yt', 'يوتيوب']
+handler.command = /^(ytdl|yt|youtube|يوتيوب)$/i
 handler.tags = ['downloader']
 handler.limit = false
 

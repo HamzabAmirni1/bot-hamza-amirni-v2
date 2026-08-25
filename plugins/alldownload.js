@@ -216,8 +216,8 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
   }
 }
 
-handler.help    = ['alldownload']
-handler.command = /^(alldownload)$/i
+handler.help    = ['alldownload', 'download', 'down', 'dl']
+handler.command = /^(alldownload|alldl|down|download|تحميل|تنزيل|dl)$/i
 handler.tags    = ['downloader']
 handler.limit   = false
 export default handler
