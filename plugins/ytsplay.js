@@ -488,8 +488,8 @@ const handler = async (m, { conn, text, command }) => {
 	}
 };
 
-handler.help = ['play <اسم أو URL>', 'video <اسم أو URL>', 'yts <اسم البحث>'];
+handler.help = ['play <اسم أو URL>', 'song <اسم الأغنية>', 'video <اسم أو URL>', 'yts <اسم البحث>'];
 handler.tags = ['downloader'];
-handler.command = /^(play|ytplay|video|ytv|yts)$/i;
+handler.command = /^(play|ytplay|song|music|aghani|video|ytv|yts)$/i;
 
 export default handler;

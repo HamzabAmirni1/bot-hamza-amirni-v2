@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { assertFileSizeOk } from '../lib/checkFileSize.js'
 
 // ─── MeverClient (self-contained) ─────────────────────────────────────────────
 class MeverClient {
@@ -129,71 +128,28 @@ Download videos, audio, and media from the most popular platforms — just send 
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 const handler = async (m, { conn, usedPrefix, command, args }) => {
-  let user = global.db.data.users[m.sender] || {};
-  let lang = user.language || 'darija';
-  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : da;
-
-  const GUIDE_ML = (p, cmd) => lang === 'english' ? GUIDE(p, cmd) : lang === 'arabic' ? `
-📥  *محمل متعدد المنصات*
-
-حمّل مقاطع الفيديو والصوت من أشهر المنصات — فقط أرسل الرابط!
-
-━━━━━━━━━━━━━━━━━━━━
-📌  *كيفية الاستخدام:*
-  ${p}${cmd} <الرابط>
-
-📌  *أمثلة:*
-  ${p}${cmd} https://www.tiktok.com/@user/video/123
-  ${p}${cmd} https://youtu.be/dQw4w9WgXcQ
-  ${p}${cmd} https://www.instagram.com/reel/abc123
-
-✅  *المنصات المدعومة:*
-  • تيك توك • يوتيوب • فيسبوك • إنستغرام
-  • تويتر/X • ثريدز • بينتريست • ساوندكلاود
-  • سبوتيفاي • وغيرها...
-`.trim() : `
-📥  *تحميل من جميع المنصات*
-
-صيفطلنا الرابط ونحملو ليك الفيديو أو الصوت مباشرة!
-
-━━━━━━━━━━━━━━━━━━━━
-📌  *كيفية الاستخدام:*
-  ${p}${cmd} <رابط الفيديو>
-
-📌  *أمثلة:*
-  ${p}${cmd} https://www.tiktok.com/@user/video/123
-  ${p}${cmd} https://youtu.be/dQw4w9WgXcQ
-
-✅  *المنصات:*
-  تيك توك، يوتيوب، فيسبوك، إنستغرام، تويتر/X
-  بينتريست، ساوندكلاود، سبوتيفاي وكثر...
-`.trim();
 
   // ── No args → show guide ──
-  if (!args[0]) return m.reply(GUIDE_ML(usedPrefix, command))
+  if (!args[0]) return m.reply(GUIDE(usedPrefix, command))
 
   const url = args[0].trim()
 
   // ── Validate URL ──
   if (!url.startsWith('http')) {
-    return m.reply(t(
-      `❌ Please send a valid URL.\n\nExample:\n← ${usedPrefix}${command} https://www.tiktok.com/@user/video/123`,
-      `❌ أرسل رابطاً صحيحاً.\n\nمثال:\n← ${usedPrefix}${command} https://www.tiktok.com/@user/video/123`,
-      `❌ صيفط رابط صحيح أ عشيري.\n\nمثال:\n← ${usedPrefix}${command} https://www.tiktok.com/@user/video/123`
-    ))
+    return m.reply(
+      `❌ Please send a valid URL.\n\nExample:\n  ${usedPrefix}${command} https://www.tiktok.com/@user/video/123`
+    )
   }
 
   // ── Auto-detect platform ──
   const mode = detectMode(url)
   if (!mode) {
-    return m.reply(t(
-      `❌ Unsupported platform.\n\nSend *${usedPrefix}${command}* (without a link) to see all supported platforms.`,
-      `❌ المنصة غير مدعومة.\n\nأرسل *${usedPrefix}${command}* (بدون رابط) لرؤية المنصات المدعومة.`,
-      `❌ هاد المنصة ماخدمناها.\n\nصيفط *${usedPrefix}${command}* بلا رابط باش تشوف المنصات المدعومة.`
-    ))
+    return m.reply(
+      `❌ Unsupported platform.\n\nSend *${usedPrefix}${command}* (without a link) to see all supported platforms.`
+    )
   }
 
-  await m.reply(t(`⏳ Fetching media from *${mode}*... Please wait!`, `⏳ جارٍ جلب المحتوى من *${mode}*... انتظر!`, `⏳ كنجيبو الفيديو من *${mode}*، صبر شوية...`))
+  await m.reply(`⏳ Fetching media from *${mode}*... Please wait!`)
 
   // ── Fetch ──
   const client = new MeverClient()
@@ -201,21 +157,20 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
   try {
     data = await client.run({ mode, url })
   } catch (e) {
-    return m.reply(t(`❌ Failed to fetch media.\n\n_${e.message}_`, `❌ فشل جلب المحتوى.\n\n_${e.message}_`, `❌ ماجابش، وقع خطأ.\n\n_${e.message}_`))
+    return m.reply(`❌ Failed to fetch media.\n\n_${e.message}_`)
   }
 
-  if (!data) return m.reply(t('❌ The API returned no data. The link may be private or unsupported.', '❌ لم تُرجع واجهة البرمجة بيانات. قد يكون الرابط خاصاً أو غير مدعوم.', '❌ ماجابش أي معطيات. ربما الرابط خاص ولا ما دعمناهوش.'))
+  if (!data) return m.reply('❌ The API returned no data. The link may be private or unsupported.')
 
   // ── Extract media URL & title ──
   const mediaUrl = extractMediaUrl(data)
   const title    = extractTitle(data)
 
   if (!mediaUrl) {
-    return m.reply(t(
-      `❌ Could not find a download link in the API response.\n\nThis platform may require a different approach or the content is restricted.`,
-      `❌ تعذر إيجاد رابط التحميل.\n\nقد يكون المحتوى محمياً أو غير مدعوم.`,
-      `❌ مالقيناش رابط تحميل. ربما المحتوى خاص ولا محمي.`
-    ))
+    return m.reply(
+      `❌ Could not find a download link in the API response.\n\n` +
+      `This platform may require a different approach or the content is restricted.`
+    )
   }
 
   // ── Determine media type ──
@@ -223,11 +178,7 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
     || mediaUrl.includes('.mp3')
     || mediaUrl.includes('.m4a')
 
-  // ── File size guard (300 MB max) ──
-  const sizeOk = await assertFileSizeOk(mediaUrl, m, lang, 300 * 1024 * 1024)
-  if (!sizeOk) return
-
-  const caption = t(`📥  *${title}*\n\n🔗  Platform: *${mode}*\n\n⚡ *bot amirni hamza*`, `📥  *${title}*\n\n🔗  المنصة: *${mode}*\n\n⚡ *bot amirni hamza*`, `📥  *${title}*\n\n🔗  المنصة: *${mode}*\n\n⚡ *bot amirni hamza*`)
+  const caption = `📥  *${title}*\n\n🔗  Platform : *${mode}*`
 
   // ── Send media ──
   try {
@@ -244,7 +195,6 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
         { quoted: m }
       )
     }
-    await m.react('✅')
   } catch (sendErr) {
     // fallback: send as document if video/audio send fails
     try {
@@ -258,21 +208,16 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
         },
         { quoted: m }
       )
-      await m.react('✅')
     } catch {
       await m.reply(
-        t(
-          `✅ Media found but could not be sent directly.\n\n📎 Direct link:\n${mediaUrl}\n\n📝 Title: ${title}`,
-          `✅ تم العثور على المحتوى لكن تعذر إرساله.\n\n📎 الرابط المباشر:\n${mediaUrl}\n\n📝 العنوان: ${title}`,
-          `✅ لقيناه الفيديو ولكن ماقدرناش نصيفطه.\n\n📎 الرابط المباشر:\n${mediaUrl}\n\n📝 العنوان: ${title}`
-        )
+        `✅ Media found but could not be sent directly.\n\n📎 Direct link:\n${mediaUrl}\n\n📝 Title: ${title}`
       )
     }
   }
 }
 
 handler.help    = ['alldownload']
-handler.command = /^(alldownload|alldl|download|dl|تحميل|تنزيل|هبط)$/i
+handler.command = /^(alldownload)$/i
 handler.tags    = ['downloader']
 handler.limit   = false
 export default handler
