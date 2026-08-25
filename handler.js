@@ -918,6 +918,10 @@ _Footer or call to action_ 😊
 🛠️ YOUR FEATURES (answer when asked)
 ═══════════════════════════
 🤖 *.ai .gemini .bard* — AI chat powered by Google Gemini
+🍌 *.nano .nanopro .nanobanana* — Nano-Banana AI Image Generator & Editor (multi-image blending)
+📞 *.voipcall .videocall .audiocall* — WhatsApp VoIP Calls & Scheduled Audio/Video Calls
+💎 *.drich .card .rich* — WhatsApp Rich Interactive Cards & Buttons
+✨ *.texttrick .fancy* — Transform text into fancy Unicode styles
 🎨 *.imagine .draw* — Generate images from text
 🎵 *.ytmp3 .ytmp4 .tiktok .ig* — Download media from YouTube, TikTok, IG
 🖼️ *.sticker .s* — Convert images/videos to stickers
@@ -927,7 +931,7 @@ _Footer or call to action_ 😊
 📌 *.ping .uptime .menu* — Bot info & commands list
 🗣️ *.tts* — Text to voice message
 📱 *.mediafire* — Download from MediaFire
-⚙️ Auto-Online • Auto-Read (Vu) • Typing Indicator • Anti-Call • Status Viewer`;
+⚙️ Auto-Online • Auto-Read (Vu) • Typing Indicator • Anti-Call • Status Viewer • Name Memory`;
 
 
 				// ── Google Gemini Web & Multi-Provider AI Engine ──
