@@ -1172,16 +1172,58 @@ global.dfail = (type, m, conn) => {
 };
 
 /**
- * Handle incoming call updates (Anti-Call)
+ * Handle incoming call updates (Anti-Call with Voice Note & Auto-Reply)
  * @param {Array} callEvents
  */
 export async function callUpdate(callEvents = []) {
 	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
 	if (!isAntiCallOn) return;
+
 	for (const call of callEvents) {
 		if (call.status === 'offer') {
-			await this.rejectCall(call.id, call.from).catch(() => {});
-			console.log(`断 [Anti-Call] Rejected incoming call from ${call.from}`);
+			try {
+				// 1. Reject the incoming call immediately (Audio & Video)
+				await this.rejectCall(call.id, call.from).catch(() => {});
+				console.log(`📵 [Anti-Call] Rejected incoming ${call.isVideo ? 'video' : 'audio'} call from ${call.from}`);
+
+				const callTypeLabel = call.isVideo ? 'مكالمة فيديو 📹' : 'مكالمة صوتية 📞';
+				const callTypeEn = call.isVideo ? 'Video Call 📹' : 'Voice Call 📞';
+
+				// 2. Send Voice Note (PTT audio: "حمزة اعمرني مكاينش دابا...")
+				const voiceText = "حمزة اعمرني مكاينش دابا. هاد النمرة ما كتستقبلش المكالمات الصوتية أو مكالمات الفيديو. المرجو ترك رسالة نصية.";
+				const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(voiceText)}&tl=ar&client=tw-ob`;
+
+				// Send Voice Note PTT
+				await this.sendMessage(call.from, {
+					audio: { url: ttsUrl },
+					mimetype: 'audio/mp4',
+					ptt: true
+				}).catch(async () => {
+					// Fallback audio format
+					await this.sendMessage(call.from, {
+						audio: { url: ttsUrl },
+						mimetype: 'audio/mpeg',
+						ptt: true
+					}).catch(() => {});
+				});
+
+				// 3. Send structured text message
+				const warnMsg = `⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*
+━━━━━━━━━━━━━━━━
+
+👤 *حمزة اعمرني (Hamza Amirni) مكاينش دابا.*
+🚫 *هاد النمرة ما كتستقبلش المكالمات (${callTypeLabel} / ${callTypeEn}).*
+
+📝 *المرجو ترك رسالة نصية هنا وسيقوم بالرد عليك في أقرب وقت.*
+
+━━━━━━━━━━━━━━━━
+⚡ _bot amirni hamza • حمزة اعمرني_`;
+
+				await this.sendMessage(call.from, { text: warnMsg }).catch(() => {});
+
+			} catch (err) {
+				console.error('❌ [Anti-Call Handler Error]:', err);
+			}
 		}
 	}
 }
