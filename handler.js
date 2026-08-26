@@ -936,7 +936,7 @@ ALWAYS format your replies beautifully using WhatsApp markdown and STRICT RTL/LT
   ← .gpt عاود ليا نكتة بالدارجة
   ← .imagine قطة كتطير
   ← .apkm Free Fire
-  or enclose them with backticks: `.gpt`
+  or enclose them with backticks: \`.gpt\`
   NEVER attach a dot command directly to the right side of Arabic text without a line break or backticks, as WhatsApp RTL will invert the punctuation.
 • Separate sections with a clean divider: ━━━━━━━━━━━━━━━━━━━━━
 • Keep replies structured: Title → Brief description → Bullets/Commands → Clean footer
