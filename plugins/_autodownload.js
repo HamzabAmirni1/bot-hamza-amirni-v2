@@ -1,32 +1,85 @@
 import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { assertFileSizeOk } from '../lib/checkFileSize.js';
 
-// ─── cobalt.tools (best, fast, supports most platforms) ────────────────────
-async function cobaltDownload(url) {
-  try {
-    const res = await axios.post('https://api.cobalt.tools/api/json', {
-      url,
-      vCodec: 'h264',
-      vQuality: '720',
-      aFormat: 'mp3',
-      isNoTTWatermark: true,
-    }, {
+// ─── InstaSave for Instagram ───────────────────────────────────────────────
+class InstaSave {
+  constructor() {
+    this.client = axios.create({
+      baseURL: 'https://api.instasave.website',
+      method: 'POST',
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
-      },
-      timeout: 15000
+        'sec-ch-ua': '"Chromium";v="127", "Not)A;Brand";v="99", "Microsoft Edge Simulate";v="127", "Lemur";v="127"',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Referer: 'https://instasave.website/',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'sec-ch-ua-mobile': '?1',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36',
+        'sec-ch-ua-platform': '"Android"'
+      }
     });
-    const d = res.data;
-    if (d?.status === 'stream' || d?.status === 'redirect') {
-      return { type: 'video', url: d.url };
+  }
+
+  parse(html) {
+    try {
+      const clean = (html || '')
+        .replace(/loader\['style'\]\['display'\]='none',document\['getElementById'\]\('div_download'\)\['innerHTML'\]='/g, '')
+        .replace(/',document\['getElementById'\]\('downloader'\)\['remove'\]\(\),showAd\(\);/g, '')
+        .replace(/\\x22/g, '"')
+        .replace(/\\x20/g, ' ');
+      const $ = cheerio.load(clean);
+      return $('.download-box .download-items')
+        .map((_, el) => ({
+          thumb: $(el).find('.download-items__thumb img').attr('src') || '',
+          download: $(el).find('.download-items__btn a').attr('href') || ''
+        }))
+        .get();
+    } catch {
+      return [];
     }
-    if (d?.status === 'picker') {
-      return { type: 'photos', urls: d.picker.map(p => p.url) };
+  }
+
+  async download(url) {
+    try {
+      const res = await this.client({ url: '/media', data: `url=${encodeURIComponent(url)}&lang=en` });
+      if (res.data) return this.parse(res.data);
+      return [];
+    } catch {
+      return [];
     }
+  }
+}
+
+const igScraper = new InstaSave();
+
+// ─── fget.io for Facebook ──────────────────────────────────────────────────
+async function fgetFacebook(url) {
+  try {
+    const endpoint = 'https://fget.io/process';
+    const body = new URLSearchParams({ id: url, locale: 'id' });
+    const { data: html } = await axios.post(endpoint, body.toString(), {
+      headers: {
+        'HX-Request': 'true',
+        'HX-Trigger': 'form',
+        'HX-Target': 'target',
+        'HX-Current-URL': 'https://fget.io/id',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://fget.io',
+        'Referer': 'https://fget.io/id'
+      },
+      timeout: 25000
+    });
+    const $ = cheerio.load(html);
+    let bestUrl = null;
+    $('a.download-result').each((_, el) => {
+      const href = $(el).attr('href');
+      if (href && !bestUrl) bestUrl = href;
+    });
+    if (bestUrl) return { type: 'video', url: bestUrl, title: $('.result-title').first().text().trim() || 'Facebook Video' };
     return null;
-  } catch (_) { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // ─── mever.zeabur.app fallback ──────────────────────────────────────────────
@@ -148,33 +201,29 @@ handler.before = async function (m, { conn }) {
 
   let result = null;
 
-  // ── TikTok: use tikwm first (handles slideshows better) ──
+  // ── TikTok ──
   if (mode === 'tiktok') {
     result = await tikwmDownload(url);
   }
 
-  // ── Cobalt for most platforms ──
-  if (!result) {
-    result = await cobaltDownload(url);
-  }
-
-  // ── Instagram specific extra APIs ──
+  // ── Instagram ──
   if (!result && mode === 'instagram') {
     try {
-      const res = await axios.get(`https://delirius-apiofc.vercel.app/download/instagram?url=${encodeURIComponent(url)}`, { timeout: 12000 });
-      const data = res.data?.data;
-      if (data && Array.isArray(data) && data.length > 0) {
-        const urls = data.map(item => item.url).filter(Boolean);
-        if (urls.length === 1) {
-          result = { type: data[0].type === 'video' || urls[0].includes('.mp4') ? 'video' : 'photos', url: urls[0], urls };
-        } else {
-          result = { type: 'photos', urls };
-        }
+      const items = await igScraper.download(url);
+      if (items?.length === 1) {
+        result = { type: items[0].download.includes('.mp4') ? 'video' : 'photos', url: items[0].download, urls: [items[0].download] };
+      } else if (items?.length > 1) {
+        result = { type: 'photos', urls: items.map(i => i.download).filter(Boolean) };
       }
     } catch (_) {}
   }
 
-  // ── Mever fallback ──
+  // ── Facebook ──
+  if (!result && mode === 'facebook') {
+    result = await fgetFacebook(url);
+  }
+
+  // ── Universal Mever Fallback ──
   if (!result) {
     try {
       const mever = new MeverClient();
