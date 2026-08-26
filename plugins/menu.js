@@ -905,24 +905,42 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
     } else {
       // Full command list text for selected category or all
       const userLangDesc = cmdDescMap[lang] || cmdDescMap['darija'];
+
+      const getPriority = (tag, cmdName) => {
+        if (tag === 'downloader') {
+          const c = String(cmdName).toLowerCase().replace(/^[.!#/]/, '').split(' ')[0].trim();
+          if (c === 'apkm') return 1;
+          if (c === 'apk' || c === 'apkdl') return 2;
+          if (['song', 'play', 'music', 'aghani', 'ytmp3', 'applemusic', 'remusic', 'lyric'].includes(c)) return 10;
+          if (['instagram', 'ig', 'insta', 'reels', 'facebook', 'fb', 'fbdl', 'tiktok', 'ttdl', 'savetik', 'ytdl', 'ytmp4', 'video', 'ytv', 'yts', 'yts2', 'twitter', 'tw', 'xdl', 'capcut', 'capcutdl', 'pinterest', 'pindl'].includes(c)) return 20;
+          if (['alldownload', 'dl', 'download', 'mediafire', 'mf', 'gdrive', 'gd', 'github', 'gitclone', 'gh', 'sfile', 'dafont', 'google', 'gsearch', 'g'].includes(c)) return 30;
+          return 50;
+        }
+        return 0;
+      };
+
       textToSend = [
         defaultMenu.before,
         ...Object.keys(tags).map(tag => {
-          const items = help
+          let tagItems = help
             .filter(p => p.tags.includes(tag))
-            .flatMap(p =>
-              p.help.map(h => {
-                const cmd = p.prefix ? h : `${_p}${h}`;
-                const rawName = String(h).trim();
-                const desc = userLangDesc[rawName] || cmdDescMap['darija'][rawName] || cmdDescMap['arabic'][rawName] || '';
-                const descText = desc ? ` — _${desc}_` : '';
-                const flags = [p.owner].filter(Boolean).join(' ');
-                return defaultMenu.body
-                  .replace(/%cmd/g, cmd)
-                  .replace(/%flags/g, flags ? `${flags} ` : '')
-                  .replace(/%desc/g, descText);
-              })
-            ).join('\n');
+            .flatMap(p => p.help.map(h => ({ h, p })));
+
+          if (tag === 'downloader') {
+            tagItems.sort((a, b) => getPriority(tag, a.h) - getPriority(tag, b.h));
+          }
+
+          const items = tagItems.map(({ h, p }) => {
+            const cmd = p.prefix ? h : `${_p}${h}`;
+            const rawName = String(h).trim().split(' ')[0];
+            const desc = userLangDesc[rawName] || cmdDescMap['darija'][rawName] || cmdDescMap['arabic'][rawName] || '';
+            const descText = desc ? ` — _${desc}_` : '';
+            const flags = [p.owner].filter(Boolean).join(' ');
+            return defaultMenu.body
+              .replace(/%cmd/g, cmd)
+              .replace(/%flags/g, flags ? `${flags} ` : '')
+              .replace(/%desc/g, descText);
+          }).join('\n');
 
           return `${defaultMenu.header.replace('%category', tags[tag])}\n${items}\n${defaultMenu.footer}`;
         }),

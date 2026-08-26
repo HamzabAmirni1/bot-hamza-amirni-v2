@@ -280,7 +280,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   await m.react('✅');
 };
 
-handler.help = ['apkm', 'traidmode', 'traid', 'apkmod', 'modapk', 'مهكر', 'ترايد', 'traiddl'];
+handler.help = ['apkm'];
 handler.command = /^(apkm|traidmode|traid|apkmod|modapk|مهكر|ترايد|تطبيق_مهكر|لعبة_مهكرة|traiddl)$/i;
 handler.tags = ['downloader'];
 handler.limit = false;
