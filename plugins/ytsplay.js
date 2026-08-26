@@ -2,6 +2,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import yts from 'yt-search';
 import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
+import { downloadYouTube } from './ytdl.js';
 
 // ============================================================
 // AUDIO DOWNLOADERS — Fallback chain
@@ -367,25 +368,35 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try audio downloaders in fallback order (Convert1s first, then others)
+		// Try audio downloaders in fallback order — downloadYouTube (multi-engine) first
 		let audioData = null;
-		for (const [fn, name] of [
-			[ytmp3Convert1s, 'Convert1s'],
-			[ytmp3Mever, 'Mever'],
-			[ytmp3Savetube, 'SaveTube'],
-			[ytmp3Y2mate, 'y2mate'],
-			[ytmp3Yupra, 'Yupra'],
-			[ytmp3Ytdl, 'yt-download.org'],
-			[ytmp3Ytconvert, 'YTConvert']
-		]) {
-			try {
-				audioData = await fn(videoUrl);
-				if (audioData?.download) {
-					console.log(`[play] ✅ Audio downloaded via ${name}`);
-					break;
+
+		// Primary: use shared downloadYouTube engine from ytdl.js
+		try {
+			const res = await downloadYouTube(videoUrl, 'mp3');
+			if (res?.download) { audioData = res; console.log('[play] ✅ Audio via downloadYouTube engine'); }
+		} catch (e) { console.log('[play] ❌ downloadYouTube failed:', e.message); }
+
+		// Inline fallbacks if primary fails
+		if (!audioData?.download) {
+			for (const [fn, name] of [
+				[ytmp3Convert1s, 'Convert1s'],
+				[ytmp3Mever, 'Mever'],
+				[ytmp3Savetube, 'SaveTube'],
+				[ytmp3Y2mate, 'y2mate'],
+				[ytmp3Yupra, 'Yupra'],
+				[ytmp3Ytdl, 'yt-download.org'],
+				[ytmp3Ytconvert, 'YTConvert']
+			]) {
+				try {
+					audioData = await fn(videoUrl);
+					if (audioData?.download) {
+						console.log(`[play] ✅ Audio downloaded via ${name}`);
+						break;
+					}
+				} catch (e) {
+					console.log(`[play] ❌ ${name} failed: ${e.message}`);
 				}
-			} catch (e) {
-				console.log(`[play] ❌ ${name} failed: ${e.message}`);
 			}
 		}
 
