@@ -253,9 +253,14 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'gh': 'البحث وتحميل مشاريع GitHub',
       'google': 'البحث الشامل والمباشر في محرك Google',
       'gsearch': 'البحث في محرك البحث Google',
-      'g': 'البحث المباشر في Google',
       'apk': 'البحث وتنزيل تطبيقات أندرويد APK',
       'apkdl': 'تحميل تطبيقات أندرويد APK',
+      'apkm': 'تحميل تطبيقات وألعاب مهكرة (TraidMode APK MOD)',
+      'traidmode': 'تحميل ألعاب وتطبيقات مهكرة (TraidMode)',
+      'apkmod': 'تحميل ألعاب وتطبيقات مهكرة (APK MOD)',
+      'traiddl': 'تحميل مباشر للتطبيقات والألعاب المهكرة',
+      'مهكر': 'تحميل ألعاب وتطبيقات مهكرة',
+      'ترايد': 'تحميل من موقع TraidMode',
 
       // Sticker & Media Tools
       'sticker': 'تحويل الصور والفيديوهات إلى ملصق',
@@ -485,6 +490,12 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'g': 'البحث السريع في جوجل',
       'apk': 'تنزيل تطبيقات الأندرويد APK مباشرة',
       'apkdl': 'تنزيل تطبيقات الأندرويد APK',
+      'apkm': 'تحميل ألعاب وتطبيقات مهكرة (TraidMode APK MOD)',
+      'traidmode': 'تحميل ألعاب وتطبيقات مهكرة',
+      'apkmod': 'تحميل ألعاب وتطبيقات مهكرة',
+      'traiddl': 'تحميل مباشر للتطبيقات المهكرة',
+      'مهكر': 'تحميل ألعاب وتطبيقات مهكرة',
+      'ترايد': 'تحميل من موقع TraidMode',
 
       // Sticker & Media Tools
       'sticker': 'تحويل الصور والمقاطع إلى ملصقات',
@@ -715,6 +726,10 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'g': 'Quick search on Google',
       'apk': 'Download Android APK apps directly',
       'apkdl': 'Download Android APK apps directly',
+      'apkm': 'Download Modded APKs & Games (TraidMode)',
+      'traidmode': 'Download Modded Games & Apps',
+      'apkmod': 'Download Modded APKs',
+      'traiddl': 'Direct Modded APK Downloader',
 
       // Sticker & Media Tools
       'sticker': 'Create sticker from image or short video',
