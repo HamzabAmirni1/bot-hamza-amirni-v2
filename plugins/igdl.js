@@ -1,99 +1,168 @@
 /*
-# Name : Instagram Download (video, image carousel)
-# Type : ESM
-# Url : https://clipssaver.com
-# Snippet : https://snippet.zellrayy.com/kTLUERvPx2
-# Source : https://whatsapp.com/channel/0029Vb8SsEn4NViqwX3HaN0x
+  Instagram Downloader (Reels, Posts, Carousels, Stories)
+  Provider 1: InstaSave (api.instasave.website)
+  Provider 2: Mever API (mever.zeabur.app)
 */
+
 import axios from 'axios';
+import * as cheerio from 'cheerio';
 
-async function instagramScrape(url) {
-  const { data } = await axios.post(
-    'https://clipssaver.com/api/instagram/instagramDownloader/download-post',
-    { url },
-    {
+class InstaSave {
+  constructor() {
+    this.types = ['media', 'story', 'dp'];
+    this.client = axios.create({
+      baseURL: 'https://api.instasave.website',
+      method: 'POST',
       headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
+        'sec-ch-ua': '"Chromium";v="127", "Not)A;Brand";v="99", "Microsoft Edge Simulate";v="127", "Lemur";v="127"',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Referer: 'https://instasave.website/',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'sec-ch-ua-mobile': '?1',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36',
+        'sec-ch-ua-platform': '"Android"'
+      }
+    });
+  }
+
+  parse(html) {
+    try {
+      const clean = (html || '')
+        .replace(/loader\['style'\]\['display'\]='none',document\['getElementById'\]\('div_download'\)\['innerHTML'\]='/g, '')
+        .replace(/',document\['getElementById'\]\('downloader'\)\['remove'\]\(\),showAd\(\);/g, '')
+        .replace(/\\x22/g, '"')
+        .replace(/\\x20/g, ' ');
+      const $ = cheerio.load(clean);
+      const results = $('.download-box .download-items')
+        .map((_, el) => ({
+          thumb: $(el).find('.download-items__thumb img').attr('src') || '',
+          download: $(el).find('.download-items__btn a').attr('href') || ''
+        }))
+        .get();
+      return results;
+    } catch (err) {
+      return [];
     }
-  );
+  }
 
-  if (data.status !== 'success') throw new Error('Failed to fetch data');
-
-  const result = data.data.post;
-
-  return {
-    id: result.id,
-    shortcode: result.short_code,
-    username: result.owner?.username,
-    caption: result.edge_media_to_caption?.edges?.[0]?.node?.text || '',
-    thumbnail: result.thumbnail_src,
-    image: result.display_url,
-    video: result.video_url,
-    download: result.download_url,
-    likes: result.edge_liked_by?.count,
-    comments: result.edge_media_to_comment?.count,
-    duration: result.video_duration,
-    type: result.type,
-    // carousel items, if present
-    sidecar: result.edge_sidecar_to_children?.edges?.map(e => ({
-      isVideo: e.node.is_video,
-      display: e.node.display_url,
-      video: e.node.video_url
-    })) || []
-  };
+  async download(url, type = 'media') {
+    try {
+      const res = await this.client({ url: `/${type}`, data: `url=${encodeURIComponent(url)}&lang=en` });
+      if (res.data) return this.parse(res.data);
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
 }
 
-let handler = async (m, { conn, text, usedPrefix, command }) => {
-  if (!text) {
+const igApi = new InstaSave();
+
+async function meverIG(url) {
+  try {
+    const res = await axios.get('https://mever.zeabur.app/api/ig', {
+      params: { url, quality: '720p', type: 'video' },
+      headers: {
+        'X-Package-Name': 'com.dapascript.mever',
+        'User-Agent': 'okhttp/4.11.0'
+      },
+      timeout: 30000
+    });
+    const d = res.data?.data || res.data;
+    if (d?.url || d?.download_url || d?.video_url) {
+      return [{ download: d.url || d.download_url || d.video_url, thumb: d.thumbnail || '' }];
+    }
+    if (Array.isArray(d?.medias)) {
+      return d.medias.map(m => ({ download: m.url || m.download_url, thumb: m.thumbnail || '' })).filter(m => m.download);
+    }
+    return [];
+  } catch (_) {
+    return [];
+  }
+}
+
+let handler = async (m, { conn, args, text, command, usedPrefix }) => {
+  const url = (text || args[0] || '').trim();
+
+  if (!url || !/instagram\.com/i.test(url)) {
     return conn.reply(
       m.chat,
       `📷 *Instagram Downloader*\n\n` +
-      `Download Instagram posts, reels, and image carousels directly to WhatsApp.\n\n` +
-      `*How to use:*\n` +
-      `Send the command followed by an Instagram post/reel link.\n\n` +
-      `*Example:*\n` +
-      `${usedPrefix + command} https://www.instagram.com/reel/DZ2zV8UhBQZ/\n\n` +
-      `*Note:* Carousel posts (multiple photos/videos in one post) will send each item separately.`,
+      `حمل الفيديوهات، الصور، والريلز من إنستغرام مباشرة.\n\n` +
+      `*طريقة الاستخدام:*\n` +
+      `← ${usedPrefix + command} <رابط إنستغرام>\n\n` +
+      `*مثال:*\n` +
+      `← ${usedPrefix + command} https://www.instagram.com/reel/xxxxxxx/\n\n` +
+      `⚡ *bot amirni hamza*`,
       m
     );
   }
 
-  const url = text.trim();
-  if (!/instagram\.com\/(reel|p|tv)\//i.test(url)) {
-    return conn.reply(m.chat, '❌ That doesn\'t look like a valid Instagram post/reel URL. Please send a link like https://www.instagram.com/reel/xxxxxxx/', m);
-  }
-
-  await m.react('🕓');
+  await m.react('⏳');
 
   try {
-    const result = await instagramScrape(url);
-    const caption = `📷 *Instagram Downloader*\n\n👤 ${result.username || 'Unknown'}\n❤️ ${result.likes ?? '-'} likes | 💬 ${result.comments ?? '-'} comments\n\n${result.caption ? result.caption.slice(0, 300) : ''}`;
+    // 1. Try InstaSave
+    let mediaItems = await igApi.download(url);
 
-    if (result.sidecar && result.sidecar.length > 0) {
-      // Carousel post — send each item
-      for (const item of result.sidecar) {
-        if (item.isVideo && item.video) {
-          await conn.sendMessage(m.chat, { video: { url: item.video }, caption: '📷 Instagram Downloader' }, { quoted: m });
-        } else if (item.display) {
-          await conn.sendMessage(m.chat, { image: { url: item.display }, caption: '📷 Instagram Downloader' }, { quoted: m });
-        }
+    // 2. Fallback to Mever if InstaSave returned nothing
+    if (!mediaItems || !mediaItems.length) {
+      mediaItems = await meverIG(url);
+    }
+
+    if (!mediaItems || !mediaItems.length) {
+      throw new Error('لم يتم العثور على وسائط قابلة للتحميل. تأكد أن المنشور عام (Public) وليس خاصاً.');
+    }
+
+    let sentAny = false;
+    for (const item of mediaItems) {
+      if (!item.download) continue;
+
+      let buffer, contentType = '';
+      try {
+        const fileRes = await axios.get(item.download, {
+          responseType: 'arraybuffer',
+          timeout: 30000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36',
+            Referer: 'https://instasave.website/'
+          }
+        });
+        buffer = Buffer.from(fileRes.data);
+        contentType = fileRes.headers['content-type'] || '';
+      } catch (fetchErr) {
+        console.error('[IG] Buffer fetch failed, trying direct URL send:', fetchErr.message);
       }
-    } else if (result.video || result.download) {
-      await conn.sendMessage(m.chat, { video: { url: result.video || result.download }, caption }, { quoted: m });
-    } else if (result.image) {
-      await conn.sendMessage(m.chat, { image: { url: result.image }, caption }, { quoted: m });
-    } else {
-      throw new Error('No downloadable media found for this post.');
+
+      const isVideo = contentType.includes('video') || /\.mp4(\?|$)/i.test(item.download);
+      const caption = `📷 *Instagram Download*\n⚡ *bot amirni hamza*`;
+
+      if (buffer) {
+        await conn.sendMessage(
+          m.chat,
+          isVideo ? { video: buffer, caption } : { image: buffer, caption },
+          { quoted: m }
+        );
+        sentAny = true;
+      } else {
+        // Fallback: send via URL directly
+        await conn.sendMessage(
+          m.chat,
+          isVideo ? { video: { url: item.download }, caption } : { image: { url: item.download }, caption },
+          { quoted: m }
+        );
+        sentAny = true;
+      }
+    }
+
+    if (!sentAny) {
+      throw new Error('تعذر تحميل الملفات من السيرفر. حاول مرة أخرى.');
     }
 
     await m.react('✅');
-  } catch (e) {
-    console.error('[instagram]', e);
+  } catch (err) {
+    console.error('[Instagram Error]', err.message);
     await m.react('❌');
-    return conn.reply(m.chat, `❌ Failed to download: ${e.message || 'Unknown error occurred.'}`, m);
+    conn.reply(m.chat, `❌ ${err.message || 'فشل التحميل. حاول مجدداً.'}`, m);
   }
 };
 
@@ -101,4 +170,5 @@ handler.help = ['ig', 'igdl', 'insta', 'instagram', 'reels'];
 handler.command = /^(ig|igdl|insta|instagram|reels|ريلز|انستا|إنستغرام|انستقرام)$/i;
 handler.tags = ['downloader'];
 handler.limit = false;
+
 export default handler;
