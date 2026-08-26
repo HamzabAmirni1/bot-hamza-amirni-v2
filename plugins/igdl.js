@@ -1,7 +1,10 @@
 /*
   Instagram Downloader (Reels, Posts, Carousels, Stories)
-  Provider 1: InstaSave (api.instasave.website)
-  Provider 2: Mever API (mever.zeabur.app)
+  Engine Fallback Chain:
+  1. Vreden API (api.vreden.web.id)
+  2. Mever API (mever.zeabur.app)
+  3. SnapSave (snapsave.app)
+  4. InstaSave (api.instasave.website)
 */
 
 import axios from 'axios';
@@ -9,7 +12,6 @@ import * as cheerio from 'cheerio';
 
 class InstaSave {
   constructor() {
-    this.types = ['media', 'story', 'dp'];
     this.client = axios.create({
       baseURL: 'https://api.instasave.website',
       method: 'POST',
@@ -33,30 +35,48 @@ class InstaSave {
         .replace(/\\x22/g, '"')
         .replace(/\\x20/g, ' ');
       const $ = cheerio.load(clean);
-      const results = $('.download-box .download-items')
+      return $('.download-box .download-items')
         .map((_, el) => ({
           thumb: $(el).find('.download-items__thumb img').attr('src') || '',
           download: $(el).find('.download-items__btn a').attr('href') || ''
         }))
         .get();
-      return results;
-    } catch (err) {
+    } catch {
       return [];
     }
   }
 
-  async download(url, type = 'media') {
+  async download(url) {
     try {
-      const res = await this.client({ url: `/${type}`, data: `url=${encodeURIComponent(url)}&lang=en` });
+      const res = await this.client({ url: '/media', data: `url=${encodeURIComponent(url)}&lang=en` });
       if (res.data) return this.parse(res.data);
       return [];
-    } catch (e) {
+    } catch {
       return [];
     }
   }
 }
 
-const igApi = new InstaSave();
+const igInstaSave = new InstaSave();
+
+async function vredenIG(url) {
+  try {
+    const res = await axios.get(`https://api.vreden.web.id/api/v1/download/instagram?url=${encodeURIComponent(url)}`, {
+      timeout: 20000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    const d = res.data?.result;
+    if (Array.isArray(d) && d.length > 0) {
+      return d.map(item => ({ download: item.url || item.download_url, thumb: item.thumbnail || '' })).filter(x => x.download);
+    }
+    if (d?.download?.url || d?.url) {
+      return [{ download: d.download?.url || d.url, thumb: d.thumbnail || '' }];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
 
 async function meverIG(url) {
   try {
@@ -66,25 +86,51 @@ async function meverIG(url) {
         'X-Package-Name': 'com.dapascript.mever',
         'User-Agent': 'okhttp/4.11.0'
       },
-      timeout: 30000
+      timeout: 25000
     });
     const d = res.data?.data || res.data;
     if (d?.url || d?.download_url || d?.video_url) {
       return [{ download: d.url || d.download_url || d.video_url, thumb: d.thumbnail || '' }];
     }
-    if (Array.isArray(d?.medias)) {
+    if (Array.isArray(d?.medias) && d.medias.length > 0) {
       return d.medias.map(m => ({ download: m.url || m.download_url, thumb: m.thumbnail || '' })).filter(m => m.download);
     }
     return [];
-  } catch (_) {
+  } catch {
+    return [];
+  }
+}
+
+async function snapsaveIG(url) {
+  try {
+    const params = new URLSearchParams({ url });
+    const res = await axios.post('https://snapsave.app/action.php', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://snapsave.app',
+        'Referer': 'https://snapsave.app/'
+      },
+      timeout: 20000
+    });
+    const html = String(res.data || '');
+    const urls = [];
+    const matches = html.matchAll(/href=\\"(https:[^\\"]+\.mp4[^\\"]*)\\"/g);
+    for (const match of matches) {
+      if (match[1]) urls.push({ download: match[1].replace(/\\/g, ''), thumb: '' });
+    }
+    return urls;
+  } catch {
     return [];
   }
 }
 
 let handler = async (m, { conn, args, text, command, usedPrefix }) => {
-  const url = (text || args[0] || '').trim();
+  const rawInput = (text || args[0] || '').trim();
+  const urlMatch = rawInput.match(/https?:\/\/[^\s]+/i);
+  const originalUrl = urlMatch ? urlMatch[0] : rawInput;
 
-  if (!url || !/instagram\.com/i.test(url)) {
+  if (!originalUrl || !/instagram\.com/i.test(originalUrl)) {
     return conn.reply(
       m.chat,
       `📷 *Instagram Downloader*\n\n` +
@@ -92,7 +138,7 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
       `*طريقة الاستخدام:*\n` +
       `← ${usedPrefix + command} <رابط إنستغرام>\n\n` +
       `*مثال:*\n` +
-      `← ${usedPrefix + command} https://www.instagram.com/reel/xxxxxxx/\n\n` +
+      `← ${usedPrefix + command} https://www.instagram.com/reel/DcIob81ttHi/\n\n` +
       `⚡ *bot amirni hamza*`,
       m
     );
@@ -100,13 +146,29 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
 
   await m.react('⏳');
 
-  try {
-    // 1. Try InstaSave
-    let mediaItems = await igApi.download(url);
+  // Clean URL by stripping tracking parameters (igsi, utm, img_index, etc.)
+  let cleanUrl = originalUrl.split('?')[0].split('&')[0].replace(/\/$/, '');
+  if (!cleanUrl.endsWith('/')) cleanUrl += '/';
 
-    // 2. Fallback to Mever if InstaSave returned nothing
-    if (!mediaItems || !mediaItems.length) {
-      mediaItems = await meverIG(url);
+  try {
+    let mediaItems = [];
+
+    // Try providers in order
+    for (const provider of [
+      () => meverIG(cleanUrl),
+      () => vredenIG(cleanUrl),
+      () => igInstaSave.download(cleanUrl),
+      () => snapsaveIG(cleanUrl),
+      () => meverIG(originalUrl),
+      () => vredenIG(originalUrl)
+    ]) {
+      try {
+        const res = await provider();
+        if (Array.isArray(res) && res.length > 0) {
+          mediaItems = res;
+          break;
+        }
+      } catch (_) {}
     }
 
     if (!mediaItems || !mediaItems.length) {
@@ -117,20 +179,20 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
     for (const item of mediaItems) {
       if (!item.download) continue;
 
-      let buffer, contentType = '';
+      let buffer = null, contentType = '';
       try {
         const fileRes = await axios.get(item.download, {
           responseType: 'arraybuffer',
-          timeout: 30000,
+          timeout: 35000,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36',
-            Referer: 'https://instasave.website/'
+            Referer: 'https://instagram.com/'
           }
         });
         buffer = Buffer.from(fileRes.data);
         contentType = fileRes.headers['content-type'] || '';
       } catch (fetchErr) {
-        console.error('[IG] Buffer fetch failed, trying direct URL send:', fetchErr.message);
+        console.error('[IG] Buffer fetch failed, trying direct URL:', fetchErr.message);
       }
 
       const isVideo = contentType.includes('video') || /\.mp4(\?|$)/i.test(item.download);
@@ -144,7 +206,6 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
         );
         sentAny = true;
       } else {
-        // Fallback: send via URL directly
         await conn.sendMessage(
           m.chat,
           isVideo ? { video: { url: item.download }, caption } : { image: { url: item.download }, caption },
