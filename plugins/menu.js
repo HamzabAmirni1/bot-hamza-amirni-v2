@@ -253,14 +253,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'gh': 'البحث وتحميل مشاريع GitHub',
       'google': 'البحث الشامل والمباشر في محرك Google',
       'gsearch': 'البحث في محرك البحث Google',
+      'apkm': 'تحميل تطبيقات وألعاب مهكرة (TraidMode APK MOD)',
+      'apkp': 'تحميل تطبيقات وألعاب من متجر APKPure',
+      'apku': 'تحميل تطبيقات وألعاب من متجر Uptodown',
       'apk': 'البحث وتنزيل تطبيقات أندرويد APK',
       'apkdl': 'تحميل تطبيقات أندرويد APK',
-      'apkm': 'تحميل تطبيقات وألعاب مهكرة (TraidMode APK MOD)',
-      'traidmode': 'تحميل ألعاب وتطبيقات مهكرة (TraidMode)',
-      'apkmod': 'تحميل ألعاب وتطبيقات مهكرة (APK MOD)',
-      'traiddl': 'تحميل مباشر للتطبيقات والألعاب المهكرة',
-      'مهكر': 'تحميل ألعاب وتطبيقات مهكرة',
-      'ترايد': 'تحميل من موقع TraidMode',
 
       // Sticker & Media Tools
       'sticker': 'تحويل الصور والفيديوهات إلى ملصق',
@@ -488,14 +485,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'google': 'البحث المباشر في محرك البحث جوجل',
       'gsearch': 'البحث الشامل في محرك جوجل',
       'g': 'البحث السريع في جوجل',
+      'apkm': 'تحميل ألعاب وتطبيقات مهكرة (TraidMode APK MOD)',
+      'apkp': 'تحميل تطبيقات وألعاب من متجر APKPure',
+      'apku': 'تحميل تطبيقات وألعاب من متجر Uptodown',
       'apk': 'تنزيل تطبيقات الأندرويد APK مباشرة',
       'apkdl': 'تنزيل تطبيقات الأندرويد APK',
-      'apkm': 'تحميل ألعاب وتطبيقات مهكرة (TraidMode APK MOD)',
-      'traidmode': 'تحميل ألعاب وتطبيقات مهكرة',
-      'apkmod': 'تحميل ألعاب وتطبيقات مهكرة',
-      'traiddl': 'تحميل مباشر للتطبيقات المهكرة',
-      'مهكر': 'تحميل ألعاب وتطبيقات مهكرة',
-      'ترايد': 'تحميل من موقع TraidMode',
 
       // Sticker & Media Tools
       'sticker': 'تحويل الصور والمقاطع إلى ملصقات',
@@ -724,12 +718,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'google': 'Perform web searches directly on Google',
       'gsearch': 'Search Google web index',
       'g': 'Quick search on Google',
+      'apkm': 'Download Modded APKs & Games (TraidMode)',
+      'apkp': 'Download APKs from APKPure Store',
+      'apku': 'Download APKs from Uptodown Store',
       'apk': 'Download Android APK apps directly',
       'apkdl': 'Download Android APK apps directly',
-      'apkm': 'Download Modded APKs & Games (TraidMode)',
-      'traidmode': 'Download Modded Games & Apps',
-      'apkmod': 'Download Modded APKs',
-      'traiddl': 'Direct Modded APK Downloader',
 
       // Sticker & Media Tools
       'sticker': 'Create sticker from image or short video',
@@ -910,7 +903,9 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
         if (tag === 'downloader') {
           const c = String(cmdName).toLowerCase().replace(/^[.!#/]/, '').split(' ')[0].trim();
           if (c === 'apkm') return 1;
-          if (c === 'apk' || c === 'apkdl') return 2;
+          if (c === 'apkp' || c === 'apkpure') return 2;
+          if (c === 'apku' || c === 'uptodown') return 3;
+          if (c === 'apk' || c === 'apkdl') return 4;
           if (['song', 'play', 'music', 'aghani', 'ytmp3', 'applemusic', 'remusic', 'lyric'].includes(c)) return 10;
           if (['instagram', 'ig', 'insta', 'reels', 'facebook', 'fb', 'fbdl', 'tiktok', 'ttdl', 'savetik', 'ytdl', 'ytmp4', 'video', 'ytv', 'yts', 'yts2', 'twitter', 'tw', 'xdl', 'capcut', 'capcutdl', 'pinterest', 'pindl'].includes(c)) return 20;
           if (['alldownload', 'dl', 'download', 'mediafire', 'mf', 'gdrive', 'gd', 'github', 'gitclone', 'gh', 'sfile', 'dafont', 'google', 'gsearch', 'g'].includes(c)) return 30;
