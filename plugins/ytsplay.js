@@ -7,6 +7,38 @@ import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'b
 // AUDIO DOWNLOADERS — Fallback chain
 // ============================================================
 
+async function ytmp3Convert1s(ytUrl) {
+	const headers = {
+		'accept': 'application/json',
+		'content-type': 'application/json',
+		'origin': 'https://ssvid.cc',
+		'referer': 'https://ssvid.cc/',
+		'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+	};
+	const initRes = await axios.post('https://hub.convert1s.com/api/download', {
+		url: ytUrl,
+		audio: { bitrate: '128k' },
+		output: { type: 'audio', format: 'mp3' },
+	}, { headers, timeout: 15000 });
+
+	const { statusUrl, title, duration } = initRes.data;
+	if (!statusUrl) throw new Error('No statusUrl');
+
+	let downloadData = null;
+	for (let attempts = 0; attempts < 25; attempts++) {
+		const statusRes = await axios.get(statusUrl, { headers, timeout: 10000 });
+		if (statusRes.data.status === 'completed') {
+			downloadData = statusRes.data;
+			break;
+		}
+		if (statusRes.data.status === 'error' || statusRes.data.status === 'failed') break;
+		await new Promise(r => setTimeout(r, 1500));
+	}
+
+	if (!downloadData?.downloadUrl) throw new Error('convert1s audio failed');
+	return { download: downloadData.downloadUrl, title: downloadData.title || title };
+}
+
 async function ytmp3Yupra(url) {
 	const r = await axios.get(
 		`https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(url)}`,
@@ -112,6 +144,38 @@ async function resolveFinalUrl(url) {
 			return res2.request?.res?.responseUrl || url;
 		} catch { return url; }
 	}
+}
+
+async function ytmp4Convert1s(ytUrl) {
+	const headers = {
+		'accept': 'application/json',
+		'content-type': 'application/json',
+		'origin': 'https://ssvid.cc',
+		'referer': 'https://ssvid.cc/',
+		'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+	};
+	const initRes = await axios.post('https://hub.convert1s.com/api/download', {
+		url: ytUrl,
+		video: { quality: '720p' },
+		output: { type: 'video', format: 'mp4' },
+	}, { headers, timeout: 15000 });
+
+	const { statusUrl, title, duration } = initRes.data;
+	if (!statusUrl) throw new Error('No statusUrl');
+
+	let downloadData = null;
+	for (let attempts = 0; attempts < 30; attempts++) {
+		const statusRes = await axios.get(statusUrl, { headers, timeout: 10000 });
+		if (statusRes.data.status === 'completed') {
+			downloadData = statusRes.data;
+			break;
+		}
+		if (statusRes.data.status === 'error' || statusRes.data.status === 'failed') break;
+		await new Promise(r => setTimeout(r, 1500));
+	}
+
+	if (!downloadData?.downloadUrl) throw new Error('convert1s mp4 failed');
+	return { download: downloadData.downloadUrl, title: downloadData.title || title };
 }
 
 async function ytmp4Vreden(url) {
@@ -222,12 +286,12 @@ const handler = async (m, { conn, text, command }) => {
 	const btnVideo = lang === 'english' ? '🎥 Download Video' : lang === 'arabic' ? '🎥 تحميل فيديو' : '🎥 تحميل الفيديو MP4';
 	const txtSearchResultTitle = lang === 'english' ? '📺 Search results for:' : lang === 'arabic' ? '📺 نتائج البحث عن:' : '📺 نتائج البحث ديال:';
 
-	// ── .play / .yts: Download Audio / Search Carousel ───────────
-	if (/^(play|ytplay|yts)$/i.test(command)) {
+	// ── .play / .song / .music: Download Audio / Search Carousel ───────────
+	if (/^(play|ytplay|song|music|aghani)$/i.test(command)) {
 		if (!text) return m.reply(txtPromptPlay);
 
-		// If it's a search term OR if command is explicitly "yts", send interactive search results
-		if (!text.startsWith('http') || /^yts$/i.test(command)) {
+		// If it's a search term, search and get video
+		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
 			const videos = search.videos || [];
@@ -303,12 +367,13 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try audio downloaders in fallback order (6 providers)
+		// Try audio downloaders in fallback order (Convert1s first, then others)
 		let audioData = null;
 		for (const [fn, name] of [
+			[ytmp3Convert1s, 'Convert1s'],
+			[ytmp3Mever, 'Mever'],
 			[ytmp3Savetube, 'SaveTube'],
 			[ytmp3Y2mate, 'y2mate'],
-			[ytmp3Mever, 'Mever'],
 			[ytmp3Yupra, 'Yupra'],
 			[ytmp3Ytdl, 'yt-download.org'],
 			[ytmp3Ytconvert, 'YTConvert']
@@ -453,9 +518,9 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try video downloaders in fallback order
+		// Try video downloaders in fallback order (Convert1s first)
 		let videoData = null;
-		for (const fn of [ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s]) {
+		for (const fn of [ytmp4Convert1s, ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s]) {
 			try {
 				videoData = await fn(videoUrl);
 				if (videoData?.download) break;
@@ -488,8 +553,8 @@ const handler = async (m, { conn, text, command }) => {
 	}
 };
 
-handler.help = ['play <اسم أو URL>', 'song <اسم الأغنية>', 'video <اسم أو URL>', 'yts <اسم البحث>'];
+handler.help = ['play <اسم أو URL>', 'song <اسم الأغنية>', 'video <اسم أو URL>'];
 handler.tags = ['downloader'];
-handler.command = /^(play|ytplay|song|music|aghani|video|ytv|yts)$/i;
+handler.command = /^(play|ytplay|song|music|aghani|video|ytv)$/i;
 
 export default handler;
