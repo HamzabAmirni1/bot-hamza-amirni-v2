@@ -37,9 +37,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
   if (!text) {
     return m.reply(t(
-      `🤖 *AI Assistant*\n📌 Usage: ${usedPrefix + command} What is quantum physics?\n🎨 Image: ${usedPrefix}imagine a cat in space`,
-      `🤖 *الذكاء الاصطناعي*\n📌 طريقة الاستخدام: ${usedPrefix + command} ما هي عاصمة المغرب؟\n🎨 صورة: ${usedPrefix}imagine قطة تطير`,
-      `🤖 *الذكاء الاصطناعي*\n📌 طريقة الاستعمال: ${usedPrefix + command} عاود ليا نكتة بالدارجة\n🎨 صورة: ${usedPrefix}imagine قطة كتطير`
+      `🤖 *AI Assistant*\n━━━━━━━━━━━━━━━━━━━━━\n📌 *Usage:*\n← ${usedPrefix + command} What is quantum physics?\n\n🎨 *Image Generator:*\n← ${usedPrefix}imagine a cat in space\n\n⚡ *bot amirni hamza • حمزة اعمرني*`,
+      `🤖 *الذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━━\n📌 *طريقة الاستعمال:*\n← ${usedPrefix + command} ما هي عاصمة المغرب؟\n\n🎨 *توليد الصور:*\n← ${usedPrefix}imagine قطة تطير في الفضاء\n\n⚡ *bot amirni hamza • حمزة اعمرني*`,
+      `🤖 *الذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━━\n📌 *طريقة الاستعمال:*\n← ${usedPrefix + command} عاود ليا نكتة بالدارجة\n\n🎨 *رسم وتوليد الصور:*\n← ${usedPrefix}imagine قطة كتطير\n\n⚡ *bot amirni hamza • حمزة اعمرني*`
     ));
   }
 
