@@ -197,9 +197,26 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         await m.react('❌');
         return m.reply('❌ لم نتمكن من استخراج روابط التحميل من هذه الصفحة. تأكد من صحة الرابط.');
       }
-      directUrl = options[0].downloadUrl;
-      apkTitle = options[0].name || apkTitle;
-      apkIcon = options[0].icon || '';
+
+      // If page has multiple download buttons (e.g. MicroG and ReVanced APK) and user didn't specify index
+      const optArg = args.find(a => /^[1-9]$/.test(a));
+      if (options.length > 1 && !optArg) {
+        let msg = `🎮 *خيارات التحميل المتاحة (${options.length} روابط):*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        options.forEach((opt, idx) => {
+          msg += `*${idx + 1}️⃣ ${opt.name}*\n`;
+          if (opt.size) msg += `⚖️ *الحجم:* ${opt.size}\n`;
+          msg += `← ${usedPrefix}traiddl ${target} ${idx + 1}\n\n`;
+        });
+        msg += `⚡ *bot amirni hamza*`;
+        await m.react('📦');
+        return conn.reply(m.chat, msg, m);
+      }
+
+      const selectedIndex = optArg ? parseInt(optArg, 10) - 1 : 0;
+      const selectedOpt = options[selectedIndex] || options[0];
+      directUrl = selectedOpt.downloadUrl;
+      apkTitle = selectedOpt.name || apkTitle;
+      apkIcon = selectedOpt.icon || '';
     } else if (target.startsWith('http')) {
       directUrl = target;
     }
