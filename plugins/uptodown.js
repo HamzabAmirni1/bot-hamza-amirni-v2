@@ -236,25 +236,44 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من Uptodown...`, m);
       }
 
-      const fileRes = await axios.get(downloadUrl, {
-        headers: HEADERS,
-        responseType: 'arraybuffer',
-        timeout: 180000
-      });
-
-      const buffer = Buffer.from(fileRes.data);
       const isXapk = downloadUrl.includes('.xapk') || downloadUrl.includes('xapk');
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(appTitle);
 
-      await conn.sendMessage(m.chat, {
-        document: buffer,
-        mimetype: 'application/vnd.android.package-archive',
-        fileName: `${safeName}.${ext}`,
-        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر Uptodown*\n⚡ *bot amirni hamza*`
-      }, { quoted: m });
+      // Method 1: Stream directly via Baileys (Fastest & 0% local RAM overhead)
+      try {
+        await conn.sendMessage(m.chat, {
+          document: { url: downloadUrl },
+          mimetype: 'application/vnd.android.package-archive',
+          fileName: `${safeName}.${ext}`,
+          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر Uptodown*\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
 
-      return m.react('✅');
+        return m.react('✅');
+      } catch (streamErr) {
+        console.log('[Uptodown] Stream failed, downloading buffer fallback...', streamErr.message);
+
+        // Method 2: Buffer download fallback
+        const fileRes = await axios.get(downloadUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          },
+          responseType: 'arraybuffer',
+          timeout: 180000
+        });
+
+        const buffer = Buffer.from(fileRes.data);
+
+        await conn.sendMessage(m.chat, {
+          document: buffer,
+          mimetype: 'application/vnd.android.package-archive',
+          fileName: `${safeName}.${ext}`,
+          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر Uptodown*\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+
+        return m.react('✅');
+      }
     } catch (err) {
       console.error('[Uptodown DL Error]', err.message);
       await m.react('❌');
