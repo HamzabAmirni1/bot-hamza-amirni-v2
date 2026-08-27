@@ -1,133 +1,92 @@
-import crypto from 'crypto'
-import yts from 'yt-search'
-import axios from 'axios'
+import yts from 'yt-search';
+import { downloadYouTube, getVideoId, cleanTitle } from '../lib/ytdl.js';
+import { downloadWithProgress } from '../lib/downloadProgress.js';
 
-class YTDL {
-  constructor() {
-    this.headers = {
-      'X-Package-Name': 'com.dapascript.mever',
-      'User-Agent':     'okhttp/4.11.0',
-    }
-  }
-
-  getVideoId(url) {
-    const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/)
-    if (!match) throw new Error('Invalid YouTube URL')
-    return match[1]
-  }
-
-  async download(url, type = 'audio') {
-    const id = this.getVideoId(url)
-    const apiType = type === 'video' ? 'mp4' : 'mp3'
-    const endpoint = `https://mever.zeabur.app/api/youtube?url=https://www.youtube.com/watch?v=${id}&type=${apiType}`
-    
-    const res = await axios.get(endpoint, { headers: this.headers, timeout: 20000 })
-    if (!res.data || !res.data.status) {
-      throw new Error(res.data?.message || 'Failed to download from Mever API')
-    }
-    
-    return {
-      url: res.data.data.url,
-      title: res.data.data.title || 'YouTube Download',
-      thumbnail: res.data.data.thumbnail || '',
-      duration: res.data.data.duration || 0,
-      size: res.data.data.size || '0 MB',
-      quality: res.data.data.quality || '320kbps'
-    }
-  }
-}
-
-const ytdl = new YTDL()
-
-export async function ytdown(url, type = 'mp3') {
-  const t = type === 'video' ? 'video' : 'audio';
-  const id = ytdl.getVideoId(url);
-  
-  const search = await yts({ videoId: id });
-  const info = {
-    title: search.title || 'YouTube Video',
-    thumbnail: search.image || search.thumbnail || '',
-    duration: search.duration?.timestamp || search.duration?.seconds || 0,
-    uploader: search.author?.name || 'YouTube',
-    views: search.views || 0,
-    publishDate: search.ago || '',
-  };
-
-  const result = await ytdl.download(url, t);
-  return {
-    download: result.url,
-    url: result.url,
-    videoId: id,
-    info: {
-      ...info,
-      size: result.size
-    }
-  };
-}
-
-let handler = async (m, { conn, text }) => {
-  let user = global.db.data.users[m.sender] || {};
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+  let user = global.db?.data?.users?.[m.sender] || {};
   let lang = user.language || 'darija';
-  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : da;
+  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : (da || ar);
 
-  if (!text) {
-    const guide = t(
-`*『 YOUTUBE MP3 DOWNLOADER 』*
+  const query = (text || '').trim();
+  if (!query) {
+    const guide =
+      `🎵 *『 محمل صوتيات يوتيوب MP3 』*\n\n` +
+      `تحميل الصوتيات والأغاني من يوتيوب بجودة عالية MP3.\n\n` +
+      `*طريقة الاستخدام:*\n` +
+      `← ${usedPrefix + command} <رابط يوتيوب أو اسم الأغنية>\n\n` +
+      `*أمثلة:*\n` +
+      `← ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ\n` +
+      `← ${usedPrefix + command} Saad Lamjarred Ghazali\n\n` +
+      `⚡ *bot amirni hamza*`;
 
-Download audio from YouTube straight into this chat.
-
-*How to use:*
-> .ytmp3 <YouTube URL>
-
-*Example:*
-> .ytmp3 https://youtu.be/iSctNMm1XdA`,
-
-`*『 محمل صوتيات يوتيوب MP3 』*
-
-تحميل الصوتيات من يوتيوب مباشرة إلى المحادثة.
-
-*طريقة الاستخدام:*
-> .ytmp3 <رابط يوتيوب>
-
-*مثال:*
-> .ytmp3 https://youtu.be/iSctNMm1XdA`,
-
-`*『 تحميل صوت يوتيوب MP3 』*
-
-هبط الصوت من يوتيوب لـ الشات مباشرة.
-
-*طريقة الاستخدام:*
-> .ytmp3 <رابط يوتيوب>
-
-*مثال:*
-> .ytmp3 https://youtu.be/iSctNMm1XdA`
-    );
-
-    return conn.sendMessage(m.chat, { text: guide }, { quoted: m })
+    return conn.reply(m.chat, guide, m);
   }
+
+  await m.react('⏳');
 
   try {
-    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } })
+    let videoUrl = query;
+    let videoTitle = 'YouTube Audio';
+    let thumbnail = '';
 
-    const result = await ytdown(text.trim(), 'audio')
+    // If query is not a direct URL, search YouTube first
+    if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
+      const search = await yts(query);
+      const topVideo = search?.videos?.[0];
+      if (!topVideo) {
+        await m.react('❌');
+        return m.reply(t('❌ No YouTube results found.', '❌ لم يتم العثور على نتائج في يوتيوب.', '❌ مالقينا حتى نتيجة فـ يوتيوب.'));
+      }
+      videoUrl = topVideo.url;
+      videoTitle = topVideo.title;
+      thumbnail = topVideo.thumbnail || topVideo.image || '';
+    }
 
+    // Download via 7-provider fallback engine
+    const result = await downloadYouTube(videoUrl, 'mp3');
+    const safeTitle = cleanTitle(result.title || videoTitle);
+    const thumbUrl = result.thumbnail || thumbnail;
+
+    // Send thumbnail preview if available
+    if (thumbUrl) {
+      try {
+        await conn.sendMessage(m.chat, {
+          image: { url: thumbUrl },
+          caption: `🎵 *${safeTitle}*\n⏳ *جاري تجهيز وتحميل ملف الـ MP3...*\n\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+      } catch (_) {}
+    }
+
+    // Live progress bar tracking
+    try {
+      await downloadWithProgress(result.download, {
+        m, conn,
+        title: safeTitle,
+        emoji: '🎵',
+      });
+    } catch (pErr) {
+      console.log('[ytmp3] Progress notice:', pErr.message);
+    }
+
+    // Dispatch MP3 via Baileys native URL streaming (0 RAM)
     await conn.sendMessage(m.chat, {
-      audio: { url: result.url },
+      audio: { url: result.download },
       mimetype: 'audio/mpeg',
-      fileName: `${result.info.title}.mp3`,
+      fileName: `${safeTitle}.mp3`,
       ptt: false
-    }, { quoted: m })
+    }, { quoted: m });
 
-    await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
-  } catch (e) {
-    await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } })
-    await conn.sendMessage(m.chat, { text: t(`Failed to download: ${e.message}`, `فشل التحميل: ${e.message}`, `ما قدرناش ننزلوا الصوت: ${e.message}`) }, { quoted: m })
+    await m.react('✅');
+  } catch (err) {
+    console.error('[ytmp3 error]', err.message);
+    await m.react('❌');
+    conn.reply(m.chat, `❌ ${err.message || 'فشل تحميل الصوت من يوتيوب. المرجو المحاولة مجدداً.'}`, m);
   }
-}
+};
 
-handler.help = ['ytmp3', 'yta', 'ytaudio', 'mp3']
-handler.command = /^(ytmp3|yta|ytaudio|mp3|صوت_يوتيوب)$/i
-handler.tags = ['downloader']
-handler.limit = false
+handler.help = ['ytmp3', 'yta', 'ytaudio', 'mp3', 'صوت_يوتيوب'];
+handler.command = /^(ytmp3|yta|ytaudio|mp3|صوت_يوتيوب)$/i;
+handler.tags = ['downloader'];
+handler.limit = false;
 
-export default handler
+export default handler;

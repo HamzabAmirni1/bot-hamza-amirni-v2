@@ -1,8 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import yts from 'yt-search';
-import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
-import { downloadYouTube } from './ytdl.js';
+import { downloadYouTube } from '../lib/ytdl.js';
 
 // ============================================================
 // AUDIO DOWNLOADERS — Fallback chain
@@ -529,14 +528,23 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 		}
 
-		// Try video downloaders in fallback order (Convert1s first)
+		// Try video downloaders in fallback order
 		let videoData = null;
-		for (const fn of [ytmp4Convert1s, ytmp4Mever, ytmp4Vreden, ytmp4Nekolabs, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s]) {
-			try {
-				videoData = await fn(videoUrl);
-				if (videoData?.download) break;
-			} catch (e) {
-				console.log('[ytsplay/video] failed:', e.message);
+		try {
+			const res = await downloadYouTube(videoUrl, 'mp4');
+			if (res?.download) videoData = res;
+		} catch (e) {
+			console.log('[ytsplay/video] downloadYouTube failed:', e.message);
+		}
+
+		if (!videoData?.download) {
+			for (const fn of [ytmp4Convert1s, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s, ytmp4Mever]) {
+				try {
+					videoData = await fn(videoUrl);
+					if (videoData?.download) break;
+				} catch (e) {
+					console.log('[ytsplay/video] fallback failed:', e.message);
+				}
 			}
 		}
 
