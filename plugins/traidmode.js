@@ -171,6 +171,14 @@ async function resolveDirectApk(url) {
   return { url };
 }
 
+function cleanFileName(text) {
+  return (text || 'app')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\.apk$/i, '')
+    .trim();
+}
+
 let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   // ── Download mode: .traiddl <post_url_or_direct_url> ───────────
   if (/^traiddl$/i.test(command)) {
