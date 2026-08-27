@@ -102,9 +102,22 @@ export class APKPureScraper {
       }
 
       let realTitle = slugName || pkg || 'App';
-      let downloadUrl = pkg ? `https://d.apkpure.com/b/APK/${pkg}?version=latest` : '';
+      let downloadUrl = '';
 
-      // Try fetching download page to get exact title and direct link if available
+      // 1. Try Aptoide CDN first (Rock solid, fast, never 403)
+      if (pkg) {
+        try {
+          const { data } = await axios.get(`https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(pkg)}&limit=1`, { timeout: 8000 });
+          const item = data?.datalist?.list?.[0];
+          if (item?.file?.path) {
+            downloadUrl = item.file.path_alt || item.file.path;
+            if (item.name) realTitle = item.name;
+            if (item.icon && !icon) icon = item.icon;
+          }
+        } catch (_) {}
+      }
+
+      // 2. Try fetching download page to get exact title and direct link if available
       try {
         const downloadPage = pageUrl.endsWith('/download') ? pageUrl : `${pageUrl}/download`;
         const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 10000 });
@@ -118,11 +131,15 @@ export class APKPureScraper {
 
         const iconSrc = $('img.icon, .banner img, .head-info img, .icon img').first().attr('src') ||
                         $('img[alt*="icon" i], img.pic').first().attr('src') || '';
-        if (iconSrc) icon = iconSrc;
+        if (iconSrc && !icon) icon = iconSrc;
 
-        const directBtn = $('#download_link, a.download-btn, a[href*="d.apkpure.com"]').attr('href');
-        if (directBtn) downloadUrl = directBtn;
+        const directBtn = $('#download_link, a.download-btn, a[href*="winudf.com"], a[href*="download.apkpure"]').attr('href');
+        if (directBtn && !directBtn.includes('d.apkpure.com')) downloadUrl = directBtn;
       } catch (_) {}
+
+      if (!downloadUrl && pkg) {
+        downloadUrl = `https://d.apkpure.com/b/APK/${pkg}?version=latest`;
+      }
 
       return {
         title: realTitle,

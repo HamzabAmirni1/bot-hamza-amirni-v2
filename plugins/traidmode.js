@@ -124,8 +124,51 @@ export class TraidModeScraper {
   }
 }
 
-function cleanFileName(text) {
-  return (text || 'app').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+async function resolveDirectApk(url) {
+  if (!url) return { url: null };
+
+  // If already a direct non-d.apkpure file link, return it
+  if (url.startsWith('http') && !url.includes('d.apkpure.com')) {
+    return { url };
+  }
+
+  // Extract package name from URL
+  const pkgMatch = url.match(/(?:APK\/|\/b\/|\/app\/|id=|\/)([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/);
+  const pkg = pkgMatch ? pkgMatch[1] : '';
+
+  if (pkg) {
+    // 1. Try Aptoide CDN (Always working, high-speed, never 403)
+    try {
+      const { data } = await axios.get(`https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(pkg)}&limit=1`, { timeout: 8000 });
+      const item = data?.datalist?.list?.[0];
+      if (item?.file?.path) {
+        return {
+          url: item.file.path_alt || item.file.path,
+          name: item.name,
+          icon: item.icon,
+          size: item.size
+        };
+      }
+    } catch (_) {}
+
+    // 2. Try APKPure tokenized download link
+    try {
+      const { data: html } = await axios.get(`https://apkpure.net/app/${pkg}/download`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://apkpure.net/'
+        },
+        timeout: 10000
+      });
+      const $ = cheerio.load(html);
+      const tokenUrl = $('#download_link, a.download-btn, a[href*="winudf.com"], a[href*="download.apkpure"]').attr('href');
+      if (tokenUrl && !tokenUrl.includes('d.apkpure.com')) {
+        return { url: tokenUrl };
+      }
+    } catch (_) {}
+  }
+
+  return { url };
 }
 
 let handler = async (m, { conn, text, args, command, usedPrefix }) => {
@@ -156,6 +199,14 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
     if (!directUrl) {
       await m.react('❌');
       return m.reply('❌ تعذر العثور على رابط التحميل المباشر.');
+    }
+
+    // Resolve directUrl if it is d.apkpure.com to avoid 403
+    const resolved = await resolveDirectApk(directUrl);
+    if (resolved.url) {
+      directUrl = resolved.url;
+      if (resolved.name && apkTitle === 'TraidMode App') apkTitle = resolved.name;
+      if (resolved.icon && !apkIcon) apkIcon = resolved.icon;
     }
 
     try {
