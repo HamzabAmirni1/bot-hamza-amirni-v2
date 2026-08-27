@@ -74,7 +74,6 @@ async function searchAptoide(query, limit = 6) {
 	}
 }
 
-// ── Get Download details for a specific package ────────────
 async function getDownloadDetails(pkgName) {
 	try {
 		// Fetch info via searching package specifically
@@ -87,6 +86,7 @@ async function getDownloadDetails(pkgName) {
 				sizeBytes: app.size,
 				sizeMB: (app.size / (1024 * 1024)).toFixed(1),
 				version: app.file?.vername || 'N/A',
+				icon: app.icon || '',
 				downloadUrl: app.file?.path_alt || app.file?.path
 			};
 		}
@@ -205,9 +205,22 @@ const handler = async (m, { conn, text, command }) => {
 				return m.reply(t(`⚠️ *${info.name}* is too large (${info.sizeMB} MB) to send via WhatsApp (max 300MB).`, `⚠️ *${info.name}* كبير جداً (${info.sizeMB} MB) للإرسال عبر واتساب (الحد الأقصى 300MB).\n\nيمكنك تحميله يدوياً.`, `⚠️ *${info.name}* كبير بزاف (${info.sizeMB} MB) باش نصيفطوه فواتساب (حد أقصى 300MB).`));
 			}
 
-			await conn.sendMessage(m.chat, {
-				text: t(`📦 *${info.name}*\n🔢 *Version:* ${info.version}\n⚖️ *Size:* ${info.sizeMB} MB\n\n⏳ *Sending APK file...*`, `📦 *${info.name}*\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⏳ *جاري إرسال ملف APK...*`, `📦 *${info.name}*\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⏳ *صابر، كنعمروا ملف APK...*`)
-			}, { quoted: m });
+			const captionPreview = t(
+				`📦 *${info.name}*\n🔢 *Version:* ${info.version}\n⚖️ *Size:* ${info.sizeMB} MB\n\n⏳ *Sending APK file...*`,
+				`📦 *${info.name}*\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⏳ *جاري إرسال ملف APK...*`,
+				`📦 *${info.name}*\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⏳ *صابر، كنعمروا ملف APK...*`
+			);
+
+			if (info.icon) {
+				await conn.sendMessage(m.chat, {
+					image: { url: info.icon },
+					caption: captionPreview
+				}, { quoted: m });
+			} else {
+				await conn.sendMessage(m.chat, {
+					text: captionPreview
+				}, { quoted: m });
+			}
 
 			// Stream directly from Aptoide CDN via Baileys (0% local RAM overhead)
 			await conn.sendMessage(m.chat, {

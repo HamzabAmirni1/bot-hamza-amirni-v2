@@ -116,6 +116,10 @@ export class APKPureScraper {
           realTitle = pageTitle;
         }
 
+        const iconSrc = $('img.icon, .banner img, .head-info img, .icon img').first().attr('src') ||
+                        $('img[alt*="icon" i], img.pic').first().attr('src') || '';
+        if (iconSrc) icon = iconSrc;
+
         const directBtn = $('#download_link, a.download-btn, a[href*="d.apkpure.com"]').attr('href');
         if (directBtn) downloadUrl = directBtn;
       } catch (_) {}
@@ -123,11 +127,12 @@ export class APKPureScraper {
       return {
         title: realTitle,
         downloadUrl,
+        icon,
         pkg
       };
     } catch (e) {
       console.error('[APKPure Download Extraction Error]', e.message);
-      return { title: 'App', downloadUrl: null };
+      return { title: 'App', downloadUrl: null, icon: '' };
     }
   }
 }
@@ -151,6 +156,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
     const details = await APKPureScraper.getDownloadDetails(target);
     let downloadUrl = details.downloadUrl;
     let appTitle = details.title;
+    let appIcon = details.icon;
 
     if (!downloadUrl) {
       const searchRes = await APKPureScraper.search(target);
@@ -158,6 +164,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         const subDetails = await APKPureScraper.getDownloadDetails(searchRes[0].link);
         downloadUrl = subDetails.downloadUrl;
         appTitle = searchRes[0].title || subDetails.title;
+        appIcon = searchRes[0].icon || subDetails.icon;
       }
     }
 
@@ -188,7 +195,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         );
       }
 
-      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من APKPure...`, m);
+      // Send photo preview with loading message
+      if (appIcon) {
+        await conn.sendMessage(m.chat, {
+          image: { url: appIcon },
+          caption: `📦 *${appTitle}*\n⏳ *جاري تحميل وتجهيز ملف الـ APK من متجر APKPure...*\n\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+      } else {
+        await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من APKPure...`, m);
+      }
 
       const fileRes = await axios.get(downloadUrl, {
         headers: HEADERS,

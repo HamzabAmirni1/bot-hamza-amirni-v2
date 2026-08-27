@@ -1,4 +1,4 @@
-﻿/*
+/*
   Uptodown (uptodown.com) Scraper & Downloader
   Commands:
     .apku <query>
@@ -131,6 +131,9 @@ export class UptodownScraper {
           realTitle = pageTitle;
         }
 
+        const iconSrc = $('img#detail-app-icon, .icon img, figure img, img.feature').first().attr('src') || '';
+        if (iconSrc) icon = iconSrc;
+
         directUrl = $('#detail-download-button').attr('data-url') ||
                     $('button[data-url]').attr('data-url') ||
                     $('a.button.download').attr('href') ||
@@ -144,11 +147,12 @@ export class UptodownScraper {
 
       return {
         title: realTitle,
-        downloadUrl: directUrl
+        downloadUrl: directUrl,
+        icon
       };
     } catch (e) {
       console.error('[Uptodown Download Extraction Error]', e.message);
-      return { title: 'App', downloadUrl: null };
+      return { title: 'App', downloadUrl: null, icon: '' };
     }
   }
 }
@@ -171,16 +175,19 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
     let downloadUrl = '';
     let appTitle = 'Uptodown App';
+    let appIcon = '';
 
     if (target.startsWith('http')) {
       const details = await UptodownScraper.getDownloadDetails(target);
       downloadUrl = details.downloadUrl;
       appTitle = details.title;
+      appIcon = details.icon;
     }
 
     if (!downloadUrl) {
       const searchRes = await UptodownScraper.search(target);
       if (searchRes.length > 0) {
+        appIcon = searchRes[0].icon || '';
         if (searchRes[0].direct && searchRes[0].link) {
           downloadUrl = searchRes[0].link;
           appTitle = searchRes[0].title;
@@ -188,6 +195,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
           const details = await UptodownScraper.getDownloadDetails(searchRes[0].link);
           downloadUrl = details.downloadUrl;
           appTitle = searchRes[0].title || details.title;
+          if (details.icon) appIcon = details.icon;
         }
       }
     }
@@ -218,7 +226,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         );
       }
 
-      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من Uptodown...`, m);
+      // Send photo preview with loading message
+      if (appIcon) {
+        await conn.sendMessage(m.chat, {
+          image: { url: appIcon },
+          caption: `📦 *${appTitle}*\n⏳ *جاري تحميل وتجهيز ملف الـ APK من متجر Uptodown...*\n\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+      } else {
+        await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من Uptodown...`, m);
+      }
 
       const fileRes = await axios.get(downloadUrl, {
         headers: HEADERS,

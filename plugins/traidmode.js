@@ -83,6 +83,8 @@ export class TraidModeScraper {
       const $ = cheerio.load(html);
       const downloadOptions = [];
 
+      const pageIcon = $('article img, .post-thumbnail img, .entry-content img, .icon img').first().attr('src') || '';
+
       $('ul li').each((_, el) => {
         const nameHeader = $(el).find('span[show-download-item]').text().trim();
         const anchor = $(el).find('.downloadLink a, a[href*="/get/?urls="]');
@@ -107,6 +109,7 @@ export class TraidModeScraper {
               name: (apkName || 'APK').replace(/\s+/g, ' ').trim(),
               downloadUrl: directUrl,
               size: btnText.replace(/تحميل/g, '').trim(),
+              icon: pageIcon,
               rawText: btnText
             });
           }
@@ -135,6 +138,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
     let directUrl = '';
     let apkTitle = 'TraidMode App';
+    let apkIcon = '';
 
     if (target.startsWith('http') && target.includes('traidmode.com')) {
       const options = await TraidModeScraper.getDownloadOptions(target);
@@ -144,6 +148,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       }
       directUrl = options[0].downloadUrl;
       apkTitle = options[0].name || apkTitle;
+      apkIcon = options[0].icon || '';
     } else if (target.startsWith('http')) {
       directUrl = target;
     }
@@ -175,7 +180,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         );
       }
 
-      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز ملف الـ APK (${apkTitle})...`, m);
+      // Send photo preview with loading message
+      if (apkIcon) {
+        await conn.sendMessage(m.chat, {
+          image: { url: apkIcon },
+          caption: `🎮 *${apkTitle}*\n⏳ *جاري تحميل وتجهيز ملف الـ APK المهكر...*\n\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+      } else {
+        await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز ملف الـ APK (${apkTitle})...`, m);
+      }
 
       const fileRes = await axios.get(directUrl, {
         headers: HEADERS,
