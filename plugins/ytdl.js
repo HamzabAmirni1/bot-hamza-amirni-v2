@@ -1,4 +1,4 @@
-﻿/*
+/*
   YouTube Downloader — Multi-provider fallback chain (ported from hamza-chatbot-main)
   Providers: YTConvert -> Convert1s -> SaveTube -> SaveNow -> Ootaizumi
 */
@@ -159,9 +159,9 @@ let handler = async (m, { conn, args }) => {
   try {
     const head = await axios.head(data.download, { timeout: 10000 });
     const sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024);
-    if (sizeMB > 95) {
+    if (sizeMB > 300) {
       await m.react('❌');
-      return conn.reply(m.chat, `❌ الفيديو كبير جداً (${sizeMB.toFixed(1)} MB)\n\n🔗 تقدر تحمله من هنا:\n${data.download}`, m);
+      return conn.reply(m.chat, `❌ الفيديو كبير جداً (${sizeMB.toFixed(1)} MB) — أكبر من 300MB ولا يمكن إرساله عبر واتساب.\n\n🔗 رابط التحميل المباشر:\n${data.download}`, m);
     }
   } catch (_) {}
 

@@ -212,15 +212,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024);
       } catch (_) {}
 
-      if (sizeMB > 95) {
-        await m.react('✅');
+      if (sizeMB > 300) {
+        await m.react('❌');
         return conn.reply(
           m.chat,
           `📦 *${appTitle}*\n` +
           `━━━━━━━━━━━━━━━━━━━━━\n` +
-          `⚖️ *الحجم:* ${sizeMB ? sizeMB.toFixed(1) + ' MB' : 'أكبر من 95 MB'}\n` +
-          `⚠️ *الملف كبير الحجم بالنسبة للواتساب.*\n\n` +
-          `🔗 *رابط التحميل المباشر والسريع من Uptodown:*\n${downloadUrl}\n\n` +
+          `⚖️ *الحجم:* ${sizeMB.toFixed(1)} MB\n` +
+          `⚠️ *الملف أكبر من 300MB ولا يمكن إرساله عبر واتساب.*\n\n` +
+          `🔗 *رابط التحميل المباشر:*\n${downloadUrl}\n\n` +
           `⚡ *bot amirni hamza*`,
           m
         );

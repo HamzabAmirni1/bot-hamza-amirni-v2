@@ -38,7 +38,7 @@ let handler = async (m, { conn, text }) => {
 
     const data = await mediafireDl(text)
 
-    // Optional file size protection (example: 100MB limit)
+    // File size protection: max 300MB
     const sizeMatch = data.filesize?.match(/([\d.]+)\s*(KB|MB|GB)/i)
     if (sizeMatch) {
       const size = parseFloat(sizeMatch[1])
@@ -48,8 +48,19 @@ let handler = async (m, { conn, text }) => {
       if (unit === 'KB') sizeMB = size / 1024
       if (unit === 'GB') sizeMB = size * 1024
 
-      if (sizeMB > 100)
-        throw 'File is too large. Maximum allowed size is 100MB.'
+      if (sizeMB > 300) {
+        await m.react('❌');
+        return conn.reply(
+          m.chat,
+          `📦 *${data.filename}*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚖️ *الحجم:* ${data.filesize}\n` +
+          `⚠️ *الملف أكبر من 300MB ولا يمكن إرساله عبر واتساب.*\n\n` +
+          `🔗 *رابط التحميل المباشر:*\n${data.download}\n\n` +
+          `⚡ *bot amirni hamza*`,
+          m
+        );
+      }
     }
 
     // Download file as buffer
