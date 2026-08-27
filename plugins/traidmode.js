@@ -241,30 +241,20 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
       // Send photo preview with loading message
       if (apkIcon) {
-        await conn.sendMessage(m.chat, {
-          image: { url: apkIcon },
-          caption: `🎮 *${apkTitle}*\n⏳ *جاري التحميل...*\n\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
+        try {
+          await conn.sendMessage(m.chat, {
+            image: { url: apkIcon },
+            caption: `🎮 *${apkTitle}*\n⏳ *جاري تجهيز وتحميل ملف الـ APK المهكر...*\n\n⚡ *bot amirni hamza*`
+          }, { quoted: m });
+        } catch (_) {}
       }
 
       const isXapk = directUrl.includes('.xapk') || directUrl.includes('xapk');
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(apkTitle);
 
-      // Method 1: Stream directly via Baileys (Fastest & 0% local RAM overhead)
       try {
-        await conn.sendMessage(m.chat, {
-          document: { url: directUrl },
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } catch (streamErr) {
-        console.log('[TraidMode] Stream failed, switching to progress bar download...', streamErr.message);
-
-        // Method 2: Download with live progress bar
+        // Primary: Download with live progress bar
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
         const buffer = await downloadWithProgress(directUrl, {
           m, conn,
@@ -274,6 +264,18 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
         await conn.sendMessage(m.chat, {
           document: buffer,
+          mimetype: 'application/vnd.android.package-archive',
+          fileName: `${safeName}.${ext}`,
+          caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+
+        return m.react('✅');
+      } catch (progressErr) {
+        console.log('[TraidMode] Progress download fallback to stream:', progressErr.message);
+
+        // Fallback: Direct Baileys stream
+        await conn.sendMessage(m.chat, {
+          document: { url: directUrl },
           mimetype: 'application/vnd.android.package-archive',
           fileName: `${safeName}.${ext}`,
           caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`

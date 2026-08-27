@@ -165,15 +165,31 @@ let handler = async (m, { conn, args }) => {
     }
   } catch (_) {}
 
-  const fileRes = await axios.get(data.download, { responseType: 'arraybuffer', timeout: 120000 });
-  const buffer = Buffer.from(fileRes.data);
+  const { downloadWithProgress } = await import('../lib/downloadProgress.js');
   const safeTitle = cleanFileName(data.title);
+
+  // Send thumbnail preview if available
+  if (data.thumb) {
+    try {
+      await conn.sendMessage(m.chat, {
+        image: { url: data.thumb },
+        caption: `🎥 *${safeTitle}*\n⏳ *جاري التحميل...*\n\n⚡ *bot amirni hamza*`
+      }, { quoted: m });
+    } catch (_) {}
+  }
+
+  // Download with live progress bar
+  const buffer = await downloadWithProgress(data.download, {
+    m, conn,
+    title: safeTitle,
+    emoji: '🎥',
+  });
 
   await conn.sendMessage(m.chat, {
     document: buffer,
     mimetype: 'video/mp4',
     fileName: `${safeTitle}.mp4`,
-    caption: `🎥 *${safeTitle}*\n⚡ *bot amirni hamza*`
+    caption: `🎥 *${safeTitle}*\n✅ *تم التحميل بنجاح*\n⚡ *bot amirni hamza*`
   }, { quoted: m });
 
   await m.react('✅');

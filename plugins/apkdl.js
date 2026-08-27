@@ -212,23 +212,37 @@ const handler = async (m, { conn, text, command }) => {
 			);
 
 			if (info.icon) {
-				await conn.sendMessage(m.chat, {
-					image: { url: info.icon },
-					caption: captionPreview
-				}, { quoted: m });
-			} else {
-				await conn.sendMessage(m.chat, {
-					text: captionPreview
-				}, { quoted: m });
+				try {
+					await conn.sendMessage(m.chat, {
+						image: { url: info.icon },
+						caption: captionPreview
+					}, { quoted: m });
+				} catch (_) {}
 			}
 
-			// Stream directly from Aptoide CDN via Baileys (0% local RAM overhead)
-			await conn.sendMessage(m.chat, {
-				document: { url: info.downloadUrl },
-				fileName: `${info.name}_v${info.version}.apk`,
-				mimetype: 'application/vnd.android.package-archive',
-				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
-			}, { quoted: m });
+			try {
+				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+				const buffer = await downloadWithProgress(info.downloadUrl, {
+					m, conn,
+					title: info.name,
+					emoji: '📦',
+				});
+
+				await conn.sendMessage(m.chat, {
+					document: buffer,
+					fileName: `${info.name}_v${info.version}.apk`,
+					mimetype: 'application/vnd.android.package-archive',
+					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+			} catch (progErr) {
+				console.log('[apkdl] Progress download fallback to stream:', progErr.message);
+				await conn.sendMessage(m.chat, {
+					document: { url: info.downloadUrl },
+					fileName: `${info.name}_v${info.version}.apk`,
+					mimetype: 'application/vnd.android.package-archive',
+					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+			}
 
 			if (!isAdminUser(sender, m)) {
 				incrementDownload(sender);

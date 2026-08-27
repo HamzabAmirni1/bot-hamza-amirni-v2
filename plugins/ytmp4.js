@@ -87,12 +87,29 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
 
 		const result = await ytmp4(url, quality)
 
-		await conn.sendMessage(m.chat, {
-			video: { url: result.downloadUrl },
-			mimetype: 'video/mp4',
-			fileName: `${result.title || 'video'}.mp4`,
-			caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p`,
-		}, { quoted: m })
+		try {
+			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+			const buffer = await downloadWithProgress(result.downloadUrl, {
+				m, conn,
+				title: result.title || 'YouTube Video',
+				emoji: '🎬',
+			});
+
+			await conn.sendMessage(m.chat, {
+				video: buffer,
+				mimetype: 'video/mp4',
+				fileName: `${result.title || 'video'}.mp4`,
+				caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p\n⚡ *bot amirni hamza*`,
+			}, { quoted: m });
+		} catch (progErr) {
+			console.log('[ytmp4] Progress download fallback to stream:', progErr.message);
+			await conn.sendMessage(m.chat, {
+				video: { url: result.downloadUrl },
+				mimetype: 'video/mp4',
+				fileName: `${result.title || 'video'}.mp4`,
+				caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p\n⚡ *bot amirni hamza*`,
+			}, { quoted: m });
+		}
 
 		await m.react('✅')
 	} catch (e) {

@@ -215,39 +215,41 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
       // Send photo preview with loading message
       if (appIcon) {
-        await conn.sendMessage(m.chat, {
-          image: { url: appIcon },
-          caption: `📦 *${appTitle}*\n⏳ *جاري التحميل من متجر APKPure...*\n\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
+        try {
+          await conn.sendMessage(m.chat, {
+            image: { url: appIcon },
+            caption: `📦 *${appTitle}*\n⏳ *جاري تجهيز وتحميل ملف الـ APK...*\n\n⚡ *bot amirni hamza*`
+          }, { quoted: m });
+        } catch (_) {}
       }
 
       const isXapk = downloadUrl.includes('.xapk') || downloadUrl.includes('xapk');
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(appTitle);
 
-      // Method 1: Stream directly via Baileys (Fastest & 0% local RAM overhead)
       try {
-        await conn.sendMessage(m.chat, {
-          document: { url: downloadUrl },
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } catch (streamErr) {
-        console.log('[APKPure] Stream failed, switching to progress bar download...', streamErr.message);
-
-        // Method 2: Download with live progress bar
-        const { downloadWithProgress, clearProgressMsg } = await import('../lib/downloadProgress.js');
+        // Primary: Download with live progress bar that updates in real-time
+        const { downloadWithProgress } = await import('../lib/downloadProgress.js');
         const buffer = await downloadWithProgress(downloadUrl, {
           m, conn,
           title: appTitle,
           emoji: '📦',
         });
 
-        const sent = await conn.sendMessage(m.chat, {
+        await conn.sendMessage(m.chat, {
           document: buffer,
+          mimetype: 'application/vnd.android.package-archive',
+          fileName: `${safeName}.${ext}`,
+          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
+        }, { quoted: m });
+
+        return m.react('✅');
+      } catch (progressErr) {
+        console.log('[APKPure] Progress download fallback to stream:', progressErr.message);
+
+        // Fallback: Direct Baileys stream
+        await conn.sendMessage(m.chat, {
+          document: { url: downloadUrl },
           mimetype: 'application/vnd.android.package-archive',
           fileName: `${safeName}.${ext}`,
           caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
