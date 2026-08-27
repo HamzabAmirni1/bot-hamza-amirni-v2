@@ -1703,13 +1703,17 @@ async function restoreAllSessions() {
     let count = 0;
     const seenPhones = new Set();
     for (const r of rows) {
-      if (r.phone_number && r.session_data && r.status === 'connected') {
-        const cleanP = r.phone_number.toString().replace(/[^0-9]/g, '');
+      if (r.phone_number && r.session_data) {
+        let cleanP = r.phone_number.toString().replace(/[^0-9]/g, '');
+        // Fix Moroccan numbers formatted as 21206... -> 2126...
+        if (cleanP.startsWith('2120') && cleanP.length === 13) {
+          cleanP = '212' + cleanP.slice(4);
+        }
         if (cleanP.length < 10 || seenPhones.has(cleanP)) continue;
         seenPhones.add(cleanP);
 
         const buffer = Buffer.from(r.session_data, 'base64');
-        if (buffer.length > 5000) {
+        if (buffer.length > 1000) {
           const targetDir = getBotSessionDir(cleanP);
           const targetDb = getBotDbPath(cleanP);
           mkdirSync(targetDir, { recursive: true });
@@ -1740,7 +1744,10 @@ const lastBackupTimes = new Map();
 
 async function backupSessionForPhone(phone, force = false) {
   try {
-    const clean = (phone || '').toString().replace(/[^0-9]/g, '');
+    let clean = (phone || '').toString().replace(/[^0-9]/g, '');
+    if (clean.startsWith('2120') && clean.length === 13) {
+      clean = '212' + clean.slice(4);
+    }
     if (!clean || clean.length < 10) return;
 
     const now = Date.now();
@@ -1751,7 +1758,7 @@ async function backupSessionForPhone(phone, force = false) {
     if (!existsSync(phoneDbPath)) return;
 
     const content = readFileSync(phoneDbPath);
-    if (content.length < 5000) return;
+    if (content.length < 1000) return;
 
     lastBackupTimes.set(clean, now);
 
