@@ -103,6 +103,7 @@ export class APKPureScraper {
 
       let realTitle = slugName || pkg || 'App';
       let downloadUrl = '';
+      let icon = '';
 
       // 1. Try Aptoide CDN first (Rock solid, fast, never 403)
       if (pkg) {
