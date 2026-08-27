@@ -243,10 +243,8 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       if (apkIcon) {
         await conn.sendMessage(m.chat, {
           image: { url: apkIcon },
-          caption: `🎮 *${apkTitle}*\n⏳ *جاري تحميل وتجهيز ملف الـ APK المهكر...*\n\n⚡ *bot amirni hamza*`
+          caption: `🎮 *${apkTitle}*\n⏳ *جاري التحميل...*\n\n⚡ *bot amirni hamza*`
         }, { quoted: m });
-      } else {
-        await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز ملف الـ APK (${apkTitle})...`, m);
       }
 
       const isXapk = directUrl.includes('.xapk') || directUrl.includes('xapk');
@@ -264,19 +262,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
         return m.react('✅');
       } catch (streamErr) {
-        console.log('[TraidMode] Stream failed, downloading buffer fallback...', streamErr.message);
+        console.log('[TraidMode] Stream failed, switching to progress bar download...', streamErr.message);
 
-        // Method 2: Buffer download fallback
-        const fileRes = await axios.get(directUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': '*/*'
-          },
-          responseType: 'arraybuffer',
-          timeout: 180000
+        // Method 2: Download with live progress bar
+        const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+        const buffer = await downloadWithProgress(directUrl, {
+          m, conn,
+          title: apkTitle,
+          emoji: '🎮',
         });
-
-        const buffer = Buffer.from(fileRes.data);
 
         await conn.sendMessage(m.chat, {
           document: buffer,
