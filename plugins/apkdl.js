@@ -220,33 +220,24 @@ const handler = async (m, { conn, text, command }) => {
 				} catch (_) {}
 			}
 
-			let dl = null;
 			try {
 				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-				dl = await downloadWithProgress(info.downloadUrl, {
+				await downloadWithProgress(info.downloadUrl, {
 					m, conn,
 					title: info.name,
 					emoji: '📦',
 				});
-
-				const fs = await import('fs');
-				await conn.sendMessage(m.chat, {
-					document: fs.readFileSync(dl.filePath),
-					fileName: `${info.name}_v${info.version}.apk`,
-					mimetype: 'application/vnd.android.package-archive',
-					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
-				}, { quoted: m });
-			} catch (progErr) {
-				console.log('[apkdl] Progress download fallback to stream:', progErr.message);
-				await conn.sendMessage(m.chat, {
-					document: { url: info.downloadUrl },
-					fileName: `${info.name}_v${info.version}.apk`,
-					mimetype: 'application/vnd.android.package-archive',
-					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
-				}, { quoted: m });
-			} finally {
-				if (dl && dl.cleanup) dl.cleanup();
+			} catch (pErr) {
+				console.log('[apkdl] Progress download notice:', pErr.message);
 			}
+
+			// Direct Baileys 0-RAM URL stream
+			await conn.sendMessage(m.chat, {
+				document: { url: info.downloadUrl },
+				fileName: `${info.name}_v${info.version}.apk`,
+				mimetype: 'application/vnd.android.package-archive',
+				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
+			}, { quoted: m });
 
 			if (!isAdminUser(sender, m)) {
 				incrementDownload(sender);

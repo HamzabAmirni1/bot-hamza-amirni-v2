@@ -227,40 +227,27 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(appTitle);
 
-      let dl = null;
       try {
-        // Primary: Download with live progress bar that streams to disk (0 RAM overhead)
+        // Step 1: Live progress bar tracking
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-        dl = await downloadWithProgress(downloadUrl, {
+        await downloadWithProgress(downloadUrl, {
           m, conn,
           title: appTitle,
           emoji: '📦',
         });
-
-        const fs = await import('fs');
-        await conn.sendMessage(m.chat, {
-          document: fs.readFileSync(dl.filePath),
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } catch (progressErr) {
-        console.log('[APKPure] Progress download fallback to stream:', progressErr.message);
-
-        // Fallback: Direct Baileys stream
-        await conn.sendMessage(m.chat, {
-          document: { url: downloadUrl },
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } finally {
-        if (dl && dl.cleanup) dl.cleanup();
+      } catch (pErr) {
+        console.log('[APKPure] Progress bar stream notice:', pErr.message);
       }
+
+      // Step 2: Dispatch APK via Baileys 0-RAM direct URL streaming
+      await conn.sendMessage(m.chat, {
+        document: { url: downloadUrl },
+        mimetype: 'application/vnd.android.package-archive',
+        fileName: `${safeName}.${ext}`,
+        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
+      }, { quoted: m });
+
+      return m.react('✅');
     } catch (err) {
       console.error('[APKPure DL Error]', err.message);
       await m.react('❌');

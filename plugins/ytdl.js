@@ -178,27 +178,26 @@ let handler = async (m, { conn, args }) => {
     } catch (_) {}
   }
 
-  let dl = null;
   try {
     const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-    dl = await downloadWithProgress(data.download, {
+    await downloadWithProgress(data.download, {
       m, conn,
       title: safeTitle,
       emoji: '🎥',
     });
-
-    const fs = await import('fs');
-    await conn.sendMessage(m.chat, {
-      document: fs.readFileSync(dl.filePath),
-      mimetype: 'video/mp4',
-      fileName: `${safeTitle}.mp4`,
-      caption: `🎥 *${safeTitle}*\n✅ *تم التحميل بنجاح*\n⚡ *bot amirni hamza*`
-    }, { quoted: m });
-
-    await m.react('✅');
-  } finally {
-    if (dl && dl.cleanup) dl.cleanup();
+  } catch (pErr) {
+    console.log('[YTDL] Progress bar notice:', pErr.message);
   }
+
+  // Stream directly via Baileys (0% RAM overhead)
+  await conn.sendMessage(m.chat, {
+    document: { url: data.download },
+    mimetype: 'video/mp4',
+    fileName: `${safeTitle}.mp4`,
+    caption: `🎥 *${safeTitle}*\n✅ *تم التحميل بنجاح*\n⚡ *bot amirni hamza*`
+  }, { quoted: m });
+
+  await m.react('✅');
 };
 
 handler.help = ['ytdl', 'youtube', 'yt', 'يوتيوب'];

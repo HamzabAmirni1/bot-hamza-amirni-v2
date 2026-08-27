@@ -253,40 +253,27 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(apkTitle);
 
-      let dl = null;
       try {
-        // Primary: Download with live progress bar
+        // Step 1: Live progress bar tracking
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-        dl = await downloadWithProgress(directUrl, {
+        await downloadWithProgress(directUrl, {
           m, conn,
           title: apkTitle,
           emoji: '🎮',
         });
-
-        const fs = await import('fs');
-        await conn.sendMessage(m.chat, {
-          document: fs.readFileSync(dl.filePath),
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } catch (progressErr) {
-        console.log('[TraidMode] Progress download fallback to stream:', progressErr.message);
-
-        // Fallback: Direct Baileys stream
-        await conn.sendMessage(m.chat, {
-          document: { url: directUrl },
-          mimetype: 'application/vnd.android.package-archive',
-          fileName: `${safeName}.${ext}`,
-          caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-
-        return m.react('✅');
-      } finally {
-        if (dl && dl.cleanup) dl.cleanup();
+      } catch (pErr) {
+        console.log('[TraidMode] Progress bar stream notice:', pErr.message);
       }
+
+      // Step 2: Dispatch modded APK via Baileys 0-RAM direct URL streaming
+      await conn.sendMessage(m.chat, {
+        document: { url: directUrl },
+        mimetype: 'application/vnd.android.package-archive',
+        fileName: `${safeName}.${ext}`,
+        caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
+      }, { quoted: m });
+
+      return m.react('✅');
     } catch (err) {
       console.error('[TraidMode DL Error]', err.message);
       await m.react('❌');
