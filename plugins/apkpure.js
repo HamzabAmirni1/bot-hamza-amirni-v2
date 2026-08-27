@@ -227,17 +227,19 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(appTitle);
 
+      let dl = null;
       try {
-        // Primary: Download with live progress bar that updates in real-time
+        // Primary: Download with live progress bar that streams to disk (0 RAM overhead)
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-        const buffer = await downloadWithProgress(downloadUrl, {
+        dl = await downloadWithProgress(downloadUrl, {
           m, conn,
           title: appTitle,
           emoji: '📦',
         });
 
+        const fs = await import('fs');
         await conn.sendMessage(m.chat, {
-          document: buffer,
+          document: fs.readFileSync(dl.filePath),
           mimetype: 'application/vnd.android.package-archive',
           fileName: `${safeName}.${ext}`,
           caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
@@ -256,6 +258,8 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         }, { quoted: m });
 
         return m.react('✅');
+      } finally {
+        if (dl && dl.cleanup) dl.cleanup();
       }
     } catch (err) {
       console.error('[APKPure DL Error]', err.message);

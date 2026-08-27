@@ -220,16 +220,18 @@ const handler = async (m, { conn, text, command }) => {
 				} catch (_) {}
 			}
 
+			let dl = null;
 			try {
 				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-				const buffer = await downloadWithProgress(info.downloadUrl, {
+				dl = await downloadWithProgress(info.downloadUrl, {
 					m, conn,
 					title: info.name,
 					emoji: '📦',
 				});
 
+				const fs = await import('fs');
 				await conn.sendMessage(m.chat, {
-					document: buffer,
+					document: fs.readFileSync(dl.filePath),
 					fileName: `${info.name}_v${info.version}.apk`,
 					mimetype: 'application/vnd.android.package-archive',
 					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
@@ -242,6 +244,8 @@ const handler = async (m, { conn, text, command }) => {
 					mimetype: 'application/vnd.android.package-archive',
 					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
 				}, { quoted: m });
+			} finally {
+				if (dl && dl.cleanup) dl.cleanup();
 			}
 
 			if (!isAdminUser(sender, m)) {

@@ -240,17 +240,19 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(appTitle);
 
+      let dl = null;
       try {
         // Primary: Download with live progress bar
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-        const buffer = await downloadWithProgress(downloadUrl, {
+        dl = await downloadWithProgress(downloadUrl, {
           m, conn,
           title: appTitle,
           emoji: '📦',
         });
 
+        const fs = await import('fs');
         await conn.sendMessage(m.chat, {
-          document: buffer,
+          document: fs.readFileSync(dl.filePath),
           mimetype: 'application/vnd.android.package-archive',
           fileName: `${safeName}.${ext}`,
           caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر Uptodown*\n⚡ *bot amirni hamza*`
@@ -269,6 +271,8 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         }, { quoted: m });
 
         return m.react('✅');
+      } finally {
+        if (dl && dl.cleanup) dl.cleanup();
       }
     } catch (err) {
       console.error('[Uptodown DL Error]', err.message);

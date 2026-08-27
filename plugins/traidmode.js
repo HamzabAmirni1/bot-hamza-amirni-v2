@@ -253,17 +253,19 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const ext = isXapk ? 'xapk' : 'apk';
       const safeName = cleanFileName(apkTitle);
 
+      let dl = null;
       try {
         // Primary: Download with live progress bar
         const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-        const buffer = await downloadWithProgress(directUrl, {
+        dl = await downloadWithProgress(directUrl, {
           m, conn,
           title: apkTitle,
           emoji: '🎮',
         });
 
+        const fs = await import('fs');
         await conn.sendMessage(m.chat, {
-          document: buffer,
+          document: fs.readFileSync(dl.filePath),
           mimetype: 'application/vnd.android.package-archive',
           fileName: `${safeName}.${ext}`,
           caption: `🎮 *${apkTitle}*\n🔥 *نسخة مهكرة جاهزة للتشغيل*\n⚡ *bot amirni hamza*`
@@ -282,6 +284,8 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         }, { quoted: m });
 
         return m.react('✅');
+      } finally {
+        if (dl && dl.cleanup) dl.cleanup();
       }
     } catch (err) {
       console.error('[TraidMode DL Error]', err.message);

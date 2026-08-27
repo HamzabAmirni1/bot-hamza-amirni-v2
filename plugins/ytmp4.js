@@ -87,16 +87,18 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
 
 		const result = await ytmp4(url, quality)
 
+		let dl = null;
 		try {
 			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-			const buffer = await downloadWithProgress(result.downloadUrl, {
+			dl = await downloadWithProgress(result.downloadUrl, {
 				m, conn,
 				title: result.title || 'YouTube Video',
 				emoji: '🎬',
 			});
 
+			const fs = await import('fs');
 			await conn.sendMessage(m.chat, {
-				video: buffer,
+				video: fs.readFileSync(dl.filePath),
 				mimetype: 'video/mp4',
 				fileName: `${result.title || 'video'}.mp4`,
 				caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p\n⚡ *bot amirni hamza*`,
@@ -109,6 +111,8 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
 				fileName: `${result.title || 'video'}.mp4`,
 				caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p\n⚡ *bot amirni hamza*`,
 			}, { quoted: m });
+		} finally {
+			if (dl && dl.cleanup) dl.cleanup();
 		}
 
 		await m.react('✅')
