@@ -1,4 +1,4 @@
-﻿/*
+/*
   APKPure (apkpure.net) Scraper & Downloader
   Commands:
     .apkp <query>
@@ -78,37 +78,66 @@ export class APKPureScraper {
   }
 
   /**
-   * Extract download link from APKPure app page
+   * Extract download link and real title from APKPure app page or package
    */
-  static async getDownloadUrl(appUrl) {
+  static async getDownloadDetails(appUrlOrPkg) {
     try {
-      // Direct CDN APKPure link pattern: https://d.apkpure.com/b/APK/<package_name>?version=latest
-      let pkg = (appUrl.match(/[\/=]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/) || [])[1];
-      
-      const cleanUrl = appUrl.replace(/\/$/, '');
-      const downloadPage = cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`;
-      
-      try {
-        const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 15000 });
-        const $ = cheerio.load(html);
-        const directBtn = $('#download_link, a.download-btn, a[href*="d.apkpure.com"]').attr('href');
-        if (directBtn) return directBtn;
-      } catch (_) {}
+      let pkg = '';
+      let slugName = '';
+      let pageUrl = '';
 
-      if (pkg) {
-        return `https://d.apkpure.com/b/APK/${pkg}?version=latest`;
+      if (appUrlOrPkg.startsWith('http')) {
+        pageUrl = appUrlOrPkg.replace(/\/$/, '');
+        // Extract package e.g. /com.instagram.lite or ?id=com.instagram.lite
+        pkg = (pageUrl.match(/[\/=]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/) || [])[1] || '';
+        // Extract slug e.g. /instagram-lite-app/ -> "Instagram Lite App"
+        const slugMatch = pageUrl.match(/apkpure\.net\/([^\/]+)/);
+        if (slugMatch && slugMatch[1] && !slugMatch[1].includes('.')) {
+          slugName = slugMatch[1].replace(/[-_]+/g, ' ').replace(/\bapk\b|\bapp\b/gi, '').trim();
+          slugName = slugName.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
+        }
+      } else if (appUrlOrPkg.includes('.')) {
+        pkg = appUrlOrPkg.trim();
+        pageUrl = `https://apkpure.net/app/${pkg}`;
       }
 
-      return null;
+      let realTitle = slugName || pkg || 'App';
+      let downloadUrl = pkg ? `https://d.apkpure.com/b/APK/${pkg}?version=latest` : '';
+
+      // Try fetching download page to get exact title and direct link if available
+      try {
+        const downloadPage = pageUrl.endsWith('/download') ? pageUrl : `${pageUrl}/download`;
+        const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 10000 });
+        const $ = cheerio.load(html);
+
+        const pageTitle = $('h1.title, .title_first, .info-title, h1, .banner h1').first().text().trim() ||
+                          $('title').text().replace(/\s*-\s*APK.*|APKPure.*$/i, '').trim();
+        if (pageTitle && pageTitle.length > 2 && !pageTitle.toLowerCase().includes('download')) {
+          realTitle = pageTitle;
+        }
+
+        const directBtn = $('#download_link, a.download-btn, a[href*="d.apkpure.com"]').attr('href');
+        if (directBtn) downloadUrl = directBtn;
+      } catch (_) {}
+
+      return {
+        title: realTitle,
+        downloadUrl,
+        pkg
+      };
     } catch (e) {
       console.error('[APKPure Download Extraction Error]', e.message);
-      return null;
+      return { title: 'App', downloadUrl: null };
     }
   }
 }
 
 function cleanFileName(text) {
-  return (text || 'app').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  return (text || 'app')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\.apk$/i, '')
+    .trim();
 }
 
 let handler = async (m, { conn, text, args, command, usedPrefix }) => {
@@ -119,19 +148,16 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
     await m.react('⏳');
 
-    let downloadUrl = '';
-    let appTitle = 'APKPure App';
+    const details = await APKPureScraper.getDownloadDetails(target);
+    let downloadUrl = details.downloadUrl;
+    let appTitle = details.title;
 
-    if (target.startsWith('http') && target.includes('apkpure')) {
-      downloadUrl = await APKPureScraper.getDownloadUrl(target);
-    } else if (target.includes('.')) {
-      downloadUrl = `https://d.apkpure.com/b/APK/${target}?version=latest`;
-      appTitle = target;
-    } else {
+    if (!downloadUrl) {
       const searchRes = await APKPureScraper.search(target);
       if (searchRes.length > 0) {
-        downloadUrl = await APKPureScraper.getDownloadUrl(searchRes[0].link);
-        appTitle = searchRes[0].title;
+        const subDetails = await APKPureScraper.getDownloadDetails(searchRes[0].link);
+        downloadUrl = subDetails.downloadUrl;
+        appTitle = searchRes[0].title || subDetails.title;
       }
     }
 
@@ -162,7 +188,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         );
       }
 
-      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز ملف الـ APK من APKPure...`, m);
+      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من APKPure...`, m);
 
       const fileRes = await axios.get(downloadUrl, {
         headers: HEADERS,
@@ -179,14 +205,14 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         document: buffer,
         mimetype: 'application/vnd.android.package-archive',
         fileName: `${safeName}.${ext}`,
-        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من APKPure*\n⚡ *bot amirni hamza*`
+        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر APKPure*\n⚡ *bot amirni hamza*`
       }, { quoted: m });
 
       return m.react('✅');
     } catch (err) {
       console.error('[APKPure DL Error]', err.message);
       await m.react('❌');
-      return m.reply(`❌ فشل تحميل الملف مباشرة من APKPure: ${err.message}\n🔗 رابط التحميل:\n${downloadUrl}`);
+      return m.reply(`❌ فشل تحميل ملف *${appTitle}* مباشرة من APKPure: ${err.message}\n🔗 رابط التحميل:\n${downloadUrl}`);
     }
   }
 

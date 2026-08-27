@@ -17,22 +17,46 @@ const HEADERS = {
 
 export class UptodownScraper {
   /**
-   * Search Uptodown for apps and games
+   * Multi-provider Search for Uptodown & Android Apps
    */
   static async search(query) {
+    const results = [];
+
+    // Provider 1: Aptoide Official Global API (Huge repository with millions of apps)
     try {
-      // 1. Try DuckDuckGo / Google site-specific search or Uptodown search
+      const { data } = await axios.get(
+        `https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(query)}&limit=10`,
+        { headers: HEADERS, timeout: 8000 }
+      );
+      const list = data?.datalist?.list || [];
+      for (const item of list) {
+        if (item.name && item.file?.path) {
+          const sizeMB = item.size ? (item.size / (1024 * 1024)).toFixed(1) + ' MB' : '';
+          results.push({
+            title: item.name,
+            link: item.file.path,
+            icon: item.icon,
+            dev: item.developer?.name || 'Android',
+            rating: item.stats?.rating?.avg ? item.stats.rating.avg.toFixed(1) : '',
+            size: sizeMB,
+            direct: true
+          });
+        }
+      }
+      if (results.length > 0) return results;
+    } catch (_) {}
+
+    // Provider 2: DuckDuckGo Uptodown site search
+    try {
       const searchUrl = `https://html.duckduckgo.com/html/?q=site:uptodown.com/android+${encodeURIComponent(query)}`;
-      const { data: html } = await axios.get(searchUrl, { headers: HEADERS, timeout: 15000 });
+      const { data: html } = await axios.get(searchUrl, { headers: HEADERS, timeout: 10000 });
       const $ = cheerio.load(html);
-      const results = [];
 
       $('.result__body').each((_, el) => {
         const titleRaw = $(el).find('.result__title a').text().trim();
         let link = $(el).find('.result__title a').attr('href') || '';
         const snippet = $(el).find('.result__snippet').text().trim();
 
-        // Decode DDG redirect URL if present
         if (link.includes('uddg=')) {
           const match = link.match(/uddg=([^&]+)/);
           if (match) link = decodeURIComponent(match[1]);
@@ -50,62 +74,91 @@ export class UptodownScraper {
         }
       });
 
-      // 2. If results found, return them
       if (results.length > 0) return results;
+    } catch (_) {}
 
-      // Fallback: search via Siputzx API for Uptodown
-      try {
-        const apiRes = await axios.get(`https://api.siputzx.my.id/api/apk/uptodown?q=${encodeURIComponent(query)}`, { timeout: 8000 });
-        if (apiRes.data?.data) {
-          return (Array.isArray(apiRes.data.data) ? apiRes.data.data : [apiRes.data.data]).map(a => ({
-            title: a.name || a.title || query,
-            link: a.link || a.url,
-            icon: a.icon || a.image,
-            version: a.version || 'Latest',
-            size: a.size || ''
-          }));
-        }
-      } catch (_) {}
+    // Provider 3: Siputzx Uptodown API
+    try {
+      const apiRes = await axios.get(`https://api.siputzx.my.id/api/apk/uptodown?q=${encodeURIComponent(query)}`, { timeout: 8000 });
+      if (apiRes.data?.data) {
+        return (Array.isArray(apiRes.data.data) ? apiRes.data.data : [apiRes.data.data]).map(a => ({
+          title: a.name || a.title || query,
+          link: a.link || a.url,
+          icon: a.icon || a.image,
+          version: a.version || 'Latest',
+          size: a.size || ''
+        }));
+      }
+    } catch (_) {}
 
-      return [];
-    } catch (e) {
-      console.error('[Uptodown Search Error]', e.message);
-      return [];
-    }
+    return results;
   }
 
   /**
-   * Extract direct download link from Uptodown app page
+   * Extract direct download link and real title from Uptodown app page or direct link
    */
-  static async getDownloadUrl(appUrl) {
+  static async getDownloadDetails(appUrlOrName) {
     try {
-      const cleanUrl = appUrl.replace(/\/$/, '');
-      const downloadPage = cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`;
-
-      const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 15000 });
-      const $ = cheerio.load(html);
-
-      // Extract download button data-url or href
-      let directUrl = $('#detail-download-button').attr('data-url') ||
-                      $('button[data-url]').attr('data-url') ||
-                      $('a.button.download').attr('href') ||
-                      $('a[href*="/post-download/"]').attr('href');
-
-      if (directUrl && !directUrl.startsWith('http')) {
-        const origin = new URL(downloadPage).origin;
-        directUrl = `${origin}${directUrl}`;
+      // If it's already a direct APK link (from Aptoide/CDN)
+      if (appUrlOrName.startsWith('http') && (appUrlOrName.endsWith('.apk') || appUrlOrName.includes('/apks/'))) {
+        return {
+          title: 'Android App',
+          downloadUrl: appUrlOrName
+        };
       }
 
-      return directUrl || null;
+      const cleanUrl = appUrlOrName.replace(/\/$/, '');
+      const downloadPage = cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`;
+
+      // Extract slug from URL for fallback name e.g. https://whatsapp-messenger.ar.uptodown.com
+      let slugName = '';
+      const domainMatch = cleanUrl.match(/https?:\/\/([^\.]+)\.[^\/]*uptodown\.com/i);
+      if (domainMatch && domainMatch[1]) {
+        slugName = domainMatch[1].replace(/[-_]+/g, ' ').trim();
+        slugName = slugName.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
+      }
+
+      let realTitle = slugName || 'App';
+      let directUrl = null;
+
+      try {
+        const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 15000 });
+        const $ = cheerio.load(html);
+
+        const pageTitle = $('h1#detail-app-name, h1.title, h1, .info .name').first().text().trim() ||
+                          $('title').text().replace(/\s*-\s*تنزيل.*|\s*-\s*Download.*|Uptodown.*$/i, '').trim();
+        if (pageTitle && pageTitle.length > 2) {
+          realTitle = pageTitle;
+        }
+
+        directUrl = $('#detail-download-button').attr('data-url') ||
+                    $('button[data-url]').attr('data-url') ||
+                    $('a.button.download').attr('href') ||
+                    $('a[href*="/post-download/"]').attr('href');
+
+        if (directUrl && !directUrl.startsWith('http')) {
+          const origin = new URL(downloadPage).origin;
+          directUrl = `${origin}${directUrl}`;
+        }
+      } catch (_) {}
+
+      return {
+        title: realTitle,
+        downloadUrl: directUrl
+      };
     } catch (e) {
       console.error('[Uptodown Download Extraction Error]', e.message);
-      return null;
+      return { title: 'App', downloadUrl: null };
     }
   }
 }
 
 function cleanFileName(text) {
-  return (text || 'app').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  return (text || 'app')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\.apk$/i, '')
+    .trim();
 }
 
 let handler = async (m, { conn, text, args, command, usedPrefix }) => {
@@ -119,19 +172,29 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
     let downloadUrl = '';
     let appTitle = 'Uptodown App';
 
-    if (target.startsWith('http') && target.includes('uptodown.com')) {
-      downloadUrl = await UptodownScraper.getDownloadUrl(target);
-    } else {
+    if (target.startsWith('http')) {
+      const details = await UptodownScraper.getDownloadDetails(target);
+      downloadUrl = details.downloadUrl;
+      appTitle = details.title;
+    }
+
+    if (!downloadUrl) {
       const searchRes = await UptodownScraper.search(target);
       if (searchRes.length > 0) {
-        downloadUrl = await UptodownScraper.getDownloadUrl(searchRes[0].link);
-        appTitle = searchRes[0].title;
+        if (searchRes[0].direct && searchRes[0].link) {
+          downloadUrl = searchRes[0].link;
+          appTitle = searchRes[0].title;
+        } else {
+          const details = await UptodownScraper.getDownloadDetails(searchRes[0].link);
+          downloadUrl = details.downloadUrl;
+          appTitle = searchRes[0].title || details.title;
+        }
       }
     }
 
     if (!downloadUrl) {
       await m.react('❌');
-      return m.reply('❌ لم نتمكن من استخراج رابط التحميل من Uptodown. تأكد من صحة الرابط.');
+      return m.reply('❌ لم نتمكن من استخراج رابط التحميل من متجر Uptodown. تأكد من صحة الرابط أو الاسم.');
     }
 
     try {
@@ -155,7 +218,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         );
       }
 
-      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز ملف الـ APK من Uptodown...`, m);
+      await conn.reply(m.chat, `⏳ جاري تحميل وتجهيز تطبيق *${appTitle}* من Uptodown...`, m);
 
       const fileRes = await axios.get(downloadUrl, {
         headers: HEADERS,
@@ -172,14 +235,14 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         document: buffer,
         mimetype: 'application/vnd.android.package-archive',
         fileName: `${safeName}.${ext}`,
-        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من Uptodown*\n⚡ *bot amirni hamza*`
+        caption: `📦 *${appTitle}*\n✅ *تم التحميل بنجاح من متجر Uptodown*\n⚡ *bot amirni hamza*`
       }, { quoted: m });
 
       return m.react('✅');
     } catch (err) {
       console.error('[Uptodown DL Error]', err.message);
       await m.react('❌');
-      return m.reply(`❌ فشل تحميل الملف مباشرة من Uptodown: ${err.message}\n🔗 رابط التحميل:\n${downloadUrl}`);
+      return m.reply(`❌ فشل تحميل ملف *${appTitle}* مباشرة من Uptodown: ${err.message}\n🔗 رابط التحميل:\n${downloadUrl}`);
     }
   }
 
@@ -189,7 +252,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
     return conn.reply(
       m.chat,
       `🔵 *Uptodown — متجر التطبيقات والألعاب APK*\n\n` +
-      `ابحث وحمّل أحدث التطبيقات والألعاب الرسمية والتاريخية من متجر Uptodown الشهير.\n\n` +
+      `ابحث وحمّل أحدث التطبيقات والألعاب الرسمية من متجر Uptodown الشهير.\n\n` +
       `*طريقة الاستخدام:*\n` +
       `← ${usedPrefix}apku <اسم اللعبة أو التطبيق>\n\n` +
       `*أمثلة:*\n` +
@@ -216,12 +279,15 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   results.slice(0, 8).forEach((item, index) => {
     const num = index + 1;
     textList += `*${num}️⃣ ${item.title}*\n`;
+    if (item.dev) textList += `👤 *المطور:* ${item.dev}\n`;
+    if (item.size) textList += `⚖️ *الحجم:* ${item.size}\n`;
+    if (item.rating) textList += `⭐ *التقييم:* ${item.rating}\n`;
     if (item.snippet) textList += `📝 ${item.snippet}\n`;
     textList += `📥 *للتحميل:* ${usedPrefix}apkudl ${item.link}\n\n`;
 
     rows.push({
       title: `📦 ${num}. ${item.title.slice(0, 35)}`,
-      description: 'Uptodown Android',
+      description: item.size ? `حجم: ${item.size}` : 'Uptodown Store',
       id: `${usedPrefix}apkudl ${item.link}`
     });
   });
