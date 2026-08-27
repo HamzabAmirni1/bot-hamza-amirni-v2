@@ -1975,23 +1975,12 @@ function startServerHeartbeat() {
 }
 
 async function init() {
-  await forceClaimMasterLock(); // Force-claim Master Lock on startup!
+  await forceClaimMasterLock();
   startServerHeartbeat();
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();
   await restoreAllSessions(); // Always restore and launch all connected sessions from Supabase!
-
-  // Check Master Lock periodically: if a newer deployment claims Master Lock, stop workers on this old container!
-  setInterval(async () => {
-    const isMasterNow = await checkMasterLock();
-    if (!isMasterNow && workersMap.size > 0) {
-      console.log(`⏸️ [Master Lock Handover] Another container took Master Lock. Stopping local workers on old container (${SERVER_INSTANCE_ID})...`);
-      for (const phone of Array.from(workersMap.keys())) {
-        stopBotWorker(phone);
-      }
-    }
-  }, 10000);
 }
 
 init();
