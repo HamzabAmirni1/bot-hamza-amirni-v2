@@ -4,8 +4,7 @@ import { format } from 'util';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { unwatchFile, watchFile } from 'fs';
-import chalk from 'chalk';
-import { getSmartAIReply, isValidReply } from './lib/gemini.js';
+import { getSmartAIReply, isValidReply, cleanAIResponse } from './lib/ai.js';
 
 // Listen for direct messages/broadcasts & config updates requested from Web Dashboard via worker.postMessage (registered ONCE)
 if (parentPort && !global.__parentPortListenerAdded) {
@@ -937,7 +936,10 @@ ALWAYS format your replies beautifully using WhatsApp markdown and STRICT RTL/LT
   ← .imagine قطة كتطير
   ← .apkm Free Fire
   or enclose them with backticks: \`.gpt\`
-  NEVER attach a dot command directly to the right side of Arabic text without a line break or backticks, as WhatsApp RTL will invert the punctuation.
+• 🚫 NEVER use Markdown links like [text](url) or [url](url). WhatsApp does NOT support Markdown links and they become completely distorted, mangled, and broken in WhatsApp RTL!
+• ✅ ALWAYS write URLs directly in plain text:
+  📸 إنستغرام: https://instagram.com/hamza_amirni_01
+  📢 قناة الواتساب: https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 • Separate sections with a clean divider: ━━━━━━━━━━━━━━━━━━━━━
 • Keep replies structured: Title → Brief description → Bullets/Commands → Clean footer
 • Maximum 3-4 sections per reply to keep it visually pleasing
@@ -1086,7 +1088,7 @@ When asked for social media, Instagram, channel, developer links, or contact inf
 					}
 				}
 
-				const cleanReply = (aiReply || '').trim();
+				const cleanReply = cleanAIResponse(aiReply || '');
 				console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
 				history.push({ role: 'user', content: m.text });
 				history.push({ role: 'assistant', content: cleanReply });

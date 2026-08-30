@@ -1,4 +1,4 @@
-import { getSmartAIReply, isValidReply } from '../lib/gemini.js';
+import { getSmartAIReply, isValidReply, cleanAIResponse } from '../lib/ai.js';
 
 let handler = async (m, { conn, text, usedPrefix, command }) => {
   const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
@@ -83,10 +83,15 @@ WHATSAPP FORMATTING — ALWAYS apply:
 • Separate sections with ─────────
 • Use emojis to make replies visual and engaging
 • Structure: title → content → short closing
+• 🚫 NEVER use Markdown links like [text](url) or [url](url). WhatsApp does NOT support Markdown links and they become completely distorted and broken in WhatsApp RTL!
+• ✅ ALWAYS write URLs directly in plain text:
+  📸 إنستغرام: https://instagram.com/hamza_amirni_01
+  📢 قناة الواتساب: https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 • NEVER dump a plain wall of text — always format nicely
 • NEVER mention ChatGPT or OpenAI`;
 
   let aiResponse = await getSmartAIReply(text, { systemPrompt: sysPrompt });
+  if (aiResponse) aiResponse = cleanAIResponse(aiResponse);
 
   if (!aiResponse) {
     aiResponse = t(
