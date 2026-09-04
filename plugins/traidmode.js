@@ -202,14 +202,42 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       const optArg = args.find(a => /^[1-9]$/.test(a));
       if (options.length > 1 && !optArg) {
         let msg = `🎮 *خيارات التحميل المتاحة (${options.length} روابط):*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        const buttons = [];
         options.forEach((opt, idx) => {
-          msg += `*${idx + 1}️⃣ ${opt.name}*\n`;
+          const num = idx + 1;
+          msg += `*${num}️⃣ ${opt.name}*\n`;
           if (opt.size) msg += `⚖️ *الحجم:* ${opt.size}\n`;
-          msg += `← ${usedPrefix}traiddl ${target} ${idx + 1}\n\n`;
+          msg += `← ${usedPrefix}traiddl ${target} ${num}\n\n`;
+
+          if (idx < 3) {
+            let btnName = opt.name
+              .replace(/^(اولا عليك تنزيل تطبيق|تانيا قم بتحميل|تنزيل تطبيق|تحميل تطبيق|تنزيل|تحميل)\s*/gi, '')
+              .replace(/\s*\(هام جداً\)\s*/gi, '')
+              .replace(/الإصدار\s*:\s*.*/gi, '')
+              .trim();
+            if (!btnName) btnName = `APK ${num}`;
+            const btnLabel = `📥 تحميل ${num}: ${btnName.slice(0, 16)}`;
+            buttons.push({
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: btnLabel,
+                id: `${usedPrefix}traiddl ${target} ${num}`
+              })
+            });
+          }
         });
         msg += `⚡ *bot amirni hamza*`;
         await m.react('📦');
-        return conn.reply(m.chat, msg, m);
+
+        try {
+          return await conn.sendButton(m.chat, {
+            body: msg,
+            footer: 'bot amirni hamza • حمزة اعمرني',
+            buttons
+          }, { quoted: m });
+        } catch (_) {
+          return conn.reply(m.chat, msg, m);
+        }
       }
 
       const selectedIndex = optArg ? parseInt(optArg, 10) - 1 : 0;
