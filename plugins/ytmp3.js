@@ -1,92 +1,103 @@
-import yts from 'yt-search';
-import { downloadYouTube, getVideoId, cleanTitle } from '../lib/ytdl.js';
-import { downloadWithProgress } from '../lib/downloadProgress.js';
+/*
+  Source: t.ms/IkyyExecutive
+  RestApi: api.ikyyxd.my.id
+  Note: Uses the ssvid.cc backend via convert1s.com — reasonably fast
+*/
 
-let handler = async (m, { conn, text, usedPrefix, command }) => {
-  let user = global.db?.data?.users?.[m.sender] || {};
-  let lang = user.language || 'darija';
-  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : (da || ar);
+import axios from 'axios'
 
-  const query = (text || '').trim();
-  if (!query) {
-    const guide =
-      `🎵 *『 محمل صوتيات يوتيوب MP3 』*\n\n` +
-      `تحميل الصوتيات والأغاني من يوتيوب بجودة عالية MP3.\n\n` +
-      `*طريقة الاستخدام:*\n` +
-      `← ${usedPrefix + command} <رابط يوتيوب أو اسم الأغنية>\n\n` +
-      `*أمثلة:*\n` +
-      `← ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ\n` +
-      `← ${usedPrefix + command} Saad Lamjarred Ghazali\n\n` +
-      `⚡ *bot amirni hamza*`;
+const YT_REGEX = /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/
 
-    return conn.reply(m.chat, guide, m);
-  }
+async function ytmp3(ytUrl) {
+	const headers = {
+		'accept': 'application/json',
+		'content-type': 'application/json',
+		'origin': 'https://ssvid.cc',
+		'referer': 'https://ssvid.cc/',
+		'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+	}
 
-  await m.react('⏳');
+	const initRes = await axios.post('https://hub.convert1s.com/api/download', {
+		url: ytUrl,
+		audio: { bitrate: '128k' },
+		output: { type: 'audio', format: 'mp3' },
+	}, { headers })
 
-  try {
-    let videoUrl = query;
-    let videoTitle = 'YouTube Audio';
-    let thumbnail = '';
+	const { statusUrl, title, duration } = initRes.data
 
-    // If query is not a direct URL, search YouTube first
-    if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
-      const search = await yts(query);
-      const topVideo = search?.videos?.[0];
-      if (!topVideo) {
-        await m.react('❌');
-        return m.reply(t('❌ No YouTube results found.', '❌ لم يتم العثور على نتائج في يوتيوب.', '❌ مالقينا حتى نتيجة فـ يوتيوب.'));
-      }
-      videoUrl = topVideo.url;
-      videoTitle = topVideo.title;
-      thumbnail = topVideo.thumbnail || topVideo.image || '';
-    }
+	if (!statusUrl) {
+		throw new Error('Failed to get statusUrl from server.')
+	}
 
-    // Download via 7-provider fallback engine
-    const result = await downloadYouTube(videoUrl, 'mp3');
-    const safeTitle = cleanTitle(result.title || videoTitle);
-    const thumbUrl = result.thumbnail || thumbnail;
+	let downloadData = null
+	const maxAttempts = 20 // ~30s ceiling so a stuck job can't hang the handler forever
+	let attempts = 0
 
-    // Send thumbnail preview if available
-    if (thumbUrl) {
-      try {
-        await conn.sendMessage(m.chat, {
-          image: { url: thumbUrl },
-          caption: `🎵 *${safeTitle}*\n⏳ *جاري تجهيز وتحميل ملف الـ MP3...*\n\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-      } catch (_) {}
-    }
+	while (!downloadData) {
+		if (++attempts > maxAttempts) {
+			throw new Error('Conversion timed out, please try again.')
+		}
 
-    // Live progress bar tracking
-    try {
-      await downloadWithProgress(result.download, {
-        m, conn,
-        title: safeTitle,
-        emoji: '🎵',
-      });
-    } catch (pErr) {
-      console.log('[ytmp3] Progress notice:', pErr.message);
-    }
+		const statusRes = await axios.get(statusUrl, { headers })
 
-    // Dispatch MP3 via Baileys native URL streaming (0 RAM)
-    await conn.sendMessage(m.chat, {
-      audio: { url: result.download },
-      mimetype: 'audio/mpeg',
-      fileName: `${safeTitle}.mp3`,
-      ptt: false
-    }, { quoted: m });
+		if (statusRes.data.status === 'completed') {
+			downloadData = statusRes.data
+		} else if (statusRes.data.status === 'error' || statusRes.data.status === 'failed') {
+			throw new Error('Conversion failed on the server side.')
+		} else {
+			await new Promise(resolve => setTimeout(resolve, 1500))
+		}
+	}
 
-    await m.react('✅');
-  } catch (err) {
-    console.error('[ytmp3 error]', err.message);
-    await m.react('❌');
-    conn.reply(m.chat, `❌ ${err.message || 'فشل تحميل الصوت من يوتيوب. المرجو المحاولة مجدداً.'}`, m);
-  }
-};
+	if (!downloadData.downloadUrl) {
+		throw new Error('No downloadUrl returned by the server.')
+	}
 
-handler.help = ['ytmp3', 'yta', 'ytaudio', 'mp3', 'صوت_يوتيوب'];
-handler.command = /^(ytmp3|yta|ytaudio|mp3|صوت_يوتيوب)$/i;
-handler.tags = ['downloader'];
-handler.limit = false;
+	return {
+		title: downloadData.title || title,
+		duration: downloadData.duration || duration,
+		downloadUrl: downloadData.downloadUrl,
+	}
+}
 
-export default handler;
+const handler = async (m, { conn, usedPrefix, command, args }) => {
+	const url = args[0]
+
+	if (!url || !YT_REGEX.test(url)) {
+		return conn.reply(m.chat,
+			`📥 *YouTube MP3 Downloader*\n\n` +
+			`Downloads the audio from a YouTube video as an MP3 file.\n\n` +
+			`*How to use:*\n` +
+			`${usedPrefix}${command} <youtube link>\n\n` +
+			`*Example:*\n` +
+			`${usedPrefix}${command} https://youtu.be/NJMEtaDTVtA\n\n` +
+			`Supports youtube.com, youtu.be, YouTube Shorts, and live links.`,
+			false, m
+		)
+	}
+
+	try {
+		await m.react('⏳')
+
+		const result = await ytmp3(url)
+
+		await conn.sendMessage(m.chat, {
+			audio: { url: result.downloadUrl },
+			mimetype: 'audio/mpeg',
+			fileName: `${result.title || 'audio'}.mp3`,
+			ptt: false,
+		}, { quoted: m })
+
+		await m.react('✅')
+	} catch (e) {
+		console.error('ytmp3 error:', e.message)
+		await m.react('❌')
+		m.reply(`Failed to download audio: ${e.message}`)
+	}
+}
+
+handler.help = handler.command = ['ytmp3']
+handler.tags = ['downloader']
+handler.limit = false
+
+export default handler

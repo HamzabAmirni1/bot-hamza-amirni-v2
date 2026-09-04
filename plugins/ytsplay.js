@@ -286,8 +286,8 @@ const handler = async (m, { conn, text, command }) => {
 	const btnVideo = lang === 'english' ? '🎥 Download Video' : lang === 'arabic' ? '🎥 تحميل فيديو' : '🎥 تحميل الفيديو MP4';
 	const txtSearchResultTitle = lang === 'english' ? '📺 Search results for:' : lang === 'arabic' ? '📺 نتائج البحث عن:' : '📺 نتائج البحث ديال:';
 
-	// ── .play / .song / .music: Download Audio / Search Carousel ───────────
-	if (/^(play|ytplay|song|music|aghani)$/i.test(command)) {
+	// ── .play / .song / .music / .ytmp3: Download Audio / Search Carousel ───────────
+	if (/^(play|ytplay|song|music|aghani|ytmp3)$/i.test(command)) {
 		if (!text) return m.reply(txtPromptPlay);
 
 		// If it's a search term, search and get video
@@ -406,28 +406,53 @@ const handler = async (m, { conn, text, command }) => {
 
 		const audioTitle = audioData.title || videoTitle || 'audio';
 
-		// Send the audio by passing the download URL directly to Baileys (streams directly, 0% RAM usage)
-		await conn.sendMessage(m.chat, {
-			audio: { url: audioData.download },
-			mimetype: 'audio/mpeg',
-			fileName: `${audioTitle}.mp3`,
-			ptt: false,
-			contextInfo: {
-				externalAdReply: {
-					title: audioTitle,
-					body: 'bot amirni hamza',
-					mediaType: 2,
-					renderLargerThumbnail: true,
-					thumbnailUrl: videoThumb || 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF'
-				}
+		const contextInfo = {
+			externalAdReply: {
+				title: audioTitle,
+				body: 'bot amirni hamza',
+				mediaType: 2,
+				renderLargerThumbnail: true,
+				thumbnailUrl: videoThumb || 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF'
 			}
-		}, { quoted: m });
+		};
 
-		return m.react('✅');
+		try {
+			// Try streaming directly via URL
+			await conn.sendMessage(m.chat, {
+				audio: { url: audioData.download },
+				mimetype: 'audio/mpeg',
+				fileName: `${audioTitle}.mp3`,
+				ptt: false,
+				contextInfo
+			}, { quoted: m });
+			return m.react('✅');
+		} catch (aErr) {
+			console.log('[ytsplay/audio] Direct stream failed, trying buffer fetch:', aErr.message);
+			try {
+				const aRes = await axios.get(audioData.download, {
+					responseType: 'arraybuffer',
+					timeout: 25000,
+					headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' }
+				});
+				const aBuf = Buffer.from(aRes.data);
+				await conn.sendMessage(m.chat, {
+					audio: aBuf,
+					mimetype: 'audio/mpeg',
+					fileName: `${audioTitle}.mp3`,
+					ptt: false,
+					contextInfo
+				}, { quoted: m });
+				return m.react('✅');
+			} catch (aBufErr) {
+				console.log('[ytsplay/audio] Buffer send failed:', aBufErr.message);
+				await m.react('⚠️');
+				return m.reply(`🎵 *${audioTitle}*\n\n🔗 *رابط تحميل المقطع الصوتي مباشرة:*\n${audioData.download}`);
+			}
+		}
 	}
 
-	// ── .video / .ytv: Download Video MP4 ───────────────────────────
-	if (/^(video|ytv)$/i.test(command)) {
+	// ── .video / .ytv / .ytdl / .ytmp4: Download Video MP4 ─────────
+	if (/^(video|ytv|ytdl|ytmp4)$/i.test(command)) {
 		const txtPromptVideo = lang === 'english'
 			? `🎥 *YouTube Video Downloader*\n\nSend video name or YouTube URL:\n\n*Example:*\n← .video Shape of You\n← .video https://youtu.be/xxxx`
 			: lang === 'arabic'
@@ -554,7 +579,7 @@ const handler = async (m, { conn, text, command }) => {
 		const vidTitle = videoData.title || videoTitle || 'video';
 
 		try {
-			// Attempt 1: Send as standard video
+			// Attempt 1: Send as standard video URL stream
 			await conn.sendMessage(m.chat, {
 				video: { url: finalVideoUrl },
 				mimetype: 'video/mp4',
@@ -563,25 +588,56 @@ const handler = async (m, { conn, text, command }) => {
 			}, { quoted: m });
 			return m.react('✅');
 		} catch (vErr) {
-			console.log('[ytsplay/video] Video stream upload failed, trying as document:', vErr.message);
+			console.log('[ytsplay/video] Video stream upload failed, trying buffer fetch:', vErr.message);
 			try {
-				// Attempt 2: Fallback to document mode (bypasses WhatsApp video size/encoding limits)
-				await conn.sendMessage(m.chat, {
-					document: { url: finalVideoUrl },
-					mimetype: 'video/mp4',
-					fileName: `${vidTitle}.mp4`,
-					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-				}, { quoted: m });
-				return m.react('✅');
-			} catch (docErr) {
-				console.log('[ytsplay/video] Document fallback failed:', docErr.message);
-				// Attempt 3: Send direct download link so user can still access the video
+				// Attempt 2: Buffer fetch via axios (handles headers/cookies & eliminates stream socket errors)
+				const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' } }).catch(() => null);
+				const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
+
+				if (sizeMB > 85) {
+					await m.react('⚠️');
+					return m.reply(
+						`🎬 *${vidTitle}*\n` +
+						`━━━━━━━━━━━━━━━━━━━━━\n` +
+						`📦 *حجم الفيديو:* ${sizeMB.toFixed(1)} MB (كبير بالنسبة للواتساب)\n\n` +
+						`🔗 *رابط التحميل المباشر والسريع:*\n${finalVideoUrl}\n\n` +
+						`⚡ *bot amirni hamza*`
+					);
+				}
+
+				const fileRes = await axios.get(finalVideoUrl, {
+					responseType: 'arraybuffer',
+					timeout: 45000,
+					headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' }
+				});
+				const buffer = Buffer.from(fileRes.data);
+
+				try {
+					await conn.sendMessage(m.chat, {
+						video: buffer,
+						mimetype: 'video/mp4',
+						fileName: `${vidTitle}.mp4`,
+						caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+					}, { quoted: m });
+					return m.react('✅');
+				} catch (_) {
+					// Fallback to document with buffer
+					await conn.sendMessage(m.chat, {
+						document: buffer,
+						mimetype: 'video/mp4',
+						fileName: `${vidTitle}.mp4`,
+						caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+					}, { quoted: m });
+					return m.react('✅');
+				}
+			} catch (bufErr) {
+				console.log('[ytsplay/video] Buffer send failed:', bufErr.message);
+				// Attempt 3: Direct link fallback
 				await m.react('⚠️');
 				return m.reply(
 					`🎬 *${vidTitle}*\n` +
 					`━━━━━━━━━━━━━━━━━━━━━\n` +
-					`⚠️ تعذر إرسال ملف الفيديو مباشرة بسبب قيود حجم أو سيرفرات واتساب.\n\n` +
-					`🔗 *رابط تحميل ومشاهدة الفيديو مباشرة:*\n${finalVideoUrl}\n\n` +
+					`🔗 *رابط تحميل ومشاهدة الفيديو بجودة عالية:*\n${finalVideoUrl}\n\n` +
 					`⚡ *bot amirni hamza*`
 				);
 			}
@@ -589,8 +645,8 @@ const handler = async (m, { conn, text, command }) => {
 	}
 };
 
-handler.help = ['play <اسم أو URL>', 'song <اسم الأغنية>', 'video <اسم أو URL>'];
+handler.help = ['play <اسم أو URL>', 'song <اسم الأغنية>', 'video <اسم أو URL>', 'ytdl <URL>', 'ytmp4 <URL>', 'ytmp3 <URL>'];
 handler.tags = ['downloader'];
-handler.command = /^(play|ytplay|song|music|aghani|video|ytv)$/i;
+handler.command = /^(play|ytplay|song|music|aghani|video|ytv|ytdl|ytmp4|ytmp3)$/i;
 
 export default handler;

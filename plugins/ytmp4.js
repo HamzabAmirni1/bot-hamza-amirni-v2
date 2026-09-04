@@ -1,95 +1,112 @@
-import yts from 'yt-search';
-import { downloadYouTube, getVideoId, cleanTitle } from '../lib/ytdl.js';
-import { downloadWithProgress } from '../lib/downloadProgress.js';
+/*
+  Source: t.ms/IkyyExecutive
+  RestApi: api.ikyyxd.my.id
+  Note: Same ssvid.cc/convert1s.com backend as ytmp3.js, output switched to video.
+  UNVERIFIED: response field names for video jobs are assumed to match the
+  audio job shape — confirm downloadUrl/title/quality once tested live.
+*/
 
-const VALID_QUALITIES = ['144', '240', '360', '480', '720', '1080'];
-const DEFAULT_QUALITY = '720';
+import axios from 'axios'
 
-const handler = async (m, { conn, usedPrefix, command, args, text }) => {
-  const query = (text || args[0] || '').trim();
-  const requestedQuality = (args[1] || '').replace(/p$/i, '');
-  const quality = VALID_QUALITIES.includes(requestedQuality) ? requestedQuality : DEFAULT_QUALITY;
+const YT_REGEX = /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/
+const VALID_QUALITIES = ['360', '480', '720', '1080']
+const DEFAULT_QUALITY = '480'
 
-  if (!query) {
-    return conn.reply(m.chat,
-      `🎬 *『 محمل فيديوهات يوتيوب MP4 』*\n\n` +
-      `تحميل الفيديوهات والريلز من يوتيوب بجودات متعددة.\n\n` +
-      `*طريقة الاستخدام:*\n` +
-      `← ${usedPrefix + command} <رابط يوتيوب أو اسم الفيديو> [الجودة]\n\n` +
-      `*الجودات المتاحة:* 144, 240, 360, 480, 720, 1080 (الافتراضي: 720p)\n\n` +
-      `*أمثلة:*\n` +
-      `← ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ 720\n` +
-      `← ${usedPrefix + command} فيديو مضحك 480\n\n` +
-      `⚡ *bot amirni hamza*`,
-      m
-    );
-  }
+async function ytmp4(ytUrl, quality = DEFAULT_QUALITY) {
+	const headers = {
+		'accept': 'application/json',
+		'content-type': 'application/json',
+		'origin': 'https://ssvid.cc',
+		'referer': 'https://ssvid.cc/',
+		'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+	}
 
-  await m.react('⏳');
+	const initRes = await axios.post('https://hub.convert1s.com/api/download', {
+		url: ytUrl,
+		video: { quality: `${quality}p` },
+		output: { type: 'video', format: 'mp4' },
+	}, { headers })
 
-  try {
-    let videoUrl = query;
-    let videoTitle = 'YouTube Video';
-    let thumbnail = '';
+	const { statusUrl, title, duration } = initRes.data
 
-    // If query is not a direct URL, search YouTube first
-    if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
-      const search = await yts(query);
-      const topVideo = search?.videos?.[0];
-      if (!topVideo) {
-        await m.react('❌');
-        return m.reply('❌ لم يتم العثور على نتائج في يوتيوب.');
-      }
-      videoUrl = topVideo.url;
-      videoTitle = topVideo.title;
-      thumbnail = topVideo.thumbnail || topVideo.image || '';
-    }
+	if (!statusUrl) {
+		throw new Error('Failed to get statusUrl from server.')
+	}
 
-    // Download via 7-provider fallback engine
-    const result = await downloadYouTube(videoUrl, 'mp4', quality);
-    const safeTitle = cleanTitle(result.title || videoTitle);
-    const thumbUrl = result.thumbnail || thumbnail;
+	let downloadData = null
+	const maxAttempts = 40 // video jobs run longer than audio — ~60s ceiling
+	let attempts = 0
 
-    // Send thumbnail preview if available
-    if (thumbUrl) {
-      try {
-        await conn.sendMessage(m.chat, {
-          image: { url: thumbUrl },
-          caption: `🎬 *${safeTitle}*\n⏳ *جاري تجهيز وتحميل الفيديو...*\n\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-      } catch (_) {}
-    }
+	while (!downloadData) {
+		if (++attempts > maxAttempts) {
+			throw new Error('Conversion timed out, please try again.')
+		}
 
-    // Live progress bar tracking
-    try {
-      await downloadWithProgress(result.download, {
-        m, conn,
-        title: safeTitle,
-        emoji: '🎬',
-      });
-    } catch (pErr) {
-      console.log('[ytmp4] Progress bar notice:', pErr.message);
-    }
+		const statusRes = await axios.get(statusUrl, { headers })
 
-    // Dispatch MP4 Video via Baileys native URL streaming (0 RAM)
-    await conn.sendMessage(m.chat, {
-      video: { url: result.download },
-      mimetype: 'video/mp4',
-      fileName: `${safeTitle}.mp4`,
-      caption: `🎬 *${safeTitle}*\n📺 *الجودة:* ${quality}p\n⚡ *bot amirni hamza*`,
-    }, { quoted: m });
+		if (statusRes.data.status === 'completed') {
+			downloadData = statusRes.data
+		} else if (statusRes.data.status === 'error' || statusRes.data.status === 'failed') {
+			throw new Error('Conversion failed on the server side.')
+		} else {
+			await new Promise(resolve => setTimeout(resolve, 1500))
+		}
+	}
 
-    await m.react('✅');
-  } catch (err) {
-    console.error('[ytmp4 error]', err.message);
-    await m.react('❌');
-    conn.reply(m.chat, `❌ ${err.message || 'فشل تحميل الفيديو من يوتيوب. المرجو المحاولة مجدداً.'}`, m);
-  }
-};
+	if (!downloadData.downloadUrl) {
+		throw new Error('No downloadUrl returned by the server.')
+	}
 
-handler.help = ['ytmp4', 'ytv', 'ytvideo', 'فيديو_يوتيوب'];
-handler.command = /^(ytmp4|ytv|ytvideo|فيديو_يوتيوب)$/i;
-handler.tags = ['downloader'];
-handler.limit = false;
+	return {
+		title: downloadData.title || title,
+		duration: downloadData.duration || duration,
+		quality: downloadData.quality || quality,
+		downloadUrl: downloadData.downloadUrl,
+	}
+}
 
-export default handler;
+const handler = async (m, { conn, usedPrefix, command, args }) => {
+	const url = args[0]
+	const requestedQuality = (args[1] || '').replace(/p$/i, '')
+	const quality = VALID_QUALITIES.includes(requestedQuality) ? requestedQuality : DEFAULT_QUALITY
+
+	if (!url || !YT_REGEX.test(url)) {
+		return conn.reply(m.chat,
+			`🎬 *YouTube MP4 Downloader*\n\n` +
+			`Downloads a YouTube video as an MP4 file.\n\n` +
+			`*How to use:*\n` +
+			`${usedPrefix}${command} <youtube link> [quality]\n\n` +
+			`*Quality options:* ${VALID_QUALITIES.join(', ')} (default: ${DEFAULT_QUALITY}p)\n\n` +
+			`*Example:*\n` +
+			`${usedPrefix}${command} https://youtu.be/NJMEtaDTVtA 720\n\n` +
+			`Supports youtube.com, youtu.be, YouTube Shorts, and live links.`,
+			false, m
+		)
+	}
+
+	try {
+		await m.react('⏳')
+
+		const result = await ytmp4(url, quality)
+
+		await conn.sendMessage(m.chat, {
+			video: { url: result.downloadUrl },
+			mimetype: 'video/mp4',
+			fileName: `${result.title || 'video'}.mp4`,
+			caption: `🎬 ${result.title || 'Video'}\n📺 Quality: ${result.quality}p`,
+		}, { quoted: m })
+
+		await m.react('✅')
+	} catch (e) {
+		console.error('ytmp4 error:', e.message)
+		await m.react('❌')
+		m.reply(`Failed to download video: ${e.message}`)
+	}
+}
+
+handler.help = handler.command = ['ytmp4']
+handler.tags = ['downloader']
+handler.limit = false
+
+export default handler
+			

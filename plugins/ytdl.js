@@ -1,103 +1,152 @@
-/*
-  YouTube Downloader — Unified 7-Provider Fallback Engine
-  Supports video and audio downloads
-*/
+// scrape by hannuniverse
+// plugin by noureddine ouafy
 
-import axios from 'axios';
-import yts from 'yt-search';
-import { downloadYouTube, getVideoId, cleanTitle } from '../lib/ytdl.js';
-import { downloadWithProgress } from '../lib/downloadProgress.js';
+import axios from 'axios'
 
-let handler = async (m, { conn, args, text, usedPrefix, command }) => {
-  const query = (text || args[0] || '').trim();
-  if (!query) {
-    return conn.reply(m.chat,
-      `📥 *『 محمل يوتيوب الشامل 』*\n\n` +
-      `حمل أي فيديو أو مقطع من يوتيوب مباشرة.\n\n` +
-      `*الاستخدام:* ${usedPrefix + command} <رابط يوتيوب أو اسم الفيديو> [الجودة]\n` +
-      `*الجودات:* 144, 240, 360, 480, 720, 1080 (الافتراضي: 720)\n\n` +
-      `*أمثلة:*\n` +
-      `← ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ\n` +
-      `← ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ 480\n\n` +
-      `⚡ *bot amirni hamza*`,
+class YouTubeDownloader {
+  constructor() {
+    this.baseUrl = 'https://p.savenow.to'
+    this.headers = {
+      'User-Agent': 'Mozilla/5.0',
+      Referer: 'https://y2down.cc/',
+      Origin: 'https://y2down.cc'
+    }
+  }
+
+  async request(url, format) {
+    const res = await axios.get(`${this.baseUrl}/ajax/download.php`, {
+      params: {
+        copyright: '0',
+        format,
+        url,
+        api: 'dfcb6d76f2f6a9894gjkege8a4ab232222'
+      },
+      headers: this.headers
+    })
+
+    if (!res.data?.progress_url) return null
+
+    return {
+      progress: res.data.progress_url,
+      title: res.data.info?.title || 'YouTube Video'
+    }
+  }
+
+  async wait(progressUrl) {
+    for (let i = 0; i < 60; i++) {
+      const res = await axios.get(progressUrl, { headers: this.headers })
+      if (res.data?.download_url) return res.data.download_url
+      await new Promise(r => setTimeout(r, 2000))
+    }
+    return null
+  }
+
+  async download(url, format) {
+    const req = await this.request(url, format)
+    if (!req) return null
+
+    const dl = await this.wait(req.progress)
+    if (!dl) return null
+
+    return {
+      downloadUrl: dl,
+      title: req.title
+    }
+  }
+}
+
+/* ================= HELPERS ================= */
+
+function cleanFileName(text) {
+  return text
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function sendGuide(m) {
+  return m.reply(`
+📥 *YouTube Downloader*
+
+Download YouTube videos directly.
+
+📌 *Usage*
+.ytdl <youtube_url> [quality]
+
+🎥 *Video qualities*
+144, 240, 320, 480, 720, 1080, 1440, 4k
+
+⭐ *Default quality*
+720p (if not specified)
+
+🧪 *Examples*
+.ytdl https://youtu.be/9zvdMLfYFkM
+.ytdl https://youtu.be/9zvdMLfYFkM 480
+.ytdl https://youtube.com/watch?v=9zvdMLfYFkM 1080
+
+⚠️ *Notes*
+• Large videos may be sent as a download link
+• WhatsApp size limits apply
+• File name will match the video title
+`.trim())
+}
+
+/* ================= HANDLER ================= */
+
+let handler = async (m, { conn, args }) => {
+  if (!args[0]) return sendGuide(m)
+
+  const url = args[0]
+  const format = args[1] || '720'
+
+  if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+    return sendGuide(m)
+  }
+
+  await conn.reply(m.chat, '⏳ Processing, please wait...', m)
+
+  const ytdl = new YouTubeDownloader()
+  const data = await ytdl.download(url, format)
+
+  if (!data)
+    throw '❌ Failed to download the video. Please try another quality.'
+
+  // check size first
+  const head = await axios.head(data.downloadUrl)
+  const sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024)
+
+  if (sizeMB > 95) {
+    return conn.reply(
+      m.chat,
+      `❌ File is too large for WhatsApp (${sizeMB.toFixed(1)} MB)
+
+🔗 Download it here:
+${data.downloadUrl}`,
       m
-    );
+    )
   }
 
-  const format = args[1] || '720';
-  await m.react('⏳');
+  const fileRes = await axios.get(data.downloadUrl, {
+    responseType: 'arraybuffer'
+  })
 
-  try {
-    let videoUrl = query;
-    let videoTitle = 'YouTube Video';
-    let thumbnail = '';
+  const buffer = Buffer.from(fileRes.data)
 
-    if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
-      const search = await yts(query);
-      const topVideo = search?.videos?.[0];
-      if (!topVideo) {
-        await m.react('❌');
-        return m.reply('❌ لم يتم العثور على نتائج في يوتيوب.');
-      }
-      videoUrl = topVideo.url;
-      videoTitle = topVideo.title;
-      thumbnail = topVideo.thumbnail || topVideo.image || '';
-    }
+  const safeTitle = cleanFileName(data.title)
 
-    const data = await downloadYouTube(videoUrl, 'mp4', format);
-    const safeTitle = cleanTitle(data.title || videoTitle);
-    const thumbUrl = data.thumbnail || thumbnail;
-
-    // Check size limit (max 300MB)
-    try {
-      const head = await axios.head(data.download, { timeout: 8000 });
-      const sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024);
-      if (sizeMB > 300) {
-        await m.react('❌');
-        return conn.reply(m.chat, `❌ الفيديو كبير جداً (${sizeMB.toFixed(1)} MB) — أكبر من 300MB ولا يمكن إرساله عبر واتساب.\n\n🔗 رابط التحميل المباشر:\n${data.download}`, m);
-      }
-    } catch (_) {}
-
-    // Send thumbnail preview if available
-    if (thumbUrl) {
-      try {
-        await conn.sendMessage(m.chat, {
-          image: { url: thumbUrl },
-          caption: `🎥 *${safeTitle}*\n⏳ *جاري تجهيز وتحميل الفيديو...*\n\n⚡ *bot amirni hamza*`
-        }, { quoted: m });
-      } catch (_) {}
-    }
-
-    // Live progress bar tracking
-    try {
-      await downloadWithProgress(data.download, {
-        m, conn,
-        title: safeTitle,
-        emoji: '🎥',
-      });
-    } catch (pErr) {
-      console.log('[YTDL] Progress bar notice:', pErr.message);
-    }
-
-    // Stream directly via Baileys (0% RAM overhead)
-    await conn.sendMessage(m.chat, {
-      document: { url: data.download },
+  await conn.sendMessage(
+    m.chat,
+    {
+      document: buffer,
       mimetype: 'video/mp4',
-      fileName: `${safeTitle}.mp4`,
-      caption: `🎥 *${safeTitle}*\n✅ *تم التحميل بنجاح*\n⚡ *bot amirni hamza*`
-    }, { quoted: m });
+      fileName: `${safeTitle}.mp4`
+    },
+    { quoted: m }
+  )
+}
 
-    await m.react('✅');
-  } catch (err) {
-    console.error('[YTDL Error]', err.message);
-    await m.react('❌');
-    conn.reply(m.chat, `❌ ${err.message || 'فشل تحميل الفيديو من يوتيوب. المرجو المحاولة مجدداً.'}`, m);
-  }
-};
+handler.help = handler.command = ['ytdl']
+handler.tags = ['downloader']
+handler.limit = false
 
-handler.help = ['ytdl', 'youtube', 'yt', 'يوتيوب'];
-handler.command = /^(ytdl|yt|youtube|يوتيوب)$/i;
-handler.tags = ['downloader'];
-handler.limit = false;
-
-export default handler;
+export default handler

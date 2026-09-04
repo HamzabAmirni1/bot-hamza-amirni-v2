@@ -42,22 +42,33 @@ handler.limit = false
 export default handler
 
 async function unsplashScraper(query) {
-    const url = `https://unsplash.com/s/photos/${encodeURIComponent(query)}`
-    const { data } = await axios.get(url)
-    const $ = cheerio.load(data)
-    const seen = new Set()
-    const imageUrls = []
+    try {
+        const url = `https://unsplash.com/s/photos/${encodeURIComponent(query)}`
+        const { data } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 })
+        const $ = cheerio.load(data)
+        const seen = new Set()
+        const imageUrls = []
 
-    $('img[src^="https://images.unsplash.com"]').each((_, el) => {
-        const fullUrl = $(el).attr('src')
-        if (fullUrl && fullUrl.includes('photo') && !fullUrl.includes('profile')) {
-            const baseUrl = fullUrl.split('?')[0]
-            if (!seen.has(baseUrl)) {
-                seen.add(baseUrl)
-                imageUrls.push(fullUrl)
+        $('img[src^="https://images.unsplash.com"]').each((_, el) => {
+            const fullUrl = $(el).attr('src')
+            if (fullUrl && fullUrl.includes('photo') && !fullUrl.includes('profile')) {
+                const baseUrl = fullUrl.split('?')[0]
+                if (!seen.has(baseUrl)) {
+                    seen.add(baseUrl)
+                    imageUrls.push(fullUrl)
+                }
             }
-        }
-    })
+        })
+        if (imageUrls.length) return imageUrls.slice(0, 15)
+    } catch (_) {}
 
-    return imageUrls.slice(0, 15)
+    // Fallback: Wikipedia / Wikimedia API
+    try {
+        const r = await axios.get(`https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=10&pithumbsize=1000`, { timeout: 10000 });
+        const pages = r.data?.query?.pages || {};
+        const urls = Object.values(pages).map(p => p.thumbnail?.source).filter(Boolean);
+        if (urls.length) return urls;
+    } catch (_) {}
+
+    return [];
 }
