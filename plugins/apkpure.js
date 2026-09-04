@@ -18,23 +18,34 @@ const HEADERS = {
 
 export class APKPureScraper {
   /**
-   * Search APKPure for apps and games
+   * Search APKPure for apps and games with multi-engine fallback
    */
   static async search(query) {
+    const results = [];
+
+    // 1. Primary: APKPure Web HTML Scraper
     try {
       const url = `${BASE_URL}/search?q=${encodeURIComponent(query)}`;
-      const { data: html } = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+      const { data: html } = await axios.get(url, {
+        headers: {
+          ...HEADERS,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"'
+        },
+        timeout: 12000
+      });
       const $ = cheerio.load(html);
-      const results = [];
 
-      // 1. Check Brand top result (Featured result)
-      const brandTop = $('.search-brand-container');
+      // Check Brand top result (Featured result)
+      const brandTop = $('.search-brand-container, .brand-top');
       if (brandTop.length > 0) {
-        const title = brandTop.find('.brand-top .top').text().trim();
-        const link = brandTop.find('.brand-top .top').attr('href') || brandTop.find('.brand-bottom a').attr('href');
-        const icon = brandTop.find('.brand-top img').attr('src') || '';
-        const dev = brandTop.find('.brand-top .developer').text().trim();
-        const rating = brandTop.find('.brand-middle .head').text().trim();
+        const title = brandTop.find('.brand-top .top, .top').first().text().trim();
+        const link = brandTop.find('.brand-top .top, a').first().attr('href') || brandTop.find('.brand-bottom a').attr('href');
+        const icon = brandTop.find('.brand-top img, img').first().attr('src') || '';
+        const dev = brandTop.find('.brand-top .developer, .developer').first().text().trim();
+        const rating = brandTop.find('.brand-middle .head, .head').first().text().trim();
 
         if (title && link) {
           results.push({
@@ -42,19 +53,19 @@ export class APKPureScraper {
             link: link.startsWith('http') ? link : `${BASE_URL}${link}`,
             icon,
             dev,
-            rating,
+            rating: rating || 'N/A',
             featured: true
           });
         }
       }
 
-      // 2. Check regular search list (.apk-item)
-      $('.apk-list .apk-item, .apk-item').each((_, el) => {
-        const title = $(el).find('.title').text().trim() || $(el).find('a').attr('title');
-        let link = $(el).find('a').attr('href') || $(el).attr('href');
+      // Check regular search list (.apk-item, .apk-list li, .search-res a)
+      $('.apk-list .apk-item, .apk-item, .search-res, .apk_list li, div.search-dl').each((_, el) => {
+        const title = $(el).find('.title, .name, h3').first().text().trim() || $(el).find('a').attr('title');
+        let link = $(el).find('a').first().attr('href') || $(el).attr('href');
         const icon = $(el).find('img').attr('src') || $(el).find('img').attr('data-src') || '';
-        const dev = $(el).find('.dev').text().trim();
-        const stars = $(el).find('.stars').text().trim();
+        const dev = $(el).find('.dev, .developer, .author').first().text().trim();
+        const stars = $(el).find('.stars, .rating, .score').first().text().trim();
 
         if (title && link) {
           if (!link.startsWith('http')) link = `${BASE_URL}${link}`;
@@ -69,12 +80,55 @@ export class APKPureScraper {
           }
         }
       });
-
-      return results;
     } catch (e) {
-      console.error('[APKPure Search Error]', e.message);
-      return [];
+      console.log('[APKPure Web Search]', e.message);
     }
+
+    if (results.length > 0) return results;
+
+    // 2. Fallback: Aptoide High-Speed API
+    try {
+      const { data } = await axios.get(
+        `https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(query)}&limit=8`,
+        { timeout: 8000 }
+      );
+      const list = data?.datalist?.list || [];
+      for (const item of list) {
+        if (item.package && item.name) {
+          results.push({
+            title: item.name,
+            link: `https://apkpure.net/app/${item.package}`,
+            icon: item.icon || '',
+            dev: item.developer?.name || item.store?.name || 'Verified',
+            rating: item.stats?.rating?.avg ? `${item.stats.rating.avg.toFixed(1)} ⭐` : 'N/A'
+          });
+        }
+      }
+    } catch (_) {}
+
+    if (results.length > 0) return results;
+
+    // 3. Fallback: Siputzx APK API
+    try {
+      const { data } = await axios.get(
+        `https://api.siputzx.my.id/api/apk/search?q=${encodeURIComponent(query)}`,
+        { timeout: 8000 }
+      );
+      const list = data?.data || [];
+      for (const item of list) {
+        if (item.name) {
+          results.push({
+            title: item.name,
+            link: item.id ? `https://apkpure.net/app/${item.id}` : (item.url || `https://apkpure.net/search?q=${encodeURIComponent(item.name)}`),
+            icon: item.icon || '',
+            dev: 'Android',
+            rating: 'N/A'
+          });
+        }
+      }
+    } catch (_) {}
+
+    return results;
   }
 
   /**
