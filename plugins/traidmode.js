@@ -77,17 +77,31 @@ export class TraidModeScraper {
    */
   static async getDownloadOptions(postUrl) {
     try {
-      const cleanUrl = postUrl.replace(/\/$/, '');
+      const match = (postUrl || '').match(/https?:\/\/[^\s]+/i);
+      const targetUrl = match ? match[0] : postUrl;
+      const cleanUrl = (targetUrl || '').replace(/\/$/, '');
       const downloadPageUrl = cleanUrl.endsWith('/download') ? cleanUrl : `${cleanUrl}/download`;
-      const { data: html } = await axios.get(downloadPageUrl, { headers: HEADERS, timeout: 15000 });
+
+      let html = '';
+      try {
+        const res = await axios.get(downloadPageUrl, { headers: HEADERS, timeout: 15000 });
+        html = res.data;
+      } catch (e1) {
+        // Fallback: try requesting cleanUrl directly
+        const res2 = await axios.get(cleanUrl, { headers: HEADERS, timeout: 15000 }).catch(() => null);
+        if (res2?.data) html = res2.data;
+      }
+
+      if (!html) return [];
+
       const $ = cheerio.load(html);
       const downloadOptions = [];
 
       const pageIcon = $('article img, .post-thumbnail img, .entry-content img, .icon img').first().attr('src') || '';
 
       $('ul li').each((_, el) => {
-        const nameHeader = $(el).find('span[show-download-item]').text().trim();
-        const anchor = $(el).find('.downloadLink a, a[href*="/get/?urls="]');
+        const nameHeader = $(el).find('span[show-download-item]').clone().children().remove().end().text().trim() || $(el).find('span[show-download-item]').text().trim();
+        const anchor = $(el).find('.downloadLink a, a[href*="/get/?urls="], a[href*="urls="]').first();
         const href = anchor.attr('href');
         const btnText = anchor.text().trim();
 
@@ -105,6 +119,11 @@ export class TraidModeScraper {
           }
 
           if (directUrl) {
+            // Encode spaces in url if any (e.g. s1.traidmood.cloud/MicroG gold.apk)
+            try {
+              directUrl = encodeURI(decodeURI(directUrl.trim()));
+            } catch (_) {}
+
             downloadOptions.push({
               name: (apkName || 'APK').replace(/\s+/g, ' ').trim(),
               downloadUrl: directUrl,
@@ -172,17 +191,34 @@ async function resolveDirectApk(url) {
 }
 
 function cleanFileName(text) {
-  return (text || 'app')
+  let cleaned = (text || 'app')
+    .replace(/^(اولا عليك تنزيل تطبيق|تانيا قم بتحميل|تنزيل تطبيق|تحميل تطبيق|تنزيل|تحميل)\s*/gi, '')
+    .replace(/\s*\(هام جداً\)\s*/gi, '')
     .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/[^\w\s\u0600-\u06FF.-]/g, '')
     .replace(/\s+/g, ' ')
     .replace(/\.apk$/i, '')
     .trim();
+  return cleaned || 'app';
 }
 
 let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   // ── Download mode: .traiddl <post_url_or_direct_url> ───────────
   if (/^traiddl$/i.test(command)) {
-    const target = (text || args[0] || '').trim();
+    const rawText = (text || '').trim();
+    let target = '';
+    let optArg = null;
+
+    // Check if user or button passed "<url> <num>" or just "<url>"
+    const match = rawText.match(/(https?:\/\/[^\s]+)(?:\s+([1-9][0-9]?))?/i);
+    if (match) {
+      target = match[1].trim();
+      optArg = match[2] || null;
+    } else {
+      target = (args[0] || '').trim();
+      optArg = args[1] && /^[1-9][0-9]?$/.test(args[1]) ? args[1] : null;
+    }
+
     if (!target) return m.reply(`المرجو وضع رابط التحميل:\n← ${usedPrefix}traiddl https://traidmode.com/...`);
 
     await m.react('⏳');
@@ -199,7 +235,6 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       }
 
       // If page has multiple download buttons (e.g. MicroG and ReVanced APK) and user didn't specify index
-      const optArg = args.find(a => /^[1-9]$/.test(a));
       if (options.length > 1 && !optArg) {
         let msg = `🎮 *خيارات التحميل المتاحة (${options.length} روابط):*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
         const buttons = [];
@@ -214,6 +249,7 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
               .replace(/^(اولا عليك تنزيل تطبيق|تانيا قم بتحميل|تنزيل تطبيق|تحميل تطبيق|تنزيل|تحميل)\s*/gi, '')
               .replace(/\s*\(هام جداً\)\s*/gi, '')
               .replace(/الإصدار\s*:\s*.*/gi, '')
+              .replace(/[^\w\s\u0600-\u06FF.-]/g, '')
               .trim();
             if (!btnName) btnName = `APK ${num}`;
             const btnLabel = `📥 تحميل ${num}: ${btnName.slice(0, 16)}`;
