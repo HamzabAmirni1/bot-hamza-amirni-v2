@@ -142,10 +142,12 @@ export class APKPureScraper {
 
       if (appUrlOrPkg.startsWith('http')) {
         pageUrl = appUrlOrPkg.replace(/\/$/, '');
-        // Extract package e.g. /com.instagram.lite or ?id=com.instagram.lite
-        pkg = (pageUrl.match(/[\/=]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/) || [])[1] || '';
-        // Extract slug e.g. /instagram-lite-app/ -> "Instagram Lite App"
-        const slugMatch = pageUrl.match(/apkpure\.net\/([^\/]+)/);
+        // Strip domain first to avoid matching "apkpure.net" as a package name!
+        const pathOnly = pageUrl.replace(/^https?:\/\/[^\/]+/i, '');
+        // Extract package e.g. /app/com.facebook.lite or /facebook-lite/com.facebook.lite
+        pkg = (pathOnly.match(/(?:[\/=]|\b)([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+)/) || [])[1] || '';
+
+        const slugMatch = pathOnly.match(/\/([^\/\?]+)(?:\/|$)/);
         if (slugMatch && slugMatch[1] && !slugMatch[1].includes('.')) {
           slugName = slugMatch[1].replace(/[-_]+/g, ' ').replace(/\bapk\b|\bapp\b/gi, '').trim();
           slugName = slugName.replace(/\w\S*/g, (w) => (w.replace(/^\w/, (c) => c.toUpperCase())));
@@ -159,7 +161,7 @@ export class APKPureScraper {
       let downloadUrl = '';
       let icon = '';
 
-      // 1. Try Aptoide CDN first (Rock solid, fast, never 403)
+      // 1. Try Aptoide High-Speed Direct CDN first (rock-solid, 100% fast streaming, 0 RAM)
       if (pkg) {
         try {
           const { data } = await axios.get(`https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(pkg)}&limit=1`, { timeout: 8000 });
@@ -172,7 +174,7 @@ export class APKPureScraper {
         } catch (_) {}
       }
 
-      // 2. Try fetching download page to get exact title and direct link if available
+      // 2. Try fetching APKPure download page to get exact title and direct link if available
       try {
         const downloadPage = pageUrl.endsWith('/download') ? pageUrl : `${pageUrl}/download`;
         const { data: html } = await axios.get(downloadPage, { headers: HEADERS, timeout: 10000 });
@@ -189,11 +191,13 @@ export class APKPureScraper {
         if (iconSrc && !icon) icon = iconSrc;
 
         const directBtn = $('#download_link, a.download-btn, a[href*="winudf.com"], a[href*="download.apkpure"]').attr('href');
-        if (directBtn && !directBtn.includes('d.apkpure.com')) downloadUrl = directBtn;
+        if (directBtn && !directBtn.includes('d.apkpure.com')) {
+          downloadUrl = directBtn;
+        }
       } catch (_) {}
 
       if (!downloadUrl && pkg) {
-        downloadUrl = `https://d.apkpure.com/b/APK/${pkg}?version=latest`;
+        downloadUrl = `https://d.apkpure.net/b/APK/${pkg}?version=latest`;
       }
 
       return {

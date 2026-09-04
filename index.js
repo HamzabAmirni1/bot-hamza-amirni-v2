@@ -1793,9 +1793,9 @@ async function backupSessionForPhone(phone, force = false) {
 function startBackupWatcher() {
   if (backupWatcherStarted) return;
   backupWatcherStarted = true;
-  console.log('📡 Starting Multi-Bot Supabase session backup watcher & Anti-Crash Supervisor...');
+  console.log('📡 Starting Multi-Bot Supabase session backup watcher...');
 
-  // 1. Periodic session backup (every 2 minutes) for all connected bots
+  // Periodic session backup (every 2 minutes) for all connected bots
   setInterval(() => {
     for (const [phone, info] of workersMap.entries()) {
       if (info.connected) {
@@ -1803,37 +1803,6 @@ function startBackupWatcher() {
       }
     }
   }, 2 * 60 * 1000);
-
-  // 2. Anti-Crash Supervisor: Revive any missing bot worker every 45s automatically
-  setInterval(async () => {
-    try {
-      const res = await fetch(
-        `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=session_data,phone_number,status&limit=50`,
-        { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
-      );
-      if (!res.ok) return;
-      const rows = await res.json();
-      for (const r of rows) {
-        if (!r.phone_number || !r.session_data) continue;
-        let cleanP = r.phone_number.toString().replace(/[^0-9]/g, '');
-        if (cleanP.startsWith('2120') && cleanP.length === 13) cleanP = '212' + cleanP.slice(4);
-        if (cleanP.length < 10) continue;
-
-        const isLaunchBlocked = global._launchBlockedUntil && (global._launchBlockedUntil[cleanP] || 0) > Date.now();
-        if (!workersMap.has(cleanP) && !stoppedWorkers.has(cleanP) && !isLaunchBlocked) {
-          const buffer = Buffer.from(r.session_data, 'base64');
-          if (buffer.length > 1000) {
-            console.log(`🛡️ [Anti-Crash Supervisor] Auto-reviving missing worker for bot +${cleanP}...`);
-            const targetDir = getBotSessionDir(cleanP);
-            const targetDb = getBotDbPath(cleanP);
-            mkdirSync(targetDir, { recursive: true });
-            writeFileSync(targetDb, buffer);
-            startBotWorker(cleanP);
-          }
-        }
-      }
-    } catch (_) {}
-  }, 45 * 1000);
 }
 
 let backupWatcherStarted = false;
