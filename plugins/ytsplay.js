@@ -436,67 +436,58 @@ const handler = async (m, { conn, text, command }) => {
 
 		if (!text) return m.reply(txtPromptVideo);
 
-		// If it's a search term, send Carousel search results using direct Baileys protobufs
+		// If it's a search term, search and get video list
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
 			const videos = search.videos || [];
 			if (!videos.length) { await m.react('❌'); return m.reply(txtNoResults); }
 
-			// Fallback helper for headers
-			async function createHeaderImage(url) {
-				try {
-					const { imageMessage } = await generateWAMessageContent({ image: { url } }, { upload: conn.waUploadToServer });
-					return imageMessage;
-				} catch (e) {
-					const fallback = 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF&size=512';
-					const { imageMessage } = await generateWAMessageContent({ image: { url: fallback } }, { upload: conn.waUploadToServer });
-					return imageMessage;
-				}
-			}
+			const firstVid = videos[0];
 
-			let cards = [];
-			for (const v of videos.slice(0, 6)) {
-				const imageMessage = await createHeaderImage(v.thumbnail);
-				const bodyTxt = lang === 'english'
-					? `⏱️ *Duration:* ${v.timestamp}\n👀 *Views:* ${v.views}\n📅 *Uploaded:* ${v.ago}\n👤 *Channel:* ${v.author.name}`
-					: `⏱️ *المدة:* ${v.timestamp}\n👀 *المشاهدات:* ${v.views}\n📅 *النشر:* ${v.ago}\n👤 *القناة:* ${v.author.name}`;
-				cards.push({
-					body: proto.Message.InteractiveMessage.Body.fromObject({ text: bodyTxt }),
-					header: proto.Message.InteractiveMessage.Header.fromObject({
-						title: v.title,
-						hasMediaAttachment: true,
-						imageMessage
-					}),
-					nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-						buttons: [
-							{
-								"name": "quick_reply",
-								"buttonParamsJson": JSON.stringify({ display_text: btnAudio, id: `.play ${v.url}` })
-							},
-							{
-								"name": "quick_reply",
-								"buttonParamsJson": JSON.stringify({ display_text: btnVideo, id: `.video ${v.url}` })
-							}
-						]
-					})
+			// Build formatted text list for 100% mobile screen compatibility
+			let captionText = `${txtSearchResultTitle} *${text}*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+			const rows = [];
+			videos.slice(0, 7).forEach((v, i) => {
+				const num = i + 1;
+				captionText += `*${num}️⃣ ${v.title}*\n⏱️ *المدة:* ${v.timestamp} | 👤 *القناة:* ${v.author.name}\n← .video ${v.url}\n\n`;
+				rows.push({
+					title: `🎥 ${num}. ${v.title.slice(0, 40)}`,
+					description: `⏱️ ${v.timestamp} | 👤 ${v.author.name.slice(0, 25)}`,
+					id: `.video ${v.url}`
 				});
+			});
+			captionText += `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`;
+
+			const selectTitle = lang === 'english' ? '🎬 Choose Video to Download' : lang === 'arabic' ? '🎬 اختر فيديو للتحميل' : '🎬 عزل الفيديو باش تهبطو';
+
+			try {
+				await conn.sendButton(m.chat, {
+					image: { url: firstVid.thumbnail },
+					caption: captionText,
+					footer: 'bot amirni hamza',
+					buttons: [
+						{
+							name: 'single_select',
+							buttonParamsJson: JSON.stringify({
+								title: selectTitle,
+								sections: [{ title: '🎥 YouTube Results', rows }]
+							})
+						},
+						{
+							name: 'quick_reply',
+							buttonParamsJson: JSON.stringify({ display_text: btnVideo, id: `.video ${firstVid.url}` })
+						},
+						{
+							name: 'quick_reply',
+							buttonParamsJson: JSON.stringify({ display_text: btnAudio, id: `.play ${firstVid.url}` })
+						}
+					]
+				}, { quoted: m });
+			} catch (_) {
+				await conn.sendMessage(m.chat, { image: { url: firstVid.thumbnail }, caption: captionText }, { quoted: m });
 			}
 
-			const botMsg = generateWAMessageFromContent(m.chat, {
-				viewOnceMessage: {
-					message: {
-						messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-						interactiveMessage: proto.Message.InteractiveMessage.fromObject({
-							body: proto.Message.InteractiveMessage.Body.create({ text: `${txtSearchResultTitle} *${text}*` }),
-							footer: proto.Message.InteractiveMessage.Footer.create({ text: 'bot amirni hamza' }),
-							carouselMessage: proto.Message.InteractiveMessage.CarouselMessage.fromObject({ cards })
-						})
-					}
-				}
-			}, { quoted: m, userJid: conn.user?.jid || conn.decodeJid(conn.user?.id) });
-
-			await conn.relayMessage(m.chat, botMsg.message, { messageId: botMsg.key.id });
 			await m.react('✅');
 			return;
 		}
