@@ -552,14 +552,40 @@ const handler = async (m, { conn, text, command }) => {
 		// Resolve any 302 redirects before sending to Baileys
 		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
-		await conn.sendMessage(m.chat, {
-			video: { url: finalVideoUrl },
-			mimetype: 'video/mp4',
-			fileName: `${vidTitle}.mp4`,
-			caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-		}, { quoted: m });
 
-		return m.react('✅');
+		try {
+			// Attempt 1: Send as standard video
+			await conn.sendMessage(m.chat, {
+				video: { url: finalVideoUrl },
+				mimetype: 'video/mp4',
+				fileName: `${vidTitle}.mp4`,
+				caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+			}, { quoted: m });
+			return m.react('✅');
+		} catch (vErr) {
+			console.log('[ytsplay/video] Video stream upload failed, trying as document:', vErr.message);
+			try {
+				// Attempt 2: Fallback to document mode (bypasses WhatsApp video size/encoding limits)
+				await conn.sendMessage(m.chat, {
+					document: { url: finalVideoUrl },
+					mimetype: 'video/mp4',
+					fileName: `${vidTitle}.mp4`,
+					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+				return m.react('✅');
+			} catch (docErr) {
+				console.log('[ytsplay/video] Document fallback failed:', docErr.message);
+				// Attempt 3: Send direct download link so user can still access the video
+				await m.react('⚠️');
+				return m.reply(
+					`🎬 *${vidTitle}*\n` +
+					`━━━━━━━━━━━━━━━━━━━━━\n` +
+					`⚠️ تعذر إرسال ملف الفيديو مباشرة بسبب قيود حجم أو سيرفرات واتساب.\n\n` +
+					`🔗 *رابط تحميل ومشاهدة الفيديو مباشرة:*\n${finalVideoUrl}\n\n` +
+					`⚡ *bot amirni hamza*`
+				);
+			}
+		}
 	}
 };
 
