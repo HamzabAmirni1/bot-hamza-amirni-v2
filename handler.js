@@ -837,17 +837,31 @@ export async function handler(chatUpdate) {
 					console.error(e);
 					logErrorToSupabase(command || m.plugin, e?.message || format(e)).catch(() => {});
 					if (e) {
-						let text = format(e);
-						if (e.name)
+						let errText = format(e);
+						if (e.name) {
 							for (let [jid] of global.owner.filter(([number, _, isDeveloper]) => isDeveloper && number)) {
-								let data = (await conn.onWhatsApp(jid))[0] || {};
-								if (data.exists)
-									m.reply(
-										`*🗂️ Plugin:* ${m.plugin}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${usedPrefix}${command} ${args.join(' ')}\n📄 *Error Logs:*\n\n\`\`\`${text}\`\`\``.trim(),
-										data.jid
-									);
+								try {
+									let data = (await conn.onWhatsApp(jid))[0] || {};
+									if (data.exists) {
+										conn.sendMessage(
+											data.jid,
+											{ text: `*🗂️ Plugin:* ${m.plugin}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${usedPrefix}${command} ${args.join(' ')}\n📄 *Error Logs:*\n\n\`\`\`${errText}\`\`\``.trim() }
+										).catch(() => {});
+									}
+								} catch (_) {}
 							}
-						m.reply(text);
+						}
+						// User gets a polite, graceful message instead of raw crash trace
+						try {
+							await m.react('❌').catch(() => {});
+							const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
+							const msg = userLang === 'english'
+								? '❌ An unexpected error occurred while processing this command. The developer has been notified.'
+								: userLang === 'arabic'
+								? '❌ حدث خطأ غير متوقع أثناء تنفيذ هذا الأمر. تم إشعار المطور للإصلاح.'
+								: '❌ وقع شي مشكل أثناء تنفيذ هذا الأمر، تم إشعار المطور باش يقادو 🛠️';
+							m.reply(msg).catch(() => {});
+						} catch (_) {}
 					}
 				} finally {
 					if (typeof plugin.after === 'function') {
