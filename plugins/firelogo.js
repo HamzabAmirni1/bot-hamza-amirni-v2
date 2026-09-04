@@ -104,7 +104,7 @@ let handler = async (m, { conn, args }) => {
 };
 
 handler.help = ['firelogo'];
-handler.tags = ['tools'];
+handler.tags = ['editor', 'tools'];
 handler.command = ['firelogo'];
 handler.limit = false;
 export default handler;

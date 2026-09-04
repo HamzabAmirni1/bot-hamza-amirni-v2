@@ -51,7 +51,7 @@ let handler = async (m, { conn, args }) => {
 }
 
 handler.help = ['githubstalk']
-handler.tags = ['search']
+handler.tags = ['tools']
 handler.command = ['githubstalk']
 handler.limit = false;
 export default handler

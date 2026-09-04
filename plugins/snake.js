@@ -196,7 +196,7 @@ await new AIRich(conn)
 };
 
 handler.help = handler.command = ["snake"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 handler.owner = false;
 
 export default handler;

@@ -62,7 +62,7 @@ resetGame();
 };
 
 handler.help = handler.command = ["xrps", "suit", "rps"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 handler.owner = false;
 
 export default handler;

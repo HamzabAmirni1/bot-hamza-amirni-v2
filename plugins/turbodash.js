@@ -246,6 +246,6 @@ requestAnimationFrame(loop);
 };
 
 handler.help = handler.command = ["turbodash"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 
 export default handler;

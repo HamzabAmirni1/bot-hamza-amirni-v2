@@ -108,7 +108,7 @@ ${groupLinks}
 
 handler.help = ["whatsgrouplink"];
 handler.command = ["whatsgrouplink"];
-handler.tags = ["search"];
+handler.tags = ['tools'];
 handler.limit = false;
 
 export default handler;

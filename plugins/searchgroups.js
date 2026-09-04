@@ -107,7 +107,7 @@ let handler = async (m, { conn, text }) => {
 };
 
 handler.help = ["searchgroups"];
-handler.tags = ["search"];
+handler.tags = ['tools'];
 handler.command = ["searchgroups"];
 handler.limit = false;
 

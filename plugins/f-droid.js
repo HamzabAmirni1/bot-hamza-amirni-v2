@@ -17,7 +17,7 @@ let handler = async (m, { conn }) => {
 };
 
 handler.help = handler.command = ['f-droid'];
-handler.tags = ['search'];
+handler.tags = ['downloader'];
 
 export default handler;
 

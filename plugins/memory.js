@@ -62,7 +62,7 @@ initGame();
 };
 
 handler.help = handler.command = ["memory"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 handler.owner = false;
 
 export default handler;

@@ -350,5 +350,5 @@ draw();
 };
 
 handler.help = handler.command = ["xo2"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 export default handler;

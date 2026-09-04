@@ -245,6 +245,6 @@ requestAnimationFrame(loop);
 };
 
 handler.help = handler.command = ["brick"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 
 export default handler;

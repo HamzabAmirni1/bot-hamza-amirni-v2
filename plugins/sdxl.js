@@ -72,7 +72,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 };
 
-handler.help = ['sdxl '];
+handler.help = ['sdxl'];
 handler.command = ['sdxl'];
 handler.tags = ['ai'];
 handler.limit = false; // Assumes a limiter/premium system is in place

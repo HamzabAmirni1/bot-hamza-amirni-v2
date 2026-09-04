@@ -193,5 +193,5 @@ requestAnimationFrame(loop);
 };
 
 handler.help = handler.command = ["skyhop"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 export default handler;

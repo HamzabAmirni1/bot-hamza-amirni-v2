@@ -136,6 +136,6 @@ let handler = async (m) => {
 };
 
 handler.help    = ['aljazeera'];
-handler.tags    = ['morocco'];
+handler.tags = ['news'];
 handler.command = ['aljazeera'];
 export default handler;

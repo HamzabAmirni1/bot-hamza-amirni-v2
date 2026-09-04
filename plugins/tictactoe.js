@@ -56,7 +56,7 @@ resetGame();
 };
 
 handler.help = handler.command = ["xo", "tictactoe"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 handler.owner = false;
 
 export default handler;

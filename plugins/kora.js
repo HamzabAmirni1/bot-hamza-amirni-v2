@@ -326,5 +326,5 @@ requestAnimationFrame(loop);
 };
 
 handler.help = handler.command = ["kora"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 export default handler;

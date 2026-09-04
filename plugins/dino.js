@@ -198,7 +198,7 @@ await new AIRich(conn)
 };
 
 handler.help = handler.command = ["dino"];
-handler.tags = ['games'];
+handler.tags = ['game', 'games'];
 handler.owner = false;
 
 export default handler;
