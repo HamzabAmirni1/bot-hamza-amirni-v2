@@ -728,6 +728,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'taqs': 'Live weather forecast for all Moroccan cities',
       'weather': 'Live weather forecast',
       'quranmp3': 'Play & download any full surah as MP3 by top reciters',
+      'seerah': 'Full biography of Prophet Muhammad (PBUH) 30 audio series',
 
       // AI
       'ai': 'Chat and ask questions to AI Assistant',
@@ -737,6 +738,10 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'brat': 'Generate text design in Brat style',
       'addmetaai': 'Interact with Meta AI Assistant',
       'fakechat': 'Create fake WhatsApp chat layout',
+      'aimusic': 'Generate & compose complete AI songs and music tracks',
+      'sdxl': 'Generate high-resolution images with SDXL model',
+      'artly': 'Create artistic illustrations and drawings with Artly AI',
+      'tibbi': 'AI medical and health consultation assistant',
 
       // Downloader
       'play': 'Search & download MP3 audio from YouTube',
@@ -791,6 +796,10 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'apku': 'Download APKs from Uptodown Store',
       'apk': 'Download Android APK apps directly',
       'apkdl': 'Download Android APK apps directly',
+      'appteka': 'Search and download Android APKs from AppTeka Store',
+      'f-droid': 'Search and download open-source Android apps (F-Droid)',
+      'arabicfont': 'Download curated Arabic fonts packages as ZIP',
+      'unsplash': 'Search and download high-resolution HD photos',
 
       // Sticker & Media Tools
       'sticker': 'Create sticker from image or short video',
@@ -821,6 +830,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'drich': 'Create rich interactive cards with dynamic buttons',
       'voipcall': 'Schedule and trigger WhatsApp VoIP voice & video calls',
       'texttrick': 'Transform text into stylish fancy Unicode fonts',
+      'notoemoji': 'Google Noto Emoji Kitchen 3D emoji generator',
+      'firelogo': 'Create 3D fiery text logos and effects',
+      'carbon': 'Generate beautiful source code snippet images',
+      'code2img': 'Transform code into stylish themed images',
+      'pdf2jpg': 'Convert PDF document pages to JPG images in ZIP archive',
 
       // Tools & Utilities
       'tourl': 'Upload media & get public direct link',
@@ -835,6 +849,16 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'landsat': 'NASA satellite & space view with custom name',
       'nameinspace': 'Custom space view with your name',
       'satellite': 'NASA satellite space image',
+      'couple': 'Matching couple profile pictures (PFP)',
+      'savezip': 'Clone and download any complete website as ZIP',
+      'stalkwa-channels': 'Inspect WhatsApp channel metadata, followers and details',
+      'whatsgrouplink': 'Search for WhatsApp group invitation links',
+      'searchgroups': 'Directory search for WhatsApp group links',
+      'githubtrend': 'Explore trending GitHub repositories of the day',
+      'githubstalk': 'Inspect GitHub user profiles, repos and stats',
+      'tiktokstat': 'Calculate TikTok account analytics, earnings and engagement',
+      'ytpost': 'Extract YouTube community posts, images and polls',
+      'fontsearch': 'Search and browse fonts from Google Web Fonts',
 
       // News
       'news': 'Latest news from Hespress, Al Jazeera & Al Arabiya with interactive buttons',
@@ -853,6 +877,19 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       '8ball': 'Ask the Magic 8-Ball fortune teller',
       'truth': 'Truth or Dare — Truth question',
       'dare': 'Truth or Dare — Dare challenge',
+      'kora': 'Interactive football penalty shootout vs goalkeeper',
+      'doom': 'Classic Doom HTML5 interactive game',
+      'dino': 'Classic Chrome Dino running game',
+      'snake': 'Retro Nokia Snake interactive game',
+      'brick': 'Classic Brick Breaker interactive game',
+      'turbodash': 'Fast-paced Turbo Dash car racing game',
+      'skyhop': 'Cloud-hopping Sky Hop interactive arcade game',
+      'ninja': 'Shadow Ninja fighting arcade game',
+      'memory': 'Card matching memory challenge game',
+      'suit': 'Interactive Rock Paper Scissors game',
+      'tictactoe': 'Interactive Tic-Tac-Toe game',
+      'xo': 'Interactive Tic-Tac-Toe game',
+      'xo2': 'Advanced interactive XO game',
 
       // Fun
       'love': 'Calculate love & compatibility % between two users',
@@ -952,7 +989,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       },
       ...Object.keys(allTags).map(tag => ({
         title: allTags[tag],
-        description: `أوامر قسم ${allTags[tag]}`,
+        description: lang === 'english' ? `Commands for ${allTags[tag]}` : `أوامر قسم ${allTags[tag]}`,
         id: `${_p + command} ${tag}`
       }))
     ];
