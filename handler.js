@@ -51,8 +51,10 @@ if (!global.__autoOnlineHeartbeatSet) {
 				const now = Date.now();
 				if (now - _lastOnlineLog > 300000) {
 					_lastOnlineLog = now;
-					const phone = global.conn?.user?.id?.split(':')[0]?.split('@')[0] || '?';
-					console.log(`🟢 [Auto-Online] Heartbeat active for +${phone}`);
+					const phone = global.conn?.user?.id?.split(':')[0]?.split('@')[0] || (process.env.PAIRING_NUMBER || '').replace(/[^0-9]/g, '');
+					if (phone) {
+						console.log(`🟢 [Auto-Online] Heartbeat active for +${phone}`);
+					}
 				}
 			}
 		} catch (_) {}
