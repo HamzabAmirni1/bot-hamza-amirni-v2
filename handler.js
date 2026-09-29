@@ -176,7 +176,13 @@ async function logErrorToSupabase(cmd, errorMsg) {
 	} catch (_) {}
 }
 
+// ── AI Conversation Memory (Instant In-Memory Cache + Supabase Persistence) ──
+const _aiMemoryCache = new Map();
+
 async function getAiMemoryFromSupabase(senderJid) {
+	if (_aiMemoryCache.has(senderJid)) {
+		return _aiMemoryCache.get(senderJid) || [];
+	}
 	try {
 		const key = 'ai_hist_' + senderJid;
 		const controller = new AbortController();
@@ -189,7 +195,9 @@ async function getAiMemoryFromSupabase(senderJid) {
 		if (!res.ok) return [];
 		const rows = await res.json();
 		if (Array.isArray(rows) && rows[0]?.history) {
-			return JSON.parse(rows[0].history);
+			const parsed = JSON.parse(rows[0].history);
+			_aiMemoryCache.set(senderJid, parsed);
+			return parsed;
 		}
 	} catch (_) {}
 	return [];
@@ -198,7 +206,8 @@ async function getAiMemoryFromSupabase(senderJid) {
 async function saveAiMemoryToSupabase(senderJid, historyArr) {
 	try {
 		const key = 'ai_hist_' + senderJid;
-		const trimmed = historyArr.slice(-10);
+		const trimmed = historyArr.slice(-14);
+		_aiMemoryCache.set(senderJid, trimmed);
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 3000);
 		await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
@@ -931,14 +940,21 @@ export async function handler(chatUpdate) {
 ${displayName ? `\n👤 USER IDENTITY: The user's name is *${displayName}*. ALWAYS address them by name naturally in your replies (e.g. "Hey ${displayName}!", "أهلاً ${displayName}!", "Bonjour ${displayName}!"). Make it feel personal and warm. If they told you their name themselves, acknowledge it once warmly.\n` : ''}
 
 ═══════════════════════════
-🌐 LANGUAGE & IDENTITY RULES
+🌐 LANGUAGE & IDENTITY RULES (STRICT & CRITICAL)
 ═══════════════════════════
-STRICTLY match the user's language:
-• English → Respond 100% in English. Name: *Bot Amirni Hamza*. NO Arabic script at all.
-• French → Respond 100% in French. Name: *Bot Amirni Hamza*. NO Arabic script at all.
-• Moroccan Darija → Respond in natural Darija. Name: *بوت حمزة اعمرني*.
-• Standard Arabic → Respond in fluent Arabic. Name: *بوت حمزة اعمرني*.
-• Other languages → Respond in that language without mixing Arabic script.
+• 🇲🇦 MOROCCAN DARIJA & ARABIZI (MOST IMPORTANT):
+  If the user speaks Moroccan Darija (الدارجة المغربية), OR writes using Latin letters / Arabizi / Franco-Arabe (e.g. using numbers 3, 5, 7, 9 or words like: "dyal", "bghit", "fin", "chof", "kifach", "3afak", "bzaf", "kayn", "sift", "lyoma", "rak", "labas", "kidayr", "bhal", "hadchi", "dakchi", "5aso", "9bl", "taynsa", "jawb", "ktaba", "daba", "safi", "wach", "chno", "cv", "ca va", "chkon", "mzyan", "khoya", "khti", etc.):
+  👉 YOU MUST ALWAYS RESPOND IN MOROCCAN DARIJA / ARABIC USING ARABIC SCRIPT (بالحروف العربية فقط)!
+  🚫 NEVER RESPOND IN FRENCH! DO NOT confuse Moroccan Arabizi with French!
+  Name to use: *بوت حمزة اعمرني*.
+• 🇸🇦 STANDARD ARABIC:
+  Respond in fluent, natural Arabic in Arabic script. Name: *بوت حمزة اعمرني*.
+• 🇬🇧 ENGLISH:
+  Respond 100% in English ONLY if the user is genuinely speaking English. Name: *Bot Amirni Hamza*.
+• 🇫🇷 FRENCH:
+  Respond in French ONLY if the user writes 100% real, grammatical French with NO Moroccan words (e.g. "Bonjour, pouvez-vous m'expliquer la photosynthèse ?").
+  If there is ANY doubt or ANY Moroccan/Arabizi word, ALWAYS default to Moroccan Darija in Arabic script!
+• Other languages → Respond in that language.
 
 ═══════════════════════════
 ✨ WHATSAPP FORMATTING & RTL ALIGNMENT STYLE
@@ -1086,17 +1102,20 @@ When asked for social media, Instagram, channel, developer links, or contact inf
 						}
 					} else if (/^(kidayr|labas|cv|kif dayr|كيداير|لاباس|كيفك|شخبارك)/i.test(lower)) {
 						aiReply = 'الحمد لله كلو تمام وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊';
-					} else if (/^(thanks|thank you|merci)/i.test(lower)) {
-						if (/^(merci)/i.test(lower)) {
-							aiReply = "De rien ! À votre service à tout moment ❤️✨";
-						} else {
-							aiReply = "You're welcome! Always happy to help ❤️✨";
-						}
+					} else if (/^(thanks|thank you)/i.test(lower)) {
+						aiReply = "You're welcome! Always happy to help ❤️✨";
+					} else if (/^(merci)/i.test(lower)) {
+						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
 					} else if (/^(chokran|شكرا|بارك الله فيك)/i.test(lower)) {
 						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
 					} else {
-						const isEngOrFr = /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(m.text);
-						if (isEngOrFr) {
+						const isDarijaOrArabic = /[\u0600-\u06FF]/.test(m.text) || 
+							/\b(dyal|daba|bghit|bghina|kidayr|labas|kifach|kifash|wach|walo|bzaf|chof|chouf|chkon|chkoun|sift|sifet|mzyan|mezyan|wakha|safi|hadi|hada|hadchi|dakchi|kayn|kyna|walakin|ash|ach|chno|ashnu|fin|fash|bla|ghi|ghir|fhamt|fhem|mafhemtch|ma3reftch|khoya|khti|cv|liya|lik|3ndi|m3ak|bghiti|kolchi|rah|raha|daz|dazt|lyoma|ghda|bhal|fhal|hadra|mohadat|ktaba|ijaba|taynsa|jawb|khasso|khass|5aso|9bl|3afak|3lik)\b/i.test(m.text) ||
+							/(?:^|\s|\w)[3579](?:$|\s|\w)/.test(m.text);
+
+						if (isDarijaOrArabic) {
+							aiReply = 'عذراً أ خويا، الذكاء الاصطناعي كيعالج بزاف ديال الطلبات دابا. 🔄\nجرب مجدداً بعد ثواني أو استخدم:\n← .ai سؤالك';
+						} else if (/^[a-zA-Z0-9\s.,!?'"()-]+$/.test(m.text)) {
 							aiReply = "I am currently processing your request. Please ask again in a moment or try *.ai your question*!";
 						} else {
 							aiReply = 'عذراً، الذكاء الاصطناعي مشغول لحظياً. 🔄\nجرب مجدداً بعد ثواني أو استخدم:\n← .ai سؤالك';
