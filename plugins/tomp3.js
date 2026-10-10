@@ -20,8 +20,9 @@ let handler = async (m, { conn, usedPrefix, command }) => {
     let media = await q.download();
     if (!media) throw 'فشل تحميل الملف!';
 
-    let audio = await toAudio(media, 'mp4');
-    if (!audio.data) throw 'فشل تحويل الملف إلى MP3!';
+    let ext = /video/.test(mime) ? 'mp4' : (mime.split('/')[1]?.split(';')[0]?.replace('vnd.wave', 'wav') || 'ogg');
+    let audio = await toAudio(media, ext);
+    if (!audio?.data) throw 'فشل تحويل الملف إلى MP3!';
 
     await conn.sendMessage(m.chat, {
       audio: audio.data,
