@@ -157,15 +157,34 @@ http.createServer(async (req, res) => {
         });
         const data = await fetchRes.json();
         
+        // Also fetch configs to include per-bot command status & whitelist
+        let cfgMap = {};
+        try {
+          const cfgRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=like.config_bot_*&select=jid,history', {
+            headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+          });
+          if (cfgRes.ok) {
+            const rows = await cfgRes.json();
+            if (Array.isArray(rows)) {
+              rows.forEach(r => { cfgMap[r.jid.replace('config_', '')] = r.history; });
+            }
+          }
+        } catch (_) {}
+
         // Mark each session as is_active = true if its worker is running and connected
         const sanitized = (data || []).map(row => {
           const cleanRowPhone = (row.phone_number || '').toString().replace(/[^0-9]/g, '');
           const workerInfo = workersMap.get(cleanRowPhone);
           const isActive = !!(workerInfo && workerInfo.connected);
+          const cmdDisabled = cfgMap['bot_disabled_commands_' + cleanRowPhone] === 'true' || global[`BOT_DISABLED_COMMANDS_${cleanRowPhone}`] === true;
+          const cmdWhitelist = cfgMap['bot_whitelist_commands_' + cleanRowPhone] || (global[`BOT_WHITELIST_${cleanRowPhone}`] ? global[`BOT_WHITELIST_${cleanRowPhone}`].join(', ') : '');
+
           return {
             ...row,
             is_active: isActive,
-            status: isActive ? 'connected' : (row.status || 'unknown')
+            status: isActive ? 'connected' : (row.status || 'unknown'),
+            commands_disabled: !!cmdDisabled,
+            whitelist_commands: cmdWhitelist
           };
         });
 
@@ -1060,7 +1079,7 @@ ${reply_text}
       if (endpoint === 'bot-mode' && req.method === 'GET') {
         try {
           const cfg = await getConfigsFromSupabase();
-          let mode = cfg.bot_mode || 'public';
+          let mode = cfg.bot_mode || 'private';
           let admins = [];
           try { admins = JSON.parse(cfg.bot_admins || '[]'); } catch (_) {}
 
@@ -1279,6 +1298,63 @@ ${reply_text}
       }
 
 
+      // ── POST /api/bot-toggle-commands — enable/disable commands for a specific bot phone ──
+      if (endpoint === 'bot-toggle-commands' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', async () => {
+          try {
+            const { phone, disabled, whitelist } = JSON.parse(body || '{}');
+            if (!phone) throw new Error('phone is required');
+            const cleanPhone = phone.toString().replace(/[^0-9]/g, '');
+            const isDisabled = !!(disabled === true || disabled === 'true');
+            const cleanWhitelist = (whitelist || '').toString().trim();
+
+            // 1. Save to Supabase ai_memory (config_bot_disabled_commands_PHONE)
+            await Promise.all([
+              fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+                method: 'POST',
+                headers: {
+                  'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                  'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify([{ jid: `config_bot_disabled_commands_${cleanPhone}`, history: String(isDisabled) }])
+              }).catch(() => {}),
+              fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+                method: 'POST',
+                headers: {
+                  'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                  'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify([{ jid: `config_bot_whitelist_commands_${cleanPhone}`, history: cleanWhitelist }])
+              }).catch(() => {})
+            ]);
+
+            // 2. Update in-memory globals for immediate effect
+            global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] = isDisabled;
+            global[`BOT_WHITELIST_${cleanPhone}`] = cleanWhitelist.split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
+
+            // 3. Notify the specific worker thread in real-time
+            const targetWorker = workersMap.get(cleanPhone)?.worker;
+            if (targetWorker) {
+              targetWorker.postMessage({
+                type: 'update_bot_command_status',
+                phone: cleanPhone,
+                disabled: isDisabled,
+                whitelist: cleanWhitelist
+              });
+            }
+
+            console.log(`🔕 [Bot Toggle] Bot +${cleanPhone} commands ${isDisabled ? 'DISABLED (Standby)' : 'ENABLED'}, whitelist: "${cleanWhitelist}"`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, phone: cleanPhone, disabled: isDisabled, whitelist: cleanWhitelist }));
+          } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
 
       // ── POST /api/auth-login — username/password dashboard login ──
       if (endpoint === 'auth-login' && req.method === 'POST') {
@@ -1868,7 +1944,7 @@ async function initGlobalConfigs() {
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
-      global.BOT_MODE = cfg.bot_mode || 'public';
+      global.BOT_MODE = cfg.bot_mode || 'private';
       
       console.log('⚙️ Initialized global configs from Supabase:', {
         AUTO_READ: global.AUTO_READ,

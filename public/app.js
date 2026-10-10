@@ -738,6 +738,52 @@ async function onToggleBotSpecificAi(phone, el) {
   }
 }
 
+async function onToggleBotStandby(phone, el) {
+  const willDisable = el.checked; // checked means Standby (commands disabled)
+  const wlInput = document.getElementById('whitelist-' + phone);
+  const whitelist = wlInput ? wlInput.value.trim() : '';
+
+  try {
+    const res = await fetch('/api/bot-toggle-commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, disabled: willDisable, whitelist })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(willDisable ? `🔕 تم وضع البوت +${phone} في Standby (الأوامر متوقفة ما عدا المستثناة)!` : `🔔 تم تفعيل أوامر البوت +${phone} بنجاح!`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل التحديث'), 'warn');
+      el.checked = !willDisable;
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+    el.checked = !willDisable;
+  }
+}
+
+async function saveBotWhitelist(phone, inputEl) {
+  const standbyToggle = document.getElementById('toggle-standby-' + phone);
+  const isDisabled = standbyToggle ? standbyToggle.checked : false;
+  const whitelist = (inputEl.value || '').trim();
+
+  try {
+    const res = await fetch('/api/bot-toggle-commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, disabled: isDisabled, whitelist })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`💾 تم حفظ الأوامر المستثناة للبوت +${phone}: "${whitelist}"`, 'ok');
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحفظ'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
 async function loadPerBotAiList() {
   const wrap = document.getElementById('per-bot-ai-list');
   if (!wrap) return;
@@ -824,7 +870,7 @@ async function loadAuth() {
 
     wrap.innerHTML = `
       <div class="ov-x-auto"><table class="tbl">
-      <thead><tr><th>الرقم</th><th>رمز الإقران</th><th>الحالة</th><th>🧠 AI Chatbot</th><th>آخر تحديث</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>الرقم</th><th>رمز الإقران</th><th>الحالة</th><th>🧠 AI Chatbot</th><th>🔕 Standby</th><th>آخر تحديث</th><th>إجراءات</th></tr></thead>
       <tbody>
       ${list.map(s => {
         const phone = (s.phone_number || '').replace(/\D/g, '');
@@ -843,6 +889,9 @@ async function loadAuth() {
           isAiOn = (settings.auto_ai === 'true' || settings.auto_ai === true);
         }
 
+        const isDisabled = s.commands_disabled === true || s.commands_disabled === 'true';
+        const wlVal = s.whitelist_commands || '';
+
         return `<tr>
           <td class="mono" style="font-weight:700">
             ${phone ? `<a href="https://wa.me/${phone}" target="_blank" style="color:var(--accent,#25d366);text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="فتح الدردشة في واتساب">+${phone} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>` : '—'}
@@ -854,6 +903,15 @@ async function loadAuth() {
               <input type="checkbox" id="toggle-botai-${phone}" ${isAiOn ? 'checked' : ''} onchange="onToggleBotSpecificAi('${phone}', this)">
               <span class="toggle-slider"></span>
             </label>
+          </td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:4px;min-width:130px;">
+              <label class="toggle-switch sm" title="${isDisabled ? 'البوت معطل الأوامر (Standby) — انقر لتفعيله' : 'الأوامر شغالة — انقر لوضعه في Standby'}">
+                <input type="checkbox" id="toggle-standby-${phone}" ${isDisabled ? 'checked' : ''} onchange="onToggleBotStandby('${phone}', this)">
+                <span class="toggle-slider"></span>
+              </label>
+              <input type="text" id="whitelist-${phone}" value="${wlVal}" placeholder="menu,ping,..." title="أوامر مستثناة مسموح بها (مفصولة بفاصلة)" style="font-size:10px;padding:3px 6px;border-radius:6px;border:1px solid var(--bd,#333);background:var(--bg2,#1e1e24);color:var(--text,#fff);width:100%;" onblur="saveBotWhitelist('${phone}', this)" onkeydown="if(event.key==='Enter')this.blur()">
+            </div>
           </td>
           <td style="font-size:11px;color:var(--text2)">${s.updated_at ? new Date(s.updated_at).toLocaleString('ar') : '—'}</td>
           <td>

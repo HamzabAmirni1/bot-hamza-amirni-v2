@@ -28,8 +28,23 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						if (k === 'anti_call') global.ANTI_CALL = boolVal;
 						if (k === 'silent_mode') global.SILENT_MODE = boolVal;
 						if (k === 'auto_online') global.AUTO_ONLINE = boolVal;
+						if (k.startsWith('bot_disabled_commands_')) {
+							const p = k.replace('bot_disabled_commands_', '');
+							global[`BOT_DISABLED_COMMANDS_${p}`] = boolVal;
+						}
+						if (k.startsWith('bot_whitelist_commands_')) {
+							const p = k.replace('bot_whitelist_commands_', '');
+							global[`BOT_WHITELIST_${p}`] = String(v || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
+						}
 					}
 					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', msg.settings);
+				} else if (msg.type === 'update_bot_command_status') {
+					const cleanP = String(msg.phone || '').replace(/[^0-9]/g, '');
+					if (cleanP) {
+						global[`BOT_DISABLED_COMMANDS_${cleanP}`] = !!msg.disabled;
+						global[`BOT_WHITELIST_${cleanP}`] = (msg.whitelist || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
+						console.log(`⚙️ [Worker] Bot +${cleanP} command status updated: disabled=${msg.disabled}, whitelist=${msg.whitelist}`);
+					}
 				}
 			}
 		} catch (err) {
@@ -351,6 +366,14 @@ async function syncGlobalConfigsFromSupabase() {
 					if (r.key === 'auto_online') global.AUTO_ONLINE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
 					if (r.key.startsWith('auto_ai_')) global[r.key.toUpperCase()] = (r.value === 'true' || r.value === true);
+					if (r.key.startsWith('bot_disabled_commands_')) {
+						const p = r.key.replace('bot_disabled_commands_', '');
+						global[`BOT_DISABLED_COMMANDS_${p}`] = (r.value === 'true' || r.value === true);
+					}
+					if (r.key.startsWith('bot_whitelist_commands_')) {
+						const p = r.key.replace('bot_whitelist_commands_', '');
+						global[`BOT_WHITELIST_${p}`] = (r.value || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
+					}
 				});
 				// ── DEFAULT: If auto_ai not found in Supabase, keep it true ──
 				const hasAutoAi = rows.some(r => r.key === 'auto_ai');
@@ -378,6 +401,14 @@ async function syncGlobalConfigsFromSupabase() {
 					if (k === 'anti_call') global.ANTI_CALL = (r.history === 'true' || r.history === true);
 					if (k === 'silent_mode') global.SILENT_MODE = (r.history === 'true' || r.history === true);
 					if (k === 'auto_online') global.AUTO_ONLINE = (r.history === 'true' || r.history === true);
+					if (k.startsWith('bot_disabled_commands_')) {
+						const p = k.replace('bot_disabled_commands_', '');
+						global[`BOT_DISABLED_COMMANDS_${p}`] = (r.history === 'true' || r.history === true);
+					}
+					if (k.startsWith('bot_whitelist_commands_')) {
+						const p = k.replace('bot_whitelist_commands_', '');
+						global[`BOT_WHITELIST_${p}`] = (r.history || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
+					}
 				});
 			}
 		}
@@ -548,7 +579,7 @@ export async function handler(chatUpdate) {
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || 'public';
+		const _botMode = _settings.botMode || 'private';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
@@ -556,6 +587,26 @@ export async function handler(chatUpdate) {
 			const num = Array.isArray(o) ? o[0] : o;
 			return String(num || '').replace(/[^0-9]/g, '') === _senderNum;
 		});
+
+		// ─── Per-Bot Deactivation / Standby Mode Enforcement ───
+		const _currentBotPhone = (this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+		const _isBotCommandsDisabled = _currentBotPhone && (global[`BOT_DISABLED_COMMANDS_${_currentBotPhone}`] === true);
+
+		if (_isBotCommandsDisabled && !_isOwnerUser && !m.fromMe) {
+			const _botWhitelist = global[`BOT_WHITELIST_${_currentBotPhone}`] || [];
+			// Extract command name (e.g. ".ping" -> "ping", "#menu" -> "menu")
+			const _rawCmdMatch = (m.text || '').trim().match(/^[.!#/\\]?([a-zA-Z0-9_\u0600-\u06FF]+)/);
+			const _rawCmd = _rawCmdMatch ? _rawCmdMatch[1].toLowerCase() : '';
+			const _isAllowedCmd = _rawCmd && _botWhitelist.includes(_rawCmd);
+
+			if (!_isAllowedCmd) {
+				// Standby Mode:
+				// 1. Message already marked as read ("Vu" / Blue tick) at line 443.
+				// 2. Incoming voice & video calls rejected automatically by callUpdate (Anti-Call).
+				// 3. Unwhitelisted commands and AI chat are silently ignored (bot stays quiet in standby).
+				return;
+			}
+		}
 
 		const _isBotAdminUser = _botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === _senderNum);
 		const _isDevCmd = m.text && /^[.!#/\\]?(msgtodev|mstodev|contactdev|msgdev|contact|owner|مطور|رسالة_للمطور)(\s|$)/i.test(m.text.trim());

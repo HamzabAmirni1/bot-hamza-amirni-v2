@@ -33,8 +33,8 @@ async function syncSettingsFromSupabase() {
 				}
 			});
 		}
-		// Default to public if nothing saved yet
-		if (!s.botMode) s.botMode = 'public';
+		// Default to private if nothing saved yet
+		if (!s.botMode) s.botMode = 'private';
 		if (!s.botAdmins) s.botAdmins = [];
 	} catch (_) {}
 }
@@ -49,7 +49,7 @@ export async function before(m) {
 	if (isOwner) return false;
 
 	const settings = global.db?.data?.settings || {};
-	const mode     = settings.botMode || 'public'; // default: public (all users allowed)
+	const mode     = settings.botMode || 'private'; // default: private (DMs only)
 	const admins   = Array.isArray(settings.botAdmins) ? settings.botAdmins : [];
 
 	const senderNum  = String(m.sender || '').replace(/[^0-9]/g, '');
