@@ -187,6 +187,9 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
     // Clean tracking params
     let cleanUrl = originalUrl.split('?')[0].split('&')[0];
 
+    const isAudio = args.includes('audio') || /audio|صوت|mp3/i.test(command);
+    const isVideo = args.includes('video') || /video|فيديو/i.test(command);
+
     try {
         const result = await igScraper(cleanUrl) || await igScraper(originalUrl);
         if (!result || !result.url || result.url.length === 0) {
@@ -194,8 +197,69 @@ let handler = async (m, { conn, args, text, command, usedPrefix }) => {
         }
 
         const mediaUrls = result.url;
-        let isFirst = true;
 
+        // If the media is a video and user hasn't selected audio/video yet: show Buttons!
+        const hasVideo = mediaUrls.some(u => !u.includes('.jpg') && !u.includes('.webp') && !u.includes('.jpeg') && !u.includes('jpg'));
+
+        if (hasVideo && !isAudio && !isVideo) {
+            const firstMedia = mediaUrls[0];
+            const caption = `📷 *Instagram Media Downloader*\n━━━━━━━━━━━━━━━━━━━━━\n👇 *اختر ماذا تريد تحميله (فيديو أو صوت):*\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+
+            const buttons = [
+                {
+                    name: 'quick_reply',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '🎥 تحميل فيديو MP4',
+                        id: `${usedPrefix + command} ${cleanUrl} video`
+                    })
+                },
+                {
+                    name: 'quick_reply',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '🎵 تحميل صوت MP3',
+                        id: `${usedPrefix + command} ${cleanUrl} audio`
+                    })
+                }
+            ];
+
+            try {
+                await conn.sendButton(m.chat, {
+                    body: caption,
+                    footer: 'bot amirni hamza • حمزة اعمرني',
+                    buttons
+                }, { quoted: m });
+            } catch (_) {
+                await conn.sendMessage(m.chat, {
+                    text: `${caption}\n\n← ${usedPrefix + command} ${cleanUrl} video\n← ${usedPrefix + command} ${cleanUrl} audio`
+                }, { quoted: m });
+            }
+
+            await m.react('✅');
+            return;
+        }
+
+        // Mode: Audio only
+        if (isAudio && hasVideo) {
+            const vidUrl = mediaUrls.find(u => !u.includes('.jpg') && !u.includes('.webp') && !u.includes('.jpeg')) || mediaUrls[0];
+            const { toAudio } = await import('../lib/converter.js');
+
+            const vRes = await axios.get(vidUrl, { responseType: 'arraybuffer', timeout: 35000 });
+            const audioData = await toAudio(Buffer.from(vRes.data), 'mp4');
+
+            await conn.sendMessage(m.chat, {
+                audio: audioData.data,
+                mimetype: 'audio/mpeg',
+                fileName: `instagram_audio_${Date.now()}.mp3`,
+                ptt: false
+            }, { quoted: m });
+
+            await m.react('✅');
+            if (audioData.delete) audioData.delete().catch(() => {});
+            return;
+        }
+
+        // Mode: Normal (video or image)
+        let isFirst = true;
         for (const mediaUrl of mediaUrls) {
             if (!mediaUrl) continue;
             const caption = isFirst ? `📷 *Instagram Download*\n⚡ *bot amirni hamza*` : undefined;

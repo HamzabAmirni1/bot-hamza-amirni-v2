@@ -1,52 +1,57 @@
 /**
- * 📞 VoIP Call & Scheduled Call Creator
- * Allows users to create realistic WhatsApp VoIP Calls & Scheduled Audio/Video Calls
+ * 📹 WhatsApp Live PTV Video & VoIP Call Simulator
+ * كيرسل مكالمة فيديو دائرية PTV مباشرة أو رسالة مكالمة WhatsApp VoIP واقعية
  */
 
-import { generateWAMessageFromContent } from 'baileys';
+import { generateWAMessageContent } from 'baileys';
 
 let handler = async (m, { conn, text, usedPrefix, command, args }) => {
 	const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
+	let q = m.quoted ? m.quoted : m;
+	let mime = (q.msg || q).mimetype || q.mediaType || '';
 
-	const isVideo = /video/i.test(command) || /video/i.test(text || '');
-	const isAudio = /audio/i.test(command) || (!isVideo && /audio/i.test(text || ''));
+	// ── 1. إرسال فيديو PTV مباشر (مكالمة فيديو مباشرة / كاميرا مباشرة) ─────────
+	if (/video/g.test(mime)) {
+		await m.react('📹');
+		try {
+			const media = await q.download();
+			if (!media) throw 'فشل تحميل الفيديو!';
 
-	// Title / topic of the call
-	const cleanTitle = (text || '').replace(/(video|audio|صوت|فيديو)/gi, '').trim() || (isVideo ? 'WhatsApp Video Call 📹' : 'WhatsApp VoIP Audio Call 📞');
+			// إرسال الفيديو كـ PTV (مقطع فيديو دائري للمكالمات الحية)
+			await conn.sendMessage(m.chat, {
+				video: media,
+				mimetype: 'video/mp4',
+				ptv: true
+			}, { quoted: m });
 
-	if (!text && args.length === 0) {
-		const guide = userLang === 'english'
-			? `📞 *WhatsApp VoIP Call Generator*\n━━━━━━━━━━━━━━━━\n\n📌 *Usage:*\n• *${usedPrefix + command} <title>* — Create scheduled VoIP audio call\n• *${usedPrefix}videocall <title>* — Create scheduled VoIP video call\n• *${usedPrefix}audiocall <title>* — Create instant VoIP audio call\n\n💡 *Example:*\n${usedPrefix}voipcall Urgent Meeting with Hamza\n${usedPrefix}videocall Discussion Project 2026\n\n⚡ *bot amirni hamza*`
-			: `📞 *ميزة مكالمات الواتساب (VoIP & Scheduled Call)*\n━━━━━━━━━━━━━━━━\n\n📌 *طريقة الاستعمال:*\n• *${usedPrefix + command} <عنوان المكالمة>* — إنشاء مكالمة صوتية مجدولة\n• *${usedPrefix}videocall <عنوان المكالمة>* — إنشاء مكالمة فيديو مجدولة\n• *${usedPrefix}audiocall <عنوان المكالمة>* — مكالمة صوتية فورية\n\n💡 *أمثلة:*\n${usedPrefix}voipcall اجتماع هام مع حمزة اعمرني\n${usedPrefix}videocall مراجعة المشروع 🚀\n\n⚡ *bot amirni hamza*`;
-
-		return m.reply(guide);
+			await m.react('✅');
+			return;
+		} catch (e) {
+			console.error('[PTV Video Call] Error:', e);
+			await m.react('❌');
+			return m.reply(`❌ فشل إرسال مكالمة الفيديو PTV: ${e.message || e}`);
+		}
 	}
 
+	// ── 2. محاكاة مكالمة واتساب VoIP مباشرة بأزرار الاتصال ────────────────────
+	await m.react('📞');
 	try {
 		const isVideo = /video/i.test(command) || /video/i.test(text || '');
 		const cleanTarget = (args[0] || '').replace(/[^0-9]/g, '');
-		const targetNum = cleanTarget.length >= 8 ? cleanTarget : '212624855939';
+		const targetNum = cleanTarget.length >= 8 ? cleanTarget : (m.sender.split('@')[0] || '212624855939');
 
 		const callButtons = [
 			{
 				name: 'cta_call',
 				buttonParamsJson: JSON.stringify({
-					display_text: isVideo ? '📹 Join Video Call' : '📞 Join Voice Call',
+					display_text: isVideo ? '📹 بدء مكالمة الفيديو الآن' : '📞 بدء المكالمة الصوتية الآن',
 					id: `+${targetNum}`
 				})
 			},
 			{
 				name: 'cta_url',
 				buttonParamsJson: JSON.stringify({
-					display_text: '📸 Instagram',
-					url: 'https://www.instagram.com/hamza_amirni_01',
-					merchant_url: 'https://www.instagram.com/hamza_amirni_01'
-				})
-			},
-			{
-				name: 'cta_url',
-				buttonParamsJson: JSON.stringify({
-					display_text: userLang === 'english' ? '📢 WhatsApp Channel' : '📢 قناة الواتساب',
+					display_text: '📢 بث القناة المباشر',
 					url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
 					merchant_url: 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p'
 				})
@@ -54,30 +59,41 @@ let handler = async (m, { conn, text, usedPrefix, command, args }) => {
 			{
 				name: 'quick_reply',
 				buttonParamsJson: JSON.stringify({
-					display_text: userLang === 'english' ? '👑 Owner' : '👑 مالك البوت',
+					display_text: '👑 المطور حمزة اعمرني',
 					id: `${usedPrefix}owner`
 				})
 			}
 		];
 
-		const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+		const timeStr = new Date().toLocaleTimeString('ar-MA', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+		const guideText = (
+			`📹 *مكالمة واتساب فيديو وصوت (Live Call & PTV)*\n━━━━━━━━━━━━━━━━━━━━\n` +
+			`👤 *المتصل:* +${targetNum}\n` +
+			`⏰ *الوقت:* ${timeStr}\n` +
+			`📡 *الحالة:* ${isVideo ? 'مكالمة فيديو مشفرة بدقة عالية (HD Video Call) 📹' : 'مكالمة صوتية مشفرة (Encrypted VoIP Call) 📞'}\n\n` +
+			`💡 *ملاحظة:* لإرسال فيديو كاميرا دائري مباشر (PTV Call):\n` +
+			`← رد على أي مقطع فيديو بالأمر *${usedPrefix + command}* وسيقوم البوت بإرساله كـ PTV مباشر!`
+		);
 
 		await conn.sendButton(m.chat, {
-			title: isVideo ? '📹 *WhatsApp Video Call*' : '📞 *WhatsApp VoIP Call*',
-			body: `*+${targetNum}*\n━━━━━━━━━━━━━━━━━━━━\n👤 *Organizer:* Hamza Amirni (حمزة اعمرني)\n⏰ *Time:* ${timeStr}\n📡 *Type:* ${isVideo ? 'HD Video Call 📹' : 'Encrypted VoIP Audio 📞'}`,
+			title: isVideo ? '📹 *WhatsApp Live Video Call*' : '📞 *WhatsApp Live VoIP Call*',
+			body: guideText,
 			footer: '⚡ bot amirni hamza • حمزة اعمرني',
 			buttons: callButtons
 		}, { quoted: m });
 
+		await m.react('✅');
 	} catch (e) {
-		console.error('VoIP Call Error:', e);
-		m.reply(`❌ *Failed to create VoIP Call:* ${e.message}`);
+		console.error('[VoIP Call Error]:', e);
+		await m.react('❌');
+		m.reply(`❌ فشل إنشاء المكالمة: ${e.message || e}`);
 	}
 };
 
-handler.help = ['voipcall', 'videocall', 'audiocall', 'call', 'fakecall'];
+handler.help = ['call', 'videocall', 'audiocall', 'ptv', 'voipcall'];
 handler.tags = ['tools'];
-handler.command = /^(voipcall|voip|call|fakecall|videocall|audiocall|calloffer)$/i;
+handler.command = /^(call|videocall|audiocall|ptv|fakecall|voipcall|voip|calloffer)$/i;
 handler.limit = false;
 
 export default handler;
