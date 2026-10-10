@@ -1,5 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import fs from 'fs';
+import { pipeline } from 'stream/promises';
 import yts from 'yt-search';
 import { downloadYouTube } from '../lib/ytdl.js';
 
@@ -588,8 +590,8 @@ const handler = async (m, { conn, text, command }) => {
 		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
 
-		// Download video buffer first (or direct stream if too large) to ensure WhatsApp clients receive and render the video
-		let vidBuffer = null;
+		// Stream video to temporary disk file (0 MB heap RAM usage, prevents OOM on Koyeb)
+		let tmpVidPath = null;
 		try {
 			const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
 			const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
@@ -605,44 +607,39 @@ const handler = async (m, { conn, text, command }) => {
 				);
 			}
 
+			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+			tmpVidPath = `./tmp/yt_vid_${Date.now()}.mp4`;
+
 			const fileRes = await axios.get(finalVideoUrl, {
-				responseType: 'arraybuffer',
+				responseType: 'stream',
 				timeout: 45000,
 				headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }
 			});
-			if (fileRes.data && fileRes.data.byteLength > 1024) {
-				vidBuffer = Buffer.from(fileRes.data);
-			}
+			const fileWriter = fs.createWriteStream(tmpVidPath);
+			await pipeline(fileRes.data, fileWriter);
 		} catch (bErr) {
-			console.log('[ytsplay/video] Video buffer fetch failed, will try stream:', bErr.message);
+			console.log('[ytsplay/video] Video disk stream failed, will try direct URL:', bErr.message);
 		}
 
 		try {
-			if (vidBuffer) {
-				await conn.sendMessage(m.chat, {
-					video: vidBuffer,
-					mimetype: 'video/mp4',
-					fileName: `${vidTitle}.mp4`,
-					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-				}, { quoted: m });
-				return m.react('✅');
-			} else {
-				await conn.sendMessage(m.chat, {
-					video: { url: finalVideoUrl },
-					mimetype: 'video/mp4',
-					fileName: `${vidTitle}.mp4`,
-					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-				}, { quoted: m });
-				return m.react('✅');
-			}
+			const vidTarget = (tmpVidPath && fs.existsSync(tmpVidPath)) ? { url: tmpVidPath } : { url: finalVideoUrl };
+			await conn.sendMessage(m.chat, {
+				video: vidTarget,
+				mimetype: 'video/mp4',
+				fileName: `${vidTitle}.mp4`,
+				caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+			}, { quoted: m });
+			return m.react('✅');
 		} catch (vErr) {
 			console.log('[ytsplay/video] Standard video send failed, falling back to document:', vErr.message);
 			try {
-				const docPayload = vidBuffer
-					? { document: vidBuffer, mimetype: 'video/mp4', fileName: `${vidTitle}.mp4`, caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*` }
-					: { document: { url: finalVideoUrl }, mimetype: 'video/mp4', fileName: `${vidTitle}.mp4`, caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*` };
-
-				await conn.sendMessage(m.chat, docPayload, { quoted: m });
+				const docTarget = (tmpVidPath && fs.existsSync(tmpVidPath)) ? { url: tmpVidPath } : { url: finalVideoUrl };
+				await conn.sendMessage(m.chat, {
+					document: docTarget,
+					mimetype: 'video/mp4',
+					fileName: `${vidTitle}.mp4`,
+					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
 				return m.react('✅');
 			} catch (docErr) {
 				console.log('[ytsplay/video] Document send failed:', docErr.message);
@@ -653,6 +650,10 @@ const handler = async (m, { conn, text, command }) => {
 					`🔗 *رابط تحميل ومشاهدة الفيديو بجودة عالية:*\n${finalVideoUrl}\n\n` +
 					`⚡ *bot amirni hamza*`
 				);
+			}
+		} finally {
+			if (tmpVidPath && fs.existsSync(tmpVidPath)) {
+				try { fs.unlinkSync(tmpVidPath); } catch (_) {}
 			}
 		}
 	}
