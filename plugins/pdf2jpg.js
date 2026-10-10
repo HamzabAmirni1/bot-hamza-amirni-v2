@@ -217,8 +217,8 @@ handler.help = [
   '• ZIP file containing JPG images'
 ].join('\n');
 
-handler.command = ['pdf2jpg'];
-handler.tags = ['tools'];
+handler.command = ['pdf2jpg', 'pdf2img', 'pdftoimg', 'pdftojpg'];
+handler.tags = ['tools', 'converter'];
 handler.limit = false;
 
 export default handler;
