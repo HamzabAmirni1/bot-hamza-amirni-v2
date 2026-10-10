@@ -406,45 +406,55 @@ const handler = async (m, { conn, text, command }) => {
 
 		const audioTitle = audioData.title || videoTitle || 'audio';
 
-		const contextInfo = {
-			externalAdReply: {
-				title: audioTitle,
-				body: 'bot amirni hamza',
-				mediaType: 2,
-				renderLargerThumbnail: true,
-				thumbnailUrl: videoThumb || 'https://ui-avatars.com/api/?name=YouTube&background=FF0000&color=FFFFFF'
+		// Download audio buffer first to ensure WhatsApp sends a verified file (not a broken stream)
+		let audioBuffer = null;
+		try {
+			const aRes = await axios.get(audioData.download, {
+				responseType: 'arraybuffer',
+				timeout: 30000,
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+					'Accept': '*/*'
+				}
+			});
+			if (aRes.data && aRes.data.byteLength > 1024) {
+				audioBuffer = Buffer.from(aRes.data);
 			}
-		};
+		} catch (dlErr) {
+			console.log('[ytsplay/audio] Buffer fetch failed, will try direct URL:', dlErr.message);
+		}
 
 		try {
-			// Try streaming directly via URL
-			await conn.sendMessage(m.chat, {
-				audio: { url: audioData.download },
-				mimetype: 'audio/mpeg',
-				fileName: `${audioTitle}.mp3`,
-				ptt: false,
-				contextInfo
-			}, { quoted: m });
-			return m.react('✅');
-		} catch (aErr) {
-			console.log('[ytsplay/audio] Direct stream failed, trying buffer fetch:', aErr.message);
-			try {
-				const aRes = await axios.get(audioData.download, {
-					responseType: 'arraybuffer',
-					timeout: 25000,
-					headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' }
-				});
-				const aBuf = Buffer.from(aRes.data);
+			if (audioBuffer) {
+				// Send as direct audio buffer
 				await conn.sendMessage(m.chat, {
-					audio: aBuf,
-					mimetype: 'audio/mpeg',
+					audio: audioBuffer,
+					mimetype: 'audio/mp4',
 					fileName: `${audioTitle}.mp3`,
-					ptt: false,
-					contextInfo
+					ptt: false
 				}, { quoted: m });
 				return m.react('✅');
-			} catch (aBufErr) {
-				console.log('[ytsplay/audio] Buffer send failed:', aBufErr.message);
+			} else {
+				// Stream fallback
+				await conn.sendMessage(m.chat, {
+					audio: { url: audioData.download },
+					mimetype: 'audio/mp4',
+					fileName: `${audioTitle}.mp3`,
+					ptt: false
+				}, { quoted: m });
+				return m.react('✅');
+			}
+		} catch (aErr) {
+			console.log('[ytsplay/audio] Audio send failed, attempting as document:', aErr.message);
+			try {
+				const docPayload = audioBuffer
+					? { document: audioBuffer, mimetype: 'audio/mpeg', fileName: `${audioTitle}.mp3` }
+					: { document: { url: audioData.download }, mimetype: 'audio/mpeg', fileName: `${audioTitle}.mp3` };
+
+				await conn.sendMessage(m.chat, docPayload, { quoted: m });
+				return m.react('✅');
+			} catch (docErr) {
+				console.log('[ytsplay/audio] Document send failed:', docErr.message);
 				await m.react('⚠️');
 				return m.reply(`🎵 *${audioTitle}*\n\n🔗 *رابط تحميل المقطع الصوتي مباشرة:*\n${audioData.download}`);
 			}
@@ -578,61 +588,64 @@ const handler = async (m, { conn, text, command }) => {
 		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
 
+		// Download video buffer first (or direct stream if too large) to ensure WhatsApp clients receive and render the video
+		let vidBuffer = null;
 		try {
-			// Attempt 1: Send as standard video URL stream
-			await conn.sendMessage(m.chat, {
-				video: { url: finalVideoUrl },
-				mimetype: 'video/mp4',
-				fileName: `${vidTitle}.mp4`,
-				caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-			}, { quoted: m });
-			return m.react('✅');
+			const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
+			const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
+
+			if (sizeMB > 85) {
+				await m.react('⚠️');
+				return m.reply(
+					`🎬 *${vidTitle}*\n` +
+					`━━━━━━━━━━━━━━━━━━━━━\n` +
+					`📦 *حجم الفيديو:* ${sizeMB.toFixed(1)} MB (كبير بالنسبة للواتساب)\n\n` +
+					`🔗 *رابط التحميل المباشر والسريع:*\n${finalVideoUrl}\n\n` +
+					`⚡ *bot amirni hamza*`
+				);
+			}
+
+			const fileRes = await axios.get(finalVideoUrl, {
+				responseType: 'arraybuffer',
+				timeout: 45000,
+				headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }
+			});
+			if (fileRes.data && fileRes.data.byteLength > 1024) {
+				vidBuffer = Buffer.from(fileRes.data);
+			}
+		} catch (bErr) {
+			console.log('[ytsplay/video] Video buffer fetch failed, will try stream:', bErr.message);
+		}
+
+		try {
+			if (vidBuffer) {
+				await conn.sendMessage(m.chat, {
+					video: vidBuffer,
+					mimetype: 'video/mp4',
+					fileName: `${vidTitle}.mp4`,
+					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+				return m.react('✅');
+			} else {
+				await conn.sendMessage(m.chat, {
+					video: { url: finalVideoUrl },
+					mimetype: 'video/mp4',
+					fileName: `${vidTitle}.mp4`,
+					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+				return m.react('✅');
+			}
 		} catch (vErr) {
-			console.log('[ytsplay/video] Video stream upload failed, trying buffer fetch:', vErr.message);
+			console.log('[ytsplay/video] Standard video send failed, falling back to document:', vErr.message);
 			try {
-				// Attempt 2: Buffer fetch via axios (handles headers/cookies & eliminates stream socket errors)
-				const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' } }).catch(() => null);
-				const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
+				const docPayload = vidBuffer
+					? { document: vidBuffer, mimetype: 'video/mp4', fileName: `${vidTitle}.mp4`, caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*` }
+					: { document: { url: finalVideoUrl }, mimetype: 'video/mp4', fileName: `${vidTitle}.mp4`, caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*` };
 
-				if (sizeMB > 85) {
-					await m.react('⚠️');
-					return m.reply(
-						`🎬 *${vidTitle}*\n` +
-						`━━━━━━━━━━━━━━━━━━━━━\n` +
-						`📦 *حجم الفيديو:* ${sizeMB.toFixed(1)} MB (كبير بالنسبة للواتساب)\n\n` +
-						`🔗 *رابط التحميل المباشر والسريع:*\n${finalVideoUrl}\n\n` +
-						`⚡ *bot amirni hamza*`
-					);
-				}
-
-				const fileRes = await axios.get(finalVideoUrl, {
-					responseType: 'arraybuffer',
-					timeout: 45000,
-					headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://y2down.cc/' }
-				});
-				const buffer = Buffer.from(fileRes.data);
-
-				try {
-					await conn.sendMessage(m.chat, {
-						video: buffer,
-						mimetype: 'video/mp4',
-						fileName: `${vidTitle}.mp4`,
-						caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-					}, { quoted: m });
-					return m.react('✅');
-				} catch (_) {
-					// Fallback to document with buffer
-					await conn.sendMessage(m.chat, {
-						document: buffer,
-						mimetype: 'video/mp4',
-						fileName: `${vidTitle}.mp4`,
-						caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`
-					}, { quoted: m });
-					return m.react('✅');
-				}
-			} catch (bufErr) {
-				console.log('[ytsplay/video] Buffer send failed:', bufErr.message);
-				// Attempt 3: Direct link fallback
+				await conn.sendMessage(m.chat, docPayload, { quoted: m });
+				return m.react('✅');
+			} catch (docErr) {
+				console.log('[ytsplay/video] Document send failed:', docErr.message);
 				await m.react('⚠️');
 				return m.reply(
 					`🎬 *${vidTitle}*\n` +
