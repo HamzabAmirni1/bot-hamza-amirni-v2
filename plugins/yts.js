@@ -1,13 +1,13 @@
 import yts from 'yt-search';
 
-let handler = async (m, { usedPrefix, command, text }) => {
+let handler = async (m, { conn, usedPrefix, command, text }) => {
  let user = global.db.data.users[m.sender] || {};
  let lang = user.language || 'darija';
  const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : da;
 
- if (!text) throw t(`Usage: ${usedPrefix + command} Saad Lamjarred`, `الاستخدام: ${usedPrefix + command} سعد لمجرد`, `الاستخدام: ${usedPrefix + command} سعد لمجرد`);
+ if (!text) throw t(`Usage: ${usedPrefix + command} Saad Lamjarred`, `الاستخدام: ${usedPrefix + command} سعد لمجرد`, `📌 كتب اسم المقطع أو الأغنية:\nمثال: ${usedPrefix + command} tflow`);
 
- m.react('🔁');
+ m.react('🔍');
 
  try {
   const search = await yts(text);
@@ -15,7 +15,8 @@ let handler = async (m, { usedPrefix, command, text }) => {
   const results = search.videos.slice(0, 10);
 
   if (!results.length) {
-   return m.reply(t('No results found.', 'لم يتم العثور على نتائج.', 'مالقينا حتى نتيجة.'));
+   m.react('❌');
+   return m.reply(t(`❌ No results found on YouTube for "${text}". Try another song name.`, `❌ لم يتم العثور على أي نتائج في يوتيوب عن "${text}". حاول باسم آخر.`, `❌ مالقينا حتى نتيجة فـ يوتيوب بهاد الاسم: "*${text}*".\nجرب تكتب اسم الأغنية أو الفنان (مثال: ${usedPrefix}play tflow)`));
   }
 
   const Audio = results.map((item) => ({
@@ -91,9 +92,9 @@ let handler = async (m, { usedPrefix, command, text }) => {
  }
 };
 
-handler.help = ['yts2'];
-handler.tags = ['downloader'];
-handler.command = /^(yts2|youtubesearch2)$/i;
-handler.limit = true;
+handler.help = ['yts <name>', 'yts2 <name>'];
+handler.tags = ['downloader', 'tools'];
+handler.command = /^(yts|yts2|youtubesearch|youtubesearch2)$/i;
+handler.limit = false;
 
 export default handler;

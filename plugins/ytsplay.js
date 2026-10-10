@@ -296,8 +296,11 @@ const handler = async (m, { conn, text, command }) => {
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
-			const videos = search.videos || [];
-			if (!videos.length) { await m.react('❌'); return m.reply(txtNoResults); }
+			const videos = search?.videos || [];
+			if (!videos.length) {
+				await m.react('❌');
+				return m.reply(`❌ مالقينا حتى مقطع فـ يوتيوب بهاد الاسم: "*${text}*".\nجرب تكتب اسم الأغنية أو الفنان (مثال: .play tflow)`);
+			}
 
 			const firstVid = videos[0];
 
