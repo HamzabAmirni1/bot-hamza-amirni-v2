@@ -572,13 +572,14 @@ export async function handler(chatUpdate) {
 			}
 
 			if (blockedReason) {
-				// Only send notice in private DM (prv). In groups, send nothing ("groupe maysift walo").
-				if (!m.isGroup) {
+				// Only send notice in private DM if user actually typed a command
+				const isCommandAttempt = m.isCommand || (m.text && /^[.!#/\\]/.test(m.text.trim()));
+				if (!m.isGroup && isCommandAttempt) {
 					const now = Date.now();
 					global.__modeNotifyCache = global.__modeNotifyCache || new Map();
 					const lastNotified = global.__modeNotifyCache.get(m.chat) || 0;
 
-					if (now - lastNotified > 8000) {
+					if (now - lastNotified > 600000) { // 10 minutes cooldown
 						global.__modeNotifyCache.set(m.chat, now);
 
 						const ownerNum = '212624855939';
@@ -800,7 +801,7 @@ export async function handler(chatUpdate) {
 				if (xp > 200)
 					m.reply('Ngecit -_-'); // Hehehe
 				else m.exp += xp;
-				const globalDefaultLimit = (global.DEFAULT_USER_LIMIT !== undefined && !isNaN(global.DEFAULT_USER_LIMIT)) ? parseInt(global.DEFAULT_USER_LIMIT) : 20;
+				const globalDefaultLimit = (global.DEFAULT_USER_LIMIT !== undefined && !isNaN(global.DEFAULT_USER_LIMIT)) ? parseInt(global.DEFAULT_USER_LIMIT) : -1;
 				const isGlobalUnlimited = globalDefaultLimit === -1 || globalDefaultLimit >= 100;
 				const userLimit = _user?.limit !== undefined ? _user.limit : globalDefaultLimit;
 				const isAdminUser = isAdmin || isRAdmin || isBotAdmin || _isBotAdminUser || _isOwnerUser || isOwner || isROwner || isPrems;

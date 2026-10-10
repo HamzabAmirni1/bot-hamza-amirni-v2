@@ -1866,7 +1866,7 @@ async function initGlobalConfigs() {
       global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
       global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
-      global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : 20;
+      global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
       global.BOT_MODE = cfg.bot_mode || 'public';
       
