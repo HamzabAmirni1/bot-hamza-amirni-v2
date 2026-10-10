@@ -1,7 +1,6 @@
 // plugin by noureddine ouafy 
 // scrape by claude ai
 
-import fetch      from 'node-fetch'
 import * as cheerio from 'cheerio'
 import https      from 'https'
 import http       from 'http'

@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// gemini plugin
 
 /**
  * This code is provided for educational purposes.

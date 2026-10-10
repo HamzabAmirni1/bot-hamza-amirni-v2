@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+// code2img plugin
 
 const API_ENDPOINT = "https://code2img.vercel.app";
 
