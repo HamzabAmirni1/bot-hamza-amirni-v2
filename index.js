@@ -25,6 +25,37 @@ process.on('uncaughtException', (err) => {
     if (!isIgnored) console.error('🛑 Uncaught Exception:', err);
 });
 
+// Ensure tmp directory exists at boot
+try {
+    const fs = await import('fs');
+    if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+} catch (_) {}
+
+// Graceful container shutdown on Koyeb redeploy: kill all workers immediately so old container releases sessions
+process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received — gracefully stopping all bot workers...');
+    try {
+        if (typeof workersMap !== 'undefined') {
+            for (const [, info] of workersMap.entries()) {
+                try { info.worker?.terminate(); } catch (_) {}
+            }
+        }
+    } catch (_) {}
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('🛑 SIGINT received — shutting down...');
+    try {
+        if (typeof workersMap !== 'undefined') {
+            for (const [, info] of workersMap.entries()) {
+                try { info.worker?.terminate(); } catch (_) {}
+            }
+        }
+    } catch (_) {}
+    process.exit(0);
+});
+
 function setupSilencer() {
     const _err = console.error.bind(console);
     const _log = console.log.bind(console);
@@ -1704,7 +1735,8 @@ function startBotWorker(phone, isManual = false) {
     if (s.includes('Stream Errored (conflict)') || s.includes('Conflict')) {
       global._workerConflicts[cleanPhone] = Date.now();
       global._workerRestarts[cleanPhone]  = (global._workerRestarts[cleanPhone] || 0) + 1;
-      console.log(`⚠️ [+${cleanPhone}] Stream conflict! Another session is open. Blocking reconnect for 90s...`);
+      console.log(`⚠️ [+${cleanPhone}] Stream conflict! Another session is open. Terminating worker and blocking reconnect for 90s...`);
+      try { w.terminate(); } catch (_) {}
     }
   });
 

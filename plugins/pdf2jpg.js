@@ -11,6 +11,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   if (m.quoted?.mimetype === 'application/pdf') {
     await m.react('⏳');
 
+    if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
     const buffer = await m.quoted.download();
     filePath = `./tmp/${Date.now()}.pdf`;
     fs.writeFileSync(filePath, buffer);
@@ -44,6 +45,7 @@ The result will be a ZIP archive containing all converted JPG images.
     throw '❌ The specified PDF file could not be found.';
   }
 
+  if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
   const outputZip = `./tmp/pdf2jpg_${Date.now()}.zip`;
 
   try {
@@ -65,12 +67,12 @@ The ZIP archive contains one JPG image for each page.`,
 
     await m.react('✅');
   } catch (e) {
-    console.error(e);
+    console.error('[pdf2jpg Error]:', e);
     await m.react('❌');
     throw `Conversion failed.\n\n${e.message || e}`;
   } finally {
-    if (m.quoted && fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    if (fs.existsSync(outputZip)) fs.unlinkSync(outputZip);
+    if (m.quoted && fs.existsSync(filePath)) { try { fs.unlinkSync(filePath); } catch (_) {} }
+    if (fs.existsSync(outputZip)) { try { fs.unlinkSync(outputZip); } catch (_) {} }
   }
 };
 
@@ -79,7 +81,8 @@ async function getPublicToken() {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36'
-    }
+    },
+    timeout: 15000
   });
 
   const match = res.data.match(/"token":"([^"]+)"/);
@@ -93,7 +96,8 @@ async function startTask(token) {
   const res = await axios.get(`${BASE}/v1/start/pdfjpg`, {
     headers: {
       Authorization: `Bearer ${token}`
-    }
+    },
+    timeout: 15000
   });
 
   return {
@@ -116,7 +120,8 @@ async function uploadFile(server, task, token, filePath) {
     headers: {
       Authorization: `Bearer ${token}`,
       ...form.getHeaders()
-    }
+    },
+    timeout: 25000
   });
 
   return res.data.server_filename;
@@ -146,7 +151,8 @@ async function processTask(
     headers: {
       Authorization: `Bearer ${token}`,
       ...form.getHeaders()
-    }
+    },
+    timeout: 30000
   });
 }
 
@@ -155,7 +161,8 @@ async function downloadResult(server, task, token, outputPath) {
     headers: {
       Authorization: `Bearer ${token}`
     },
-    responseType: 'arraybuffer'
+    responseType: 'arraybuffer',
+    timeout: 30000
   });
 
   fs.writeFileSync(outputPath, res.data);

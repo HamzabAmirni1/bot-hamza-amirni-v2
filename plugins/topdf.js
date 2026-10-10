@@ -74,6 +74,50 @@ ${400 + streamLen}
   return Buffer.from(pdf, 'utf8');
 }
 
+/**
+ * دالة لتوليد ملف PDF نقي من صورة JPEG مع جدول xref دقيق 100%
+ */
+function createJpgPdfBuffer(jpegBuffer, width = 595, height = 842) {
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+
+  offsets.push(Buffer.byteLength(pdf, 'utf8')); // obj 1 (Catalog)
+  pdf += '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+
+  offsets.push(Buffer.byteLength(pdf, 'utf8')); // obj 2 (Pages)
+  pdf += '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n';
+
+  offsets.push(Buffer.byteLength(pdf, 'utf8')); // obj 3 (Page)
+  pdf += `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`;
+
+  offsets.push(Buffer.byteLength(pdf, 'utf8')); // obj 4 (Image XObject)
+  const imgHeader = `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBuffer.length} >>\nstream\n`;
+  const imgFooter = '\nendstream\nendobj\n';
+
+  const part1 = Buffer.from(pdf, 'utf8');
+  const partImgHeader = Buffer.from(imgHeader, 'utf8');
+  const partImgData = jpegBuffer;
+  const partImgFooter = Buffer.from(imgFooter, 'utf8');
+
+  const offset5 = part1.length + partImgHeader.length + partImgData.length + partImgFooter.length;
+  offsets.push(offset5); // obj 5 (Page content stream)
+
+  const contentStream = `q\n${width} 0 0 ${height} 0 0 cm\n/Im1 Do\nQ\n`;
+  const streamObj = `5 0 obj\n<< /Length ${Buffer.byteLength(contentStream, 'utf8')} >>\nstream\n${contentStream}endstream\nendobj\n`;
+  const partStream = Buffer.from(streamObj, 'utf8');
+
+  const startxref = offset5 + partStream.length;
+
+  let xref = `xref\n0 6\n0000000000 65535 f \n`;
+  for (let off of offsets) {
+    xref += String(off).padStart(10, '0') + ' 00000 n \n';
+  }
+  xref += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF`;
+  const partTrailer = Buffer.from(xref, 'utf8');
+
+  return Buffer.concat([part1, partImgHeader, partImgData, partImgFooter, partStream, partTrailer]);
+}
+
 let handler = async (m, { conn, text, usedPrefix, command }) => {
   let q = m.quoted ? m.quoted : m;
   let mime = (q.msg || q).mimetype || q.mediaType || '';
@@ -129,13 +173,24 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         return;
       }
 
-      // التحويل المحلي المباشر كـ PDF
-      const pdfHeader = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im 4 0 R >> >> /Contents 5 0 R >>\nendobj\n5 0 obj\n<< /Length 44 >>\nstream\nq\n595 0 0 842 0 0 cm\n/Im Do\nQ\nendstream\nendobj\n4 0 obj\n<< /Type /XObject /Subtype /Image /Width 800 /Height 600 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + imgBuffer.length + ' >>\nstream\n');
-      const pdfFooter = Buffer.from('\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000300 00000 n \n0000000200 00000 n \ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n500\n%%EOF');
-      const rawPdf = Buffer.concat([pdfHeader, imgBuffer, pdfFooter]);
+      // التحويل المحلي النقي والدقيق 100% بدون أي حزم خارجية
+      let jpgBuf = imgBuffer;
+      // التحقق مما إذا كانت الصورة بصيغة JPEG، وإذا كانت PNG أو WebP نحولها إلى JPG بواسطة ffmpeg
+      if (imgBuffer.length > 3 && !imgBuffer.slice(0, 3).equals(Buffer.from([0xFF, 0xD8, 0xFF]))) {
+        try {
+          const { ffmpeg } = await import('../lib/converter.js');
+          const converted = await ffmpeg(imgBuffer, [], 'image', 'jpg');
+          if (converted?.data) {
+            jpgBuf = converted.data;
+            try { await converted.delete(); } catch (_) {}
+          }
+        } catch (_) {}
+      }
+
+      const validPdf = createJpgPdfBuffer(jpgBuf);
 
       await conn.sendMessage(m.chat, {
-        document: rawPdf,
+        document: validPdf,
         mimetype: 'application/pdf',
         fileName: `image_${Date.now()}.pdf`,
         caption: `✅ *تم تحويل الصورة إلى PDF بنجاح!*\n⚡ *bot amirni hamza • حمزة اعمرني*`
