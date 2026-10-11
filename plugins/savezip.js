@@ -1,4 +1,3 @@
-// @noureddine_ouafy
 // Plugin: Save Website to Zip using saveweb2zip.com
 // scrape by trash code
 import axios from 'axios';

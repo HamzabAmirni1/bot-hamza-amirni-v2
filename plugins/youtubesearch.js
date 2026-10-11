@@ -1,4 +1,3 @@
-// instagram.com/noureddine_ouafy
 
 import axios from 'axios';
 import * as cheerio from 'cheerio'

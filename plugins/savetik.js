@@ -1,4 +1,3 @@
-// instagram.com/noureddine_ouafy
 // scrape by CR Ponta Sensei WEB https://codeteam.my.id
 import axios from 'axios'
 import * as cheerio from 'cheerio'

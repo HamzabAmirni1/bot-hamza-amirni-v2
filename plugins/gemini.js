@@ -5,7 +5,6 @@
  * Scraping may be against the terms of service of the website.
  * Use it at your own risk.
  * @author wolep
- * plugin by noureddine ouafy
  */
 
 const gemini = {

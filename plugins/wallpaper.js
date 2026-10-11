@@ -1,7 +1,6 @@
 /*
 * [ `Scraper UhdPaper` ]
 * Created: Rizki
-* Modified: @noureddine_ouafy
 * Source: https://www.uhdpaper.com
 */
 

@@ -1,4 +1,3 @@
-// plugin by noureddine ouafy 
 // scrape by malik
 
 import axios from "axios";

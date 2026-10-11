@@ -1,7 +1,5 @@
 /**
- * @instagram.com/noureddine_ouafy
  * Scrape TikTok Earnings by Username
- * Author: SaaOfc's | Modified by: @noureddine_ouafy
  */
 
 import axios from 'axios';

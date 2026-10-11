@@ -1,7 +1,5 @@
-// instagram.com/noureddine_ouafy
 /*
 - *[ Scraper Github Stalk ]*
-- Transformed to plugin format by noureddine
 - Original by Lezz DcodeR
 */
 
@@ -32,7 +30,7 @@ async function githubStalk(username) {
 }
 
 let handler = async (m, { conn, args }) => {
-  if (!args[0]) return m.reply('المرجو إدخال اسم مستخدم GitHub\nمثال:\n .githubstalk noureddineouafy')
+  if (!args[0]) return m.reply('المرجو إدخال اسم مستخدم GitHub\nمثال:\n .githubstalk HamzabAmirni1')
 
   const data = await githubStalk(args[0])
   if (!data) return m.reply('حدث خطأ أثناء جلب المعلومات.')

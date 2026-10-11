@@ -1,4 +1,3 @@
-// plugin by instagram.com/noureddine_ouafy
 // scrape by Codeverse
 
 import axios from 'axios'

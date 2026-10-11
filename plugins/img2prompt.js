@@ -1,4 +1,3 @@
-// instagram.com/noureddine_ouafy
 import axios from "axios";
 
 let handler = async (m, { conn, args }) => {

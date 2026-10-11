@@ -1,4 +1,3 @@
-// plugin by noureddine ouafy 
 // scrape by andhikagg (NXNX.OSSYSTEM ARCHIVE)
 
 import axios from "axios"

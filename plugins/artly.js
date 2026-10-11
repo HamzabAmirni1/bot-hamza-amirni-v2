@@ -1,4 +1,3 @@
-// plugin by noureddine ouafy
 // scrape by NBS30 Daffa
 import axios from 'axios';
 

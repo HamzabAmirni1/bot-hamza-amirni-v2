@@ -1,4 +1,3 @@
-// instagram: noureddine_ouafy
 
 import axios from 'axios';
 

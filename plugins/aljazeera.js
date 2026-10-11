@@ -1,4 +1,3 @@
-// plugin by  noureddine ouafy 
 // code by Claude ai
 
 import axios from 'axios';

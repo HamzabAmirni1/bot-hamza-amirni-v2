@@ -6,7 +6,6 @@ import * as cheerio from 'cheerio'
  * Author: gienetic
  * Base: https://whatsgrouplink.com/
  * Plugin Conversion & Logic Improvement: Gemini
- * and also noureddine ouafy 
  */
 
 /**

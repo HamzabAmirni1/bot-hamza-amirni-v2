@@ -1,5 +1,4 @@
 //scrape by Daffa thanks brother 
-//plugin by Noureddine ouafy
 
 import axios from 'axios';
 

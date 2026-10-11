@@ -1,4 +1,3 @@
-// instagram.com/noureddine_ouafy
 // scrape by  Ponta Sensei
 import axios from 'axios'
 

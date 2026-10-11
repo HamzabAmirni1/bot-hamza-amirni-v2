@@ -1,5 +1,4 @@
-// @noureddine_ouafy
-// APK Downloader Plugin using NexOracle API
+// APK Downloader Plugin
 
 import axios from 'axios';
 
@@ -10,7 +9,7 @@ let handler = async (m, { conn, args }) => {
   }
 
   // رسالة انتظار
-  await m.reply("⏳ المرجو الانتظار قليلا لا تنسى ان تتابع \ninstagram.com/noureddine_ouafy");
+  await m.reply("⏳ *المرجو الانتظار قليلاً جاري جلب وتجهيز التطبيق...*\n\n⚡ *bot amirni hamza • حمزة اعمرني*");
 
   try {
     const apiUrl = `https://api.nexoracle.com/downloader/apk`;
@@ -30,7 +29,7 @@ let handler = async (m, { conn, args }) => {
     // إرسال صورة التطبيق مع رسالة
     await conn.sendMessage(m.chat, {
       image: { url: icon },
-      caption: `📦 *جاري تحميل ${name}...*`
+      caption: `📦 *جاري تحميل ${name}...*\n\n⚡ *bot amirni hamza*`
     }, { quoted: m });
 
     const apkRes = await axios.get(dllink, { responseType: 'arraybuffer' });
@@ -41,7 +40,7 @@ let handler = async (m, { conn, args }) => {
                     `📅 *آخر تحديث:* ${lastup}\n` +
                     `📦 *الحزمة:* ${pkg}\n` +
                     `📏 *الحجم:* ${size}\n\n` +
-                    `> 📥 تم التحميل بواسطة Silana Bot`;
+                    `> 📥 تم التحميل بواسطة: bot amirni hamza`;
 
     await conn.sendMessage(m.chat, {
       document: apkBuffer,

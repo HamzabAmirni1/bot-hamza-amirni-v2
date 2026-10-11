@@ -2,7 +2,6 @@
 //  📖  SEERAH — Biography of the Prophet ﷺ by Nabil Al-Awadi
 //  Command : .seerah  |  .seerah <episode number>
 //  Tags    : islamic
-// plugin by noureddine Ouafy 
 // ============================================================
 
 const EPISODES = [

@@ -1,4 +1,3 @@
-// plugin by noureddine ouafy 
 // scrape by claude ai
 
 import * as cheerio from 'cheerio'

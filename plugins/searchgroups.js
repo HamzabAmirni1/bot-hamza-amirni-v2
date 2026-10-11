@@ -1,4 +1,3 @@
-// plugin by noureddine ouafy
 // scrape by https://pastebin.com/bTbi66Zp
 import axios from "axios";
 import * as cheerio from 'cheerio'
