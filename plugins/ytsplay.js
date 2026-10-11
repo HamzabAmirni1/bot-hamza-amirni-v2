@@ -411,22 +411,41 @@ const handler = async (m, { conn, text, command }) => {
 
 		const audioTitle = audioData.title || videoTitle || 'audio';
 
-		// Download audio buffer first to ensure WhatsApp sends a verified file (not a broken stream)
+		// Download audio via downloadWithProgress with live progress bar and thumbnail
 		let audioBuffer = null;
+		let tmpAudioPath = null;
 		try {
-			const aRes = await axios.get(audioData.download, {
-				responseType: 'arraybuffer',
-				timeout: 30000,
-				headers: {
-					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-					'Accept': '*/*'
-				}
+			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+			tmpAudioPath = `./tmp/yt_aud_${Date.now()}.mp3`;
+
+			await downloadWithProgress(audioData.download, {
+				m, conn,
+				title: audioTitle,
+				emoji: '🎵',
+				thumbnail: videoThumb || null,
+				outputPath: tmpAudioPath,
+				timeout: 45000
 			});
-			if (aRes.data && aRes.data.byteLength > 1024) {
-				audioBuffer = Buffer.from(aRes.data);
+
+			if (fs.existsSync(tmpAudioPath)) {
+				audioBuffer = fs.readFileSync(tmpAudioPath);
 			}
 		} catch (dlErr) {
-			console.log('[ytsplay/audio] Buffer fetch failed, will try direct URL:', dlErr.message);
+			console.log('[ytsplay/audio] Progress download notice, trying direct buffer:', dlErr.message);
+			try {
+				const aRes = await axios.get(audioData.download, {
+					responseType: 'arraybuffer',
+					timeout: 30000,
+					headers: {
+						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+						'Accept': '*/*'
+					}
+				});
+				if (aRes.data && aRes.data.byteLength > 1024) {
+					audioBuffer = Buffer.from(aRes.data);
+				}
+			} catch (_) {}
 		}
 
 		try {
@@ -593,7 +612,7 @@ const handler = async (m, { conn, text, command }) => {
 		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
 
-		// Stream video to temporary disk file (0 MB heap RAM usage, prevents OOM on Koyeb)
+		// Stream video with live progress bar and thumbnail preview (0 MB heap RAM usage, prevents OOM on Koyeb)
 		let tmpVidPath = null;
 		try {
 			const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
@@ -613,15 +632,17 @@ const handler = async (m, { conn, text, command }) => {
 			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
 			tmpVidPath = `./tmp/yt_vid_${Date.now()}.mp4`;
 
-			const fileRes = await axios.get(finalVideoUrl, {
-				responseType: 'stream',
-				timeout: 45000,
-				headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }
+			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+			await downloadWithProgress(finalVideoUrl, {
+				m, conn,
+				title: vidTitle,
+				emoji: '🎬',
+				thumbnail: thumbUrl || null,
+				outputPath: tmpVidPath,
+				timeout: 90000
 			});
-			const fileWriter = fs.createWriteStream(tmpVidPath);
-			await pipeline(fileRes.data, fileWriter);
 		} catch (bErr) {
-			console.log('[ytsplay/video] Video disk stream failed, will try direct URL:', bErr.message);
+			console.log('[ytsplay/video] Video progress stream failed, will try direct URL:', bErr.message);
 		}
 
 		try {

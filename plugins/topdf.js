@@ -247,7 +247,23 @@ How to make a multi-image PDF:
     }
   }
 
-  // ── 0.1 Handle cancel command (.cancelpdf) ──
+  // ── 0.1 Handle direct multi-image trigger command (.pdfm) ──
+  if (lowerCmd === 'pdfm') {
+    pdfSessions.set(sessionKey, {
+      images: [],
+      timer: setTimeout(() => pdfSessions.delete(sessionKey), 300000)
+    });
+    return m.reply(
+      `📸 *تم تفعيل وضع تجميع الصور في PDF واحد (.pdfm)!* 🚀\n━━━━━━━━━━━━━━━━━━━━━\n` +
+      `1️⃣ أرسل الآن الصور واحدة تلو الأخرى (أو كـ ألبوم).\n` +
+      `2️⃣ سيتم حفظ مقاسات كل صورة بدقة 100% بدون أي تغيير في أبعادها.\n` +
+      `3️⃣ عند الانتهاء، أرسل الأمر: *${usedPrefix}donepdf*\n\n` +
+      `🗑️ للإلغاء في أي وقت: *${usedPrefix}cancelpdf*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`
+    );
+  }
+
+  // ── 0.2 Handle cancel command (.cancelpdf) ──
   if (lowerCmd === 'cancelpdf') {
     const session = pdfSessions.get(sessionKey);
     if (session) {
@@ -442,9 +458,9 @@ handler.before = async function (m) {
   }
 };
 
-handler.help = ['topdf', 'img2pdf', 'text2pdf', 'donepdf', 'savepdf', 'cancelpdf'];
+handler.help = ['topdf', 'img2pdf', 'text2pdf', 'pdfm', 'donepdf', 'savepdf', 'cancelpdf'];
 handler.tags = ['tools', 'converter'];
-handler.command = /^(topdf|img2pdf|text2pdf|pdf|donepdf|savepdf|cancelpdf)$/i;
+handler.command = /^(topdf|img2pdf|text2pdf|pdf|pdfm|donepdf|savepdf|cancelpdf)$/i;
 handler.limit = false;
 
 export default handler;
