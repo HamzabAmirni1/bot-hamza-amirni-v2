@@ -10,9 +10,32 @@ let handler = async (m, { conn, usedPrefix, command, text }) => {
  m.react('🔍');
 
  try {
-  const search = await yts(text);
+  let search = await yts(text);
+  let results = [...(search.videos || [])];
 
-  const results = (search.videos || []).slice(0, 20);
+  // If search returned fewer than 5 results and text has no spaces (e.g. "hamzaamirni"):
+  // Try searching with separated words to find more relevant YouTube videos
+  if (results.length < 5 && !text.includes(' ') && text.length > 5) {
+   try {
+    const splitted = text
+     .replace(/([a-zA-Z]{3,})(amirni|hamza|bot|music|song|rap|morocco|maroc)/i, '$1 $2')
+     .replace(/([a-z]{4,})([a-z]{4,})/i, '$1 $2');
+    if (splitted !== text) {
+     const extraSearch = await yts(splitted);
+     if (extraSearch?.videos?.length) {
+      const seen = new Set(results.map(r => r.url));
+      for (const v of extraSearch.videos) {
+       if (!seen.has(v.url)) {
+        results.push(v);
+        seen.add(v.url);
+       }
+      }
+     }
+    }
+   } catch (_) {}
+  }
+
+  results = results.slice(0, 20);
 
   if (!results.length) {
    m.react('❌');
