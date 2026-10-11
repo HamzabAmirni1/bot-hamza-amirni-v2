@@ -429,6 +429,22 @@ export async function handler(chatUpdate) {
 	let m = chatUpdate.messages[chatUpdate.messages.length - 1];
 	if (!m) return;
 
+	// ── Guard: Skip offline / historical messages delivered upon reconnect ──
+	if (chatUpdate.type === 'append') return;
+
+	const rawTs = m.messageTimestamp;
+	const msgTs = typeof rawTs === 'object' && rawTs !== null
+		? (rawTs.low || Number(rawTs))
+		: Number(rawTs || 0);
+
+	if (msgTs > 0) {
+		const ageSeconds = Math.floor(Date.now() / 1000) - msgTs;
+		// If message is older than 2 minutes (120s), it was sent while bot was offline/disconnected — skip to avoid replay spam
+		if (ageSeconds > 120) {
+			return;
+		}
+	}
+
 	// Ensure this.user is populated even before connectionUpdate event
 	if (!this.user || (!this.user.id && !this.user.jid)) {
 		this.user = this.authState?.creds?.me || {

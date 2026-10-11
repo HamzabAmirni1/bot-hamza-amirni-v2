@@ -1,4 +1,5 @@
 import axios from 'axios';
+import fs from 'fs';
 import { generateWAMessageContent, generateWAMessageFromContent, proto } from 'baileys';
 
 // ============================================================
@@ -220,24 +221,38 @@ const handler = async (m, { conn, text, command }) => {
 				} catch (_) {}
 			}
 
+			let tmpApkPath = null;
 			try {
+				if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+				const cleanName = (info.name || 'app').replace(/[^a-zA-Z0-9_-]/g, '_');
+				tmpApkPath = `./tmp/apk_${cleanName}_${Date.now()}.apk`;
+
 				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
 				await downloadWithProgress(info.downloadUrl, {
 					m, conn,
 					title: info.name,
 					emoji: '📦',
+					outputPath: tmpApkPath,
+					timeout: 240000
 				});
 			} catch (pErr) {
 				console.log('[apkdl] Progress download notice:', pErr.message);
 			}
 
-			// Direct Baileys 0-RAM URL stream
-			await conn.sendMessage(m.chat, {
-				document: { url: info.downloadUrl },
-				fileName: `${info.name}_v${info.version}.apk`,
-				mimetype: 'application/vnd.android.package-archive',
-				caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
-			}, { quoted: m });
+			// Direct Baileys stream from local disk or direct fallback URL
+			const docTarget = (tmpApkPath && fs.existsSync(tmpApkPath)) ? { url: tmpApkPath } : { url: info.downloadUrl };
+			try {
+				await conn.sendMessage(m.chat, {
+					document: docTarget,
+					fileName: `${info.name}_v${info.version}.apk`,
+					mimetype: 'application/vnd.android.package-archive',
+					caption: `✅ *${info.name}* v${info.version}\n⚖️ ${info.sizeMB} MB\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+			} finally {
+				if (tmpApkPath && fs.existsSync(tmpApkPath)) {
+					try { fs.unlinkSync(tmpApkPath); } catch (_) {}
+				}
+			}
 
 			if (!isAdminUser(sender, m)) {
 				incrementDownload(sender);
