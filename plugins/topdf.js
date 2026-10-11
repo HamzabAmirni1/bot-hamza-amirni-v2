@@ -281,25 +281,22 @@ How to make a multi-image PDF:
   const cleanInputText = (text || '').trim();
   const isCommandOnly = cleanInputText === '' || cleanInputText.toLowerCase() === lowerCmd || cleanInputText.toLowerCase() === `.${lowerCmd}`;
 
-  if (!isCommandOnly && cleanInputText && !/image/.test(mime) && !m.quoted?.mimetype?.includes('image')) {
-    await m.react('⏳');
-    try {
-      const pdfBuffer = createTextPdfBuffer(cleanInputText);
-
-      await conn.sendMessage(m.chat, {
-        document: pdfBuffer,
-        mimetype: 'application/pdf',
-        fileName: `document_${Date.now()}.pdf`,
-        caption: `📄 *تم إنشاء ملف PDF بنجاح!*\n📝 *المحتوى:* ${cleanInputText.slice(0, 40)}...\n\n⚡ *bot amirni hamza • حمزة اعمرني*`
-      }, { quoted: m });
-
-      await m.react('✅');
-      return;
-    } catch (e) {
-      console.error('[TEXT2PDF Error]', e);
-      await m.react('❌');
-      return m.reply(`❌ فشل إنشاء ملف الـ PDF: ${e.message || e}`);
-    }
+  // ── 1. Starting multi-mode explicitly: .topdf multi / .pdf album ──
+  if (cleanInputText.toLowerCase().includes('multi') || cleanInputText.toLowerCase().includes('album') || cleanInputText.toLowerCase().includes('جمع')) {
+    pdfSessions.set(sessionKey, {
+      images: [],
+      timer: setTimeout(() => pdfSessions.delete(sessionKey), 300000)
+    });
+    return m.reply(
+      `📸 *تم تفعيل وضع تجميع الصور في PDF واحد!* 🚀\n━━━━━━━━━━━━━━━━━━━━━\n` +
+      `1️⃣ أرسل الآن الصور واحدة تلو الأخرى (أو كـ ألبوم).\n` +
+      `2️⃣ سيتم حفظ مقاسات كل صورة بدقة 100% بدون أي تغيير في أبعادها.\n` +
+      `3️⃣ عند الانتهاء، أرسل الأمر:\n` +
+      `\u200E← .donepdf\n\n` +
+      `🗑️ للإلغاء في أي وقت:\n` +
+      `\u200E← .cancelpdf\n` +
+      `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`
+    );
   }
 
   // ── 2. Handle image to PDF ──
@@ -325,7 +322,8 @@ How to make a multi-image PDF:
           `📸 *تمت إضافة الصورة بنجاح إلى ملف الـ PDF!*\n` +
           `📊 *العدد الإجمالي حتى الآن:* ${session.images.length} صورة.\n\n` +
           `• إذا أردت إضافة المزيد، أرسل باقي الصور.\n` +
-          `• عند الانتهاء، اكتب: *${usedPrefix}donepdf* لاستلام ملف الـ PDF المجمع!`
+          `• عند الانتهاء، اكتب:\n` +
+          `\u200E← .donepdf`
         );
       }
 
@@ -337,7 +335,7 @@ How to make a multi-image PDF:
         document: validPdf,
         mimetype: 'application/pdf',
         fileName: `photo_${processed.width}x${processed.height}_${Date.now()}.pdf`,
-        caption: `✅ *تم تحويل الصورة إلى PDF بنجاح!*\n📐 *الأبعاد الأصلية:* ${processed.width} × ${processed.height} px (بدون أي تشويه)\n💡 *ملاحظة:* إذا أردت جمع عدة صور فـ PDF واحد، اكتب: *${usedPrefix}topdf multi*\n\n⚡ *bot amirni hamza • حمزة اعمرني*`
+        caption: `✅ *تم تحويل الصورة إلى PDF بنجاح!*\n📐 *الأبعاد الأصلية:* ${processed.width} × ${processed.height} px (بدون أي تشويه)\n💡 *ملاحظة:* إذا أردت جمع عدة صور فـ PDF واحد، اكتب:\n\u200E← .pdfm\n\n⚡ *bot amirni hamza • حمزة اعمرني*`
       }, { quoted: m });
 
       await m.react('✅');
@@ -349,40 +347,47 @@ How to make a multi-image PDF:
     }
   }
 
-  // ── 3. Starting multi-mode explicitly: .topdf multi / .pdf album ──
-  if (cleanInputText.toLowerCase().includes('multi') || cleanInputText.toLowerCase().includes('album') || cleanInputText.toLowerCase().includes('جمع')) {
-    pdfSessions.set(sessionKey, {
-      images: [],
-      timer: setTimeout(() => pdfSessions.delete(sessionKey), 300000)
-    });
-    return m.reply(
-      `📸 *تم تفعيل وضع تجميع الصور في PDF واحد!* 🚀\n━━━━━━━━━━━━━━━━━━━━━\n` +
-      `1️⃣ أرسل الآن الصور واحدة تلو الأخرى (أو كـ ألبوم).\n` +
-      `2️⃣ سيتم حفظ مقاسات كل صورة بدقة 100% بدون أي تغيير في أبعادها.\n` +
-      `3️⃣ عند الانتهاء، أرسل الأمر: *${usedPrefix}donepdf*\n\n` +
-      `🗑️ للإلغاء في أي وقت: *${usedPrefix}cancelpdf*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`
-    );
+  // ── 3. If text is provided (and it is NOT just a command word or empty) ──
+  if (!isCommandOnly && cleanInputText.length > 5 && !/image/.test(mime) && !m.quoted?.mimetype?.includes('image')) {
+    await m.react('⏳');
+    try {
+      const pdfBuffer = createTextPdfBuffer(cleanInputText);
+
+      await conn.sendMessage(m.chat, {
+        document: pdfBuffer,
+        mimetype: 'application/pdf',
+        fileName: `document_${Date.now()}.pdf`,
+        caption: `📄 *تم إنشاء ملف PDF بنجاح!*\n📝 *المحتوى:* ${cleanInputText.slice(0, 40)}...\n\n⚡ *bot amirni hamza • حمزة اعمرني*`
+      }, { quoted: m });
+
+      await m.react('✅');
+      return;
+    } catch (e) {
+      console.error('[TEXT2PDF Error]', e);
+      await m.react('❌');
+      return m.reply(`❌ فشل إنشاء ملف الـ PDF: ${e.message || e}`);
+    }
   }
 
-  // ── 4. No arguments & no image: show multilingual rich help ──
+  // ── 4. No arguments & no image: show multilingual rich help with clean LTR aligned command blocks ──
   const helpMsgs = {
     darija: `🤖 *بوت حمزة اعمرني • صانع ومحول الـ PDF*
 ━━━━━━━━━━━━━━━━━━━━━
 📄 *كيفاش تخدم الأمر:*
 
 1️⃣ *تحويل صورة إلى PDF بنفس قياساتها الأصلية:*
-← صيفط تصويرة ورد عليها بـ: \`${usedPrefix + command}\`
+صيفط تصويرة ورد عليها بـ:
+\u200E← .topdf
 
 2️⃣ *جمع عدة صور فـ ملف PDF واحد عالي الدقة:*
-← كتب: \`${usedPrefix}topdf multi\`
-← صيفط كاع التصاور اللي بغيتي تزيد
-← فاش تسالي، كتب: \`${usedPrefix}donepdf\`
+كتب هاد الأمر وبدا تصيفط التصاور:
+\u200E← .pdfm
+فاش تسالي من إرسال الصور كتب:
+\u200E← .donepdf
 
 3️⃣ *تحويل نص أو مقال إلى مستند PDF جاهز:*
-← \`${usedPrefix + command} نص المقال أو البحث...\`
-📌 *مثال:*
-\`${usedPrefix + command} تقرير حول الذكاء الاصطناعي وتطوره السريع في المغرب\`
+كتب الأمر وموراه النص طويل:
+\u200E← .topdf تقرير حول الذكاء الاصطناعي وتطوره السريع في المغرب
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`,
@@ -391,17 +396,18 @@ How to make a multi-image PDF:
 📄 *طريقة الاستخدام:*
 
 1️⃣ *تحويل صورة إلى PDF بأبعادها الأصلية الدقيقة:*
-← قم بالرد (Reply) على الصورة بالأمر: \`${usedPrefix + command}\`
+قم بالرد على الصورة بالأمر:
+\u200E← .topdf
 
 2️⃣ *دمج عدة صور في ملف PDF واحد بجودة فائقة:*
-← اكتب: \`${usedPrefix}topdf multi\`
-← أرسل الصور التي تريد إضافتها
-← عند الانتهاء اكتب: \`${usedPrefix}donepdf\`
+اكتب هذا الأمر ثم أرسل الصور:
+\u200E← .pdfm
+عند الانتهاء اكتب:
+\u200E← .donepdf
 
 3️⃣ *تحويل نص أو بحث إلى مستند PDF قابل للطباعة:*
-← \`${usedPrefix + command} النص أو المقال الذي تريد تحويله\`
-📌 *مثال:*
-\`${usedPrefix + command} بحث كامل حول الطاقة المتجددة في العالم\`
+اكتب الأمر متبوعاً بنص المقال:
+\u200E← .topdf بحث كامل حول الطاقة المتجددة في العالم
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`,
@@ -410,17 +416,17 @@ How to make a multi-image PDF:
 📄 *How to use:*
 
 1️⃣ *Convert single Image to PDF (exact original dimensions):*
-← Reply to any photo with: \`${usedPrefix + command}\`
+Reply to any photo with:
+← .topdf
 
 2️⃣ *Combine multiple images into 1 high-res PDF:*
-← Type: \`${usedPrefix}topdf multi\`
-← Send the images you want to add
-← When finished, send: \`${usedPrefix}donepdf\`
+Start the session:
+← .pdfm
+When finished sending photos, type:
+← .donepdf
 
 3️⃣ *Convert text to PDF document:*
-← \`${usedPrefix + command} <Your text or article here>\`
-📌 *Example:*
-\`${usedPrefix + command} Summary report about artificial intelligence and future tech\`
+← .topdf <Your article or summary text here>
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`
