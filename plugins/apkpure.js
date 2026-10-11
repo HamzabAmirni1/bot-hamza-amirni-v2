@@ -419,8 +419,8 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   await m.react('✅');
 };
 
-handler.help = ['apkp'];
-handler.command = /^(apkp|apkpure|apkpdl)$/i;
+handler.help = ['apk <الاسم>', 'apkp <الاسم>', 'apkpure <الاسم>'];
+handler.command = /^(apk|apkp|apkpure|apkpdl)$/i;
 handler.tags = ['downloader'];
 handler.limit = false;
 

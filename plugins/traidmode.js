@@ -330,9 +330,20 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
       }
     }
 
+    if (directUrl) {
+      try {
+        directUrl = encodeURI(decodeURI(directUrl.trim()));
+      } catch (_) {}
+    }
+
     if (!directUrl) {
       await m.react('❌');
-      return m.reply('❌ تعذر العثور على رابط التحميل المباشر لهذا التطبيق. جرب البحث باسمه عبر: .apk <الاسم>');
+      return m.reply(
+        `❌ *تعذر استخراج رابط التحميل لهذا التطبيق من TraidMode.*\n` +
+        `💡 يمكنك تحميل النسخة الأصلية مباشرة عبر:\n` +
+        `\u200E← .apk <اسم التطبيق>\n` +
+        `\u200E← .aptoide <اسم التطبيق>`
+      );
     }
 
     try {
@@ -423,31 +434,16 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
   let results = await TraidModeScraper.search(query);
   if (!results.length) {
-    // Fallback to Aptoide
-    try {
-      const { data } = await axios.get(
-        `https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(query)}&limit=8`,
-        { timeout: 8000 }
-      );
-      const list = data?.datalist?.list || [];
-      for (const item of list) {
-        if (item.name && (item.file?.path || item.package)) {
-          results.push({
-            title: item.name,
-            link: item.file?.path_alt || item.file?.path || `https://apkpure.net/app/${item.package}`,
-            icon: item.icon || '',
-            category: 'تطبيق / لعبة للأندرويد',
-            version: item.file?.vername || 'أحدث إصدار',
-            size: item.size ? (item.size / (1024 * 1024)).toFixed(1) + ' MB' : ''
-          });
-        }
-      }
-    } catch (_) {}
-  }
-
-  if (!results.length) {
     await m.react('❌');
-    return conn.reply(m.chat, `❌ لم يتم العثور على ألعاب أو تطبيقات مطابقة لـ *"${query}"*.`, m);
+    return conn.reply(
+      m.chat,
+      `❌ *لم يتم العثور على ألعاب أو تطبيقات مهكرة مطابقة لـ "${query}" في متجر TraidMode.*\n━━━━━━━━━━━━━━━━━━━━━\n` +
+      `💡 *جرّب البحث في المتاجر الأخرى المتوفرة:*\n` +
+      `\u200E← .apk ${query} (متجر APKPure الرسمي)\n` +
+      `\u200E← .aptoide ${query} (متجر Aptoide المباشر)\n\n` +
+      `⚡ *bot amirni hamza*`,
+      m
+    );
   }
 
   const headerText = `🔥 *TraidMode — نتائج البحث عن: "${query}"*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
