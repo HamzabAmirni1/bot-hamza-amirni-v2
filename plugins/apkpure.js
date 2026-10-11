@@ -316,19 +316,50 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
   // ── Search mode: .apkp / .apkpure <query> ───────────
   const query = (text || '').trim();
   if (!query) {
-    return conn.reply(
-      m.chat,
-      `🟢 *APKPure — متجر التطبيقات والألعاب APK*\n\n` +
-      `ابحث وحمّل أحدث التطبيقات والألعاب الرسمية مباشرة من متجر APKPure.\n\n` +
-      `*طريقة الاستخدام:*\n` +
-      `← ${usedPrefix}apkp <اسم اللعبة أو التطبيق>\n\n` +
-      `*أمثلة:*\n` +
-      `← ${usedPrefix}apkp WhatsApp\n` +
-      `← ${usedPrefix}apkp Free Fire\n` +
-      `← ${usedPrefix}apkp Instagram\n\n` +
-      `⚡ *bot amirni hamza*`,
-      m
-    );
+    const userLang = (m.sender && global.db?.data?.users?.[m.sender]?.language) || 'darija';
+    const apkHelp = {
+      darija: `🤖 *بوت حمزة اعمرني • متجر التطبيقات والألعاب APKPure*
+━━━━━━━━━━━━━━━━━━━━━
+📦 *كيفاش تخدم الأمر:*
+
+← \`${usedPrefix + command} <سمية التطبيق أو اللعبة>\`
+
+📌 *أمثلة:*
+← \`${usedPrefix + command} WhatsApp\`
+← \`${usedPrefix + command} Free Fire\`
+← \`${usedPrefix + command} Subway Surfers\`
+← \`${usedPrefix + command} CapCut\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+      arabic: `🤖 *بوت حمزة اعمرني • متجر التطبيقات والألعاب APKPure*
+━━━━━━━━━━━━━━━━━━━━━
+📦 *طريقة الاستخدام:*
+
+← \`${usedPrefix + command} <اسم التطبيق أو اللعبة>\`
+
+📌 *أمثلة:*
+← \`${usedPrefix + command} WhatsApp\`
+← \`${usedPrefix + command} Free Fire\`
+← \`${usedPrefix + command} Telegram\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+      english: `🤖 *Hamza Amirni Bot • APKPure Store Downloader*
+━━━━━━━━━━━━━━━━━━━━━
+📦 *How to use:*
+
+← \`${usedPrefix + command} <app or game name>\`
+
+📌 *Examples:*
+← \`${usedPrefix + command} WhatsApp\`
+← \`${usedPrefix + command} Free Fire\`
+← \`${usedPrefix + command} Spotify\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`
+    };
+    return m.reply(apkHelp[userLang] || apkHelp.darija);
   }
 
   await m.react('🔍');

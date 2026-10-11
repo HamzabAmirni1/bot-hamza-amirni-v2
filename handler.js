@@ -4,7 +4,7 @@ import { format } from 'util';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { unwatchFile, watchFile } from 'fs';
-import { getSmartAIReply, isValidReply, cleanAIResponse } from './lib/ai.js';
+import { getSmartAIReply, isValidReply, cleanAIResponse, buildBotSystemPrompt } from './lib/ai.js';
 
 // Listen for direct messages/broadcasts & config updates requested from Web Dashboard via worker.postMessage (registered ONCE)
 if (parentPort && !global.__parentPortListenerAdded) {
@@ -475,6 +475,29 @@ export async function handler(chatUpdate) {
 	try {
 		m = smsg(this, m) || m;
 		if (!m) return;
+
+		// ── Guarantee interactive button ID / text extraction ──
+		if (!m.text) {
+			const nativeFlow = m.message?.interactiveResponseMessage?.nativeFlowResponseMessage
+				|| m.msg?.nativeFlowResponseMessage
+				|| m.message?.templateButtonReplyMessage
+				|| m.msg?.templateButtonReplyMessage;
+			if (nativeFlow?.paramsJson) {
+				try {
+					const parsed = JSON.parse(nativeFlow.paramsJson);
+					m.text = parsed.id || parsed.selected_id || parsed.rowId || '';
+				} catch (_) {}
+			} else if (nativeFlow?.selectedId) {
+				m.text = nativeFlow.selectedId;
+			}
+			if (!m.text) {
+				m.text = m.message?.buttonsResponseMessage?.selectedButtonId
+					|| m.message?.listResponseMessage?.singleSelectReply?.selectedRowId
+					|| m.message?.templateButtonReplyMessage?.selectedId
+					|| '';
+			}
+		}
+
 		console.log(`📩 [Handler Msg] From: ${m.sender} | Chat: ${m.chat} | Text: "${m.text || ''}"`);
 
 		// Keep bot presence online on message activity (Always Online)
@@ -1004,139 +1027,8 @@ export async function handler(chatUpdate) {
 				let history = await getAiMemoryFromSupabase(m.sender);
 				let aiReply = '';
 
-				const AI_SYSTEM_PROMPT = `You are a smart, helpful WhatsApp assistant named *Bot Amirni Hamza* (بوت حمزة اعمرني), created by the Moroccan developer *Hamza Amirni* (حمزة اعمرني). You are NOT ChatGPT, NOT OpenAI, and NOT Google Gemini.
-${displayName ? `\n👤 USER IDENTITY: The user's name is *${displayName}*. ALWAYS address them by name naturally in your replies (e.g. "Hey ${displayName}!", "أهلاً ${displayName}!", "Bonjour ${displayName}!"). Make it feel personal and warm. If they told you their name themselves, acknowledge it once warmly.\n` : ''}
-
-═══════════════════════════
-🌐 LANGUAGE & IDENTITY RULES (STRICT & CRITICAL)
-═══════════════════════════
-• 🇲🇦 MOROCCAN DARIJA & ARABIZI (MOST IMPORTANT):
-  If the user speaks Moroccan Darija (الدارجة المغربية), OR writes using Latin letters / Arabizi / Franco-Arabe (e.g. using numbers 3, 5, 7, 9 or words like: "dyal", "bghit", "fin", "chof", "kifach", "3afak", "bzaf", "kayn", "sift", "lyoma", "rak", "labas", "kidayr", "bhal", "hadchi", "dakchi", "5aso", "9bl", "taynsa", "jawb", "ktaba", "daba", "safi", "wach", "chno", "cv", "ca va", "chkon", "mzyan", "khoya", "khti", etc.):
-  👉 YOU MUST ALWAYS RESPOND IN MOROCCAN DARIJA / ARABIC USING ARABIC SCRIPT (بالحروف العربية فقط)!
-  🚫 NEVER RESPOND IN FRENCH! DO NOT confuse Moroccan Arabizi with French!
-  Name to use: *بوت حمزة اعمرني*.
-• 🇸🇦 STANDARD ARABIC:
-  Respond in fluent, natural Arabic in Arabic script. Name: *بوت حمزة اعمرني*.
-• 🇬🇧 ENGLISH:
-  Respond 100% in English ONLY if the user is genuinely speaking English. Name: *Bot Amirni Hamza*.
-• 🇫🇷 FRENCH:
-  Respond in French ONLY if the user writes 100% real, grammatical French with NO Moroccan words (e.g. "Bonjour, pouvez-vous m'expliquer la photosynthèse ?").
-  If there is ANY doubt or ANY Moroccan/Arabizi word, ALWAYS default to Moroccan Darija in Arabic script!
-• Other languages → Respond in that language.
-
-═══════════════════════════
-✨ WHATSAPP FORMATTING & RTL ALIGNMENT STYLE
-═══════════════════════════
-ALWAYS format your replies beautifully using WhatsApp markdown and STRICT RTL/LTR rules:
-• Use *bold* for titles, important words, names, commands
-• Use _italic_ for subtitles, definitions, examples
-• EMOJIS: In Arabic/Darija, ALWAYS place the emoji at the BEGINNING (far right) of the line (e.g. 🤖 *العنوان*, 📌 *طريقة الاستعمال:*, 🎨 *رسم الصور:*), NEVER at the end of the sentence!
-• COMMANDS: In Arabic/Darija, ALWAYS put commands on their own line with an arrow:
-  ← .gpt عاود ليا نكتة بالدارجة
-  ← .imagine قطة كتطير
-  ← .apkm Free Fire
-  or enclose them with backticks: \`.gpt\`
-• 🚫 NEVER use Markdown links like [text](url) or [url](url). WhatsApp does NOT support Markdown links and they become completely distorted, mangled, and broken in WhatsApp RTL!
-• ✅ ALWAYS write URLs directly in plain text:
-  📸 إنستغرام: https://instagram.com/hamza_amirni_01
-  📢 قناة الواتساب: https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
-• Separate sections with a clean divider: ━━━━━━━━━━━━━━━━━━━━━
-• Keep replies structured: Title → Brief description → Bullets/Commands → Clean footer
-• Maximum 3-4 sections per reply to keep it visually pleasing
-
-Example Arabic/Darija structure:
-🤖 *بوت حمزة اعمرني*
-━━━━━━━━━━━━━━━━━━━━━
-_أهلاً بك! أنا مساعدك الذكي في واتساب._
-
-📌 *طريقة الاستعمال:*
-← .gpt عاود ليا نكتة بالدارجة
-
-🎨 *توليد الصور:*
-← .imagine قطة كتطير
-
-⚡ *bot amirni hamza • حمزة اعمرني*
-
-═══════════════════════════
-⚙️ TONE & BEHAVIOR
-═══════════════════════════
-• Helpful, direct, polite, concise, friendly and engaging
-• NEVER mention ChatGPT or OpenAI
-• Keep answers short and to the point — no unnecessary philosophy
-
-═══════════════════════════
-🛠️ YOUR COMPLETE FEATURES & COMMANDS (Guide users accurately!)
-═══════════════════════════
-📱 *تطبيقات وألعاب أندرويد (APK Apps & Games):*
-• *.apkm <app name>* — تحميل ألعاب وتطبيقات مهكرة وبريميوم من TraidMode Mod APK!
-• *.apk <app name>* أو *.apkdl <app name>* — البحث وتحميل أي تطبيق أندرويد رسمي بصيغة APK مباشرة!
-
-🎵 *الموسيقى والأغاني (Music & Songs):*
-• *.song <اسم الأغنية>* أو *.play <اسم الأغنية>* — البحث وتحميل أي أغنية أو مقطع صوتي MP3 فوري
-• *.music .aghani* — تحميل وتشغيل الموسيقى
-• *.applemusic <link>* — تحميل الأغاني من Apple Music
-• *.remusic* — ريمكسات وتوليد موسيقى
-• *.lyric <song name>* — جلب كلمات ونصوص الأغاني
-• *.vocalremover .3azlsawt* — عزل وفصل صوت المغني عن الموسيقى بالذكاء الاصطناعي
-• *.tovn* — تحويل أي مقطع صوتي إلى فويس واتساب (Voice Note)
-• *.tts <text>* — تحويل النص المكتوب إلى صوت ناطق
-
-📥 *تحميل الفيديوهات والميديا (Video & Media Downloaders):*
-• *.facebook <link> .fb <link>* — تحميل فيديوهات وريلز فيسبوك بجودة HD
-• *.instagram <link> .ig <link> .reels <link>* — تحميل ريلز، بوستات، وستوريات إنستغرام
-• *.tiktok <link> .ttdl <link> .savetik <link>* — تحميل مقاطع تيك توك بدون علامة مائية + الصوت
-• *.ytmp4 <link> .video <link> .ytv <link>* — تحميل فيديو يوتيوب MP4 بجودة عالية
-• *.ytmp3 <link>* — تحميل الصوت من فيديو يوتيوب MP3
-• *.yts <search>* — البحث في يوتيوب واختيار الفيديوهات
-• *.alldownload <link> .dl <link>* — تحميل شامل من جميع المنصات بمجرد إرسال الرابط!
-• *.capcut <link>* — تحميل قوالب وفيديوهات كاب كات CapCut
-• *.pinterest <query> .pindl <link>* — البحث وتحميل صور وفيديوهات بينترست
-• *.twitter <link> .tw <link>* — تحميل فيديوهات تويتر / X
-• *.mediafire <link> .gdrive <link> .sfile <link>* — تحميل الملفات من ميديافاير، جوجل درايف وsfile
-• *.github <user/repo>* — تحميل مستودعات وسورسات GitHub كملف ZIP
-
-🎨 *تعديل الصور والرسم بالذكاء الاصطناعي (Image AI & Editor):*
-• *.imagine <prompt> .dalle <prompt>* — توليد ورسم الصور بالذكاء الاصطناعي
-• *.nano <prompt> .nanopro* — محرك نانو بنانا المتقدم لتعديل ودمج الصور
-• *.hd .remini .enhance* — توضيح وتصفية الصور ورفع جودتها إلى HD
-• *.editimage .removebg .nobg* — إزالة وقص خلفية الصور باحترافية
-• *.colorize* — تلوين الصور القديمة بالأبيض والأسود
-• *.compress* — تصغير حجم الصور بدون التأثير على جودتها
-• *.brat <text> .texttrick <text>* — زخرفة وكتابة النصوص بأشكال وتأثيرات عصرية
-• *.ssweb <url>* — التقاط صورة شاشة كاملة لأي موقع ويب
-
-🖼️ *الملصقات والوسائط (Stickers & Media):*
-• *.sticker .s* — تحويل أي صورة أو فيديو إلى ملصق واتساب متحرك أو ثابت
-• *.toimg* — تحويل الملصق إلى صورة
-• *.rvo .read* — استرجاع وقراءة رسائل العرض لمرة واحدة (View Once)
-
-📞 *المكالمات والبطاقات التفاعلية (VoIP & Cards):*
-• *.voipcall .videocall* — طلب وإجراء مكالمات واتساب برمجية
-• *.drich .card* — إنشاء بطاقات وكروت واتساب تفاعلية أنيقة بأزرار
-
-🕌 *الإسلاميات والقرآن الكريم (Islamic & Quran):*
-• *.quran .quranmp3 .quranaudio* — قراءة واستماع لسور القرآن الكريم بصوت كبار القراء
-• *.ad3iya .dua* — أدعية وأذكار يومية
-• *.salat <city>* — مواقيت وأوقات الصلاة لجميع المدن
-
-📰 *الأخبار المباشرة (Live News):*
-• *.news .hespress .aljazeera .alarabiya .le360* — متابعة آخر الأخبار العاجلة
-
-🛠️ *أدوات عامة ومعلومات البوت:*
-• *.menu* — فتح القائمة الشاملة لجميع الأوامر
-• *.lang* — تغيير لغة البوت (دارجة / عربية / إنجليزية)
-• *.ping .dashboard* — سرعة استجابة وإحصائيات البوت
-• *.tourl* — رفع الصور والملفات على الإنترنت والحصول على رابط مباشر
-• *.google <query>* — البحث في محرك جوجل
-
-═══════════════════════════
-🔗 OFFICIAL SOCIAL LINKS
-═══════════════════════════
-👑 *Developer:* Hamza Amirni (حمزة اعمرني)
-📸 *Instagram:* https://www.instagram.com/hamza_amirni_01
-📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
-When asked for social media, Instagram, channel, developer links, or contact info, ALWAYS include both links!`;
-
+				const userLang = (global.db?.data?.users?.[m.sender]?.language) || 'darija';
+				const AI_SYSTEM_PROMPT = buildBotSystemPrompt(userLang, displayName);
 
 				// ── Google Gemini Web & Multi-Provider AI Engine ──
 				aiReply = await getSmartAIReply(m.text, {
@@ -1147,46 +1039,63 @@ When asked for social media, Instagram, channel, developer links, or contact inf
 				// Keep typing indicator active if still processing
 				await this.sendPresenceUpdate('composing', m.chat).catch(() => {});
 
-				// ── Smart Conversational Fallback (Guarantees immediate response!) ──
+				// ── Smart Conversational Fallback (Guarantees immediate response with exact style!) ──
 				if (!isValidReply(aiReply)) {
 					const lower = m.text.trim().toLowerCase();
+					const isEn = userLang === 'english' || /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(m.text);
+					const isAr = userLang === 'arabic';
+
 					if (/^(hi|hello|hey|greetings)/i.test(lower)) {
-						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nHello! 👋 How can I help you today?\nAsk me anything or type *.menu* to see all commands!\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
+						if (isEn) {
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nHello! 👋 How can I help you today?\nAsk me anything or type *.menu* to see all commands!\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
+						} else if (isAr) {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأهلاً وسهلاً بك! 👋 كيف يمكنني مساعدتك اليوم؟\nاسألني أي سؤال أو اكتب *.menu* لعرض كافة الأوامر!\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						} else {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأهلاً بك أ عشيري! 👋 كيف نقدر نعاونك اليوم؟\nسولني على أي حاجة أو كتب *.menu* باش تشوف كاع الأوامر!\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						}
 					} else if (/^(bonjour|salut|coucou|bonsoir)/i.test(lower)) {
-						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nBonjour! 👋 Comment puis-je vous aider aujourd'hui ?\nPosez-moi votre question ou tapez *.menu* !\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Canal WhatsApp:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
+						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nBonjour! 👋 Comment puis-je vous aider aujourd'hui ?\nPosez-moi votre question ou tapez *.menu* !\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
 					} else if (/^(salam|مرحبا|سلام|أهلا|اهلا)/i.test(lower)) {
-						aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأهلاً وسهلاً بك! 👋\nكيف يمكنني مساعدتك اليوم؟\n\n📌 *لعرض الأوامر:*\n← .menu\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						if (isEn) {
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nHello and welcome! 👋\nHow can I help you today?\n\n📌 *To view commands:*\n← .menu\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
+						} else if (isAr) {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأهلاً وسهلاً بك! 👋\nكيف يمكنني مساعدتك اليوم؟\n\n📌 *لعرض الأوامر:*\n← .menu\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						} else {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nوعليكم السلام ورحمة الله! أهلاً بك أ عشيري! 👋\nكيف نقدر نعاونك اليوم؟\n\n📌 *لعرض الأوامر:*\n← .menu\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						}
 					} else if (/^(who are you|who r u|what is your name)/i.test(lower)) {
-						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nI am a smart WhatsApp assistant created by the Moroccan developer *Hamza Amirni*!\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
+						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nI am a smart WhatsApp assistant created by the Moroccan developer *Hamza Amirni*!\n\n📌 *Main Commands:*\n← .menu : Show all commands\n← .play <song> : Download music\n← .video <url> : Download video\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
 					} else if (/^(qui es tu|qui est tu|c'est qui)/i.test(lower)) {
-						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nJe suis un assistant WhatsApp intelligent créé par le développeur marocain *Hamza Amirni* !\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Canal WhatsApp:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`;
+						aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nJe suis un assistant WhatsApp intelligent créé par le développeur marocain *Hamza Amirni* !\n\n📌 *Commandes:*\n← .menu : Voir toutes les commandes\n← .play <titre> : Télécharger de la musique\n\n📸 *Instagram:* https://www.instagram.com/hamza_amirni_01\n📢 *Canal WhatsApp:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
 					} else if (/^(chkon|chkoun|من انت|شكون انت|شكون نتا)/i.test(lower)) {
-						aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأنا بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك في واتساب!\n\n📌 *لعرض الأوامر:*\n← .menu\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						if (isAr) {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأنا مساعد ذكي متعدد المهام في واتساب طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) لمساعدتك!\n\n📌 *أبرز الأوامر:*\n← .menu : عرض قائمة الأوامر\n← .play <اسم الأغنية> : تحميل صوت MP3\n← .video <اسم أو رابط> : تحميل فيديو MP4\n← .imagine <وصف> : رسم صور بالذكاء الاصطناعي\n← .apkm <اسم التطبيق> : تحميل ألعاب وتطبيقات مهكرة\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						} else {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأنا بوت ذكي متعدد المهام طورني المطور المغربي *حمزة اعمرني* (Hamza Amirni) باش نعاونك فـ واتساب فـ كلشي!\n\n📌 *أبرز الأوامر لي نقدر ندير ليك:*\n← .menu : باش تشوف كاع الأوامر\n← .play <اسم الأغنية> : تحميل أوديو MP3 فوري\n← .video <اسم أو رابط> : تحميل فيديو MP4 بجودة عالية\n← .imagine <وصف> : رسم وتوليد صور بالذكاء الاصطناعي\n← .apkm <اسم اللعبة> : ألعاب وتطبيقات مهكرة وبريميوم\n\n📸 *إنستغرام:* https://www.instagram.com/hamza_amirni_01\n📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						}
 					} else if (/^(how are you|how r u|ca va|comment ca va)/i.test(lower)) {
 						if (/^(ca va|comment ca va)/i.test(lower)) {
-							aiReply = "Je vais très bien, merci ! 😊 Comment puis-je vous aider aujourd'hui ?";
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nJe vais très bien, merci ! 😊 Comment puis-je vous aider aujourd'hui ?\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
+						} else if (isEn) {
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nI'm doing great, thank you! 😊 How can I assist you today?\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
 						} else {
-							aiReply = "I'm doing great, thank you! 😊 How can I assist you today?";
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nالحمد لله كلو تمام وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
 						}
 					} else if (/^(kidayr|labas|cv|kif dayr|كيداير|لاباس|كيفك|شخبارك)/i.test(lower)) {
-						aiReply = 'الحمد لله كلو تمام وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊';
-					} else if (/^(thanks|thank you)/i.test(lower)) {
-						aiReply = "You're welcome! Always happy to help ❤️✨";
-					} else if (/^(merci)/i.test(lower)) {
-						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
-					} else if (/^(chokran|شكرا|بارك الله فيك)/i.test(lower)) {
-						aiReply = 'العفو أخي العزيز! في خدمتك دائماً ❤️✨';
-					} else {
-						const isDarijaOrArabic = /[\u0600-\u06FF]/.test(m.text) || 
-							/\b(dyal|daba|bghit|bghina|kidayr|labas|kifach|kifash|wach|walo|bzaf|chof|chouf|chkon|chkoun|sift|sifet|mzyan|mezyan|wakha|safi|hadi|hada|hadchi|dakchi|kayn|kyna|walakin|ash|ach|chno|ashnu|fin|fash|bla|ghi|ghir|fhamt|fhem|mafhemtch|ma3reftch|khoya|khti|cv|liya|lik|3ndi|m3ak|bghiti|kolchi|rah|raha|daz|dazt|lyoma|ghda|bhal|fhal|hadra|mohadat|ktaba|ijaba|taynsa|jawb|khasso|khass|5aso|9bl|3afak|3lik)\b/i.test(m.text) ||
-							/(?:^|\s|\w)[3579](?:$|\s|\w)/.test(m.text);
-
-						if (isDarijaOrArabic) {
-							aiReply = 'عذراً أ خويا، الذكاء الاصطناعي كيعالج بزاف ديال الطلبات دابا. 🔄\nجرب مجدداً بعد ثواني أو استخدم:\n← .ai سؤالك';
-						} else if (/^[a-zA-Z0-9\s.,!?'"()-]+$/.test(m.text)) {
-							aiReply = "I am currently processing your request. Please ask again in a moment or try *.ai your question*!";
+						aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nالحمد لله كلو بخير وأنت كيداير؟ كاين شي خدمة نقدر نعاونك فيها اليوم؟ 😊\n\n📌 *جرب تكتب:* .menu\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+					} else if (/^(thanks|thank you|merci|chokran|شكرا|بارك الله فيك)/i.test(lower)) {
+						if (isEn) {
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nYou're very welcome! Always happy to help ❤️✨\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
 						} else {
-							aiReply = 'عذراً، الذكاء الاصطناعي مشغول لحظياً. 🔄\nجرب مجدداً بعد ثواني أو استخدم:\n← .ai سؤالك';
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nالعفو أخي العزيز! في خدمتك دائماً وفي أي وقت ❤️✨\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						}
+					} else {
+						if (isEn) {
+							aiReply = `🤖 *Bot Amirni Hamza*\n━━━━━━━━━━━━━━━━━━━━━\nI am currently processing your request. Feel free to use direct commands or try:\n← .ai ${m.text.trim()}\n← .menu\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • Hamza Amirni*`;
+						} else if (isAr) {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأنا في خدمتك دائماً! يمكنك سؤالي مباشرة أو استخدام الأوامر السريعة:\n← .ai ${m.text.trim()}\n← .menu : لعرض كافة الأوامر\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
+						} else {
+							aiReply = `🤖 *بوت حمزة اعمرني*\n━━━━━━━━━━━━━━━━━━━━━\nأنا فـ خدمتك دائماً أ خويا! تقدر تسولني أو تستعمل الأوامر السريعة:\n← .ai ${m.text.trim()}\n← .menu : باش تشوف كاع الأوامر\n\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`;
 						}
 					}
 				}

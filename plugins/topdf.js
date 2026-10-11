@@ -205,13 +205,53 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     }
   }
 
-  return m.reply(
-    `📄 *محول الصور والنصوص إلى PDF*\n━━━━━━━━━━━━━━━━━━━━━\n` +
-    `📌 *طريقة الاستعمال:*\n` +
-    `1️⃣ رد على أي صورة بالأمر: *${usedPrefix + command}*\n` +
-    `2️⃣ أو اكتب: *${usedPrefix + command} نص المقال...*\n\n` +
-    `⚡ *bot amirni hamza • حمزة اعمرني*`
-  );
+  const userLang = (m.sender && global.db?.data?.users?.[m.sender]?.language) || 'darija';
+  const helpMsgs = {
+    darija: `🤖 *بوت حمزة اعمرني • صانع ومحول الـ PDF*
+━━━━━━━━━━━━━━━━━━━━━
+📄 *كيفاش تخدم الأمر:*
+
+1️⃣ *تحويل نص إلى كتاب أو وثيقة PDF:*
+← \`${usedPrefix + command} عنوان أو نص طويل بغيتي تديرو فـ PDF\`
+📌 *مثال:*
+\`${usedPrefix + command} تقرير حول الذكاء الاصطناعي وتطوره السريع في المغرب\`
+
+2️⃣ *تحويل صورة إلى مستند PDF:*
+← صيفط تصويرة وجاوب عليها بـ: \`${usedPrefix + command}\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+    arabic: `🤖 *بوت حمزة اعمرني • صانع ومحول الـ PDF*
+━━━━━━━━━━━━━━━━━━━━━
+📄 *طريقة الاستخدام:*
+
+1️⃣ *تحويل نص إلى مستند PDF جاهز للطباعة:*
+← \`${usedPrefix + command} النص أو المقال الذي تريد تحويله\`
+📌 *مثال:*
+\`${usedPrefix + command} بحث كامل حول الطاقة المتجددة في العالم\`
+
+2️⃣ *تحويل صورة إلى مستند PDF عالي الجودة:*
+← قم بالرد (Reply) على أي صورة بالأمر: \`${usedPrefix + command}\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+    english: `🤖 *Hamza Amirni Bot • PDF Maker & Converter*
+━━━━━━━━━━━━━━━━━━━━━
+📄 *How to use:*
+
+1️⃣ *Convert Text to PDF document:*
+← \`${usedPrefix + command} <Your text or article here>\`
+📌 *Example:*
+\`${usedPrefix + command} Summary report about artificial intelligence and future tech\`
+
+2️⃣ *Convert Image to PDF:*
+← Reply to any photo with: \`${usedPrefix + command}\`
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`
+  };
+
+  return m.reply(helpMsgs[userLang] || helpMsgs.darija);
 };
 
 handler.help = ['topdf', 'img2pdf', 'text2pdf'];

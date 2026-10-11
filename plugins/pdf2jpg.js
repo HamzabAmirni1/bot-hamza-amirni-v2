@@ -18,27 +18,46 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   } else if (text) {
     filePath = text.trim();
   } else {
-    throw `
-🖼️ *PDF to JPG Converter*
+    const userLang = (m.sender && global.db?.data?.users?.[m.sender]?.language) || 'darija';
+    const helpMsgs = {
+      darija: `🤖 *بوت حمزة اعمرني • محول الـ PDF إلى صور*
+━━━━━━━━━━━━━━━━━━━━━
+🖼️ *كيفاش تخدم الأمر:*
 
-Convert every page of a PDF into high-quality JPG images.
+1️⃣ *تحويل صفحات PDF إلى صور JPG عالية الدقة:*
+← صيفط ملف PDF وجاوب عليه بـ: \`${usedPrefix + command}\`
 
-*How to use*
+📌 *النتيجة:*
+كايجيك ملف مضغوط (ZIP) فيه كاع الصفحات مقادين ومحولين لـ JPG جودة عالية.
 
-Option 1 (Recommended)
-• Reply to a PDF document with this command.
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+      arabic: `🤖 *بوت حمزة اعمرني • تحويل PDF إلى صور*
+━━━━━━━━━━━━━━━━━━━━━
+🖼️ *طريقة الاستخدام:*
 
-Example:
-${usedPrefix + command}
+1️⃣ *تحويل صفحات أي ملف PDF إلى صور JPG عالية الدقة:*
+← قم بالرد (Reply) على أي ملف PDF بالأمر: \`${usedPrefix + command}\`
 
-Option 2
-• Provide the local file path.
+📌 *النتيجة:*
+ستستلم أرشيف ZIP يحتوي على جميع الصفحات محولة إلى صور JPG بجودة عالية (300 DPI).
 
-Example:
-${usedPrefix + command} ./tmp/document.pdf
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`,
+      english: `🤖 *Hamza Amirni Bot • PDF to JPG Converter*
+━━━━━━━━━━━━━━━━━━━━━
+🖼️ *How to use:*
 
-The result will be a ZIP archive containing all converted JPG images.
-`.trim();
+1️⃣ *Convert PDF pages to high-res JPG images:*
+← Reply to any PDF document with: \`${usedPrefix + command}\`
+
+📌 *Result:*
+You will receive a ZIP archive with each page converted into a 300 DPI JPG image.
+
+━━━━━━━━━━━━━━━━━━━━━
+⚡ *bot amirni hamza • حمزة اعمرني*`
+    };
+    return m.reply(helpMsgs[userLang] || helpMsgs.darija);
   }
 
   if (!fs.existsSync(filePath)) {
