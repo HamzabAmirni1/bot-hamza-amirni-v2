@@ -461,7 +461,7 @@ async function loadBotStatus() {
               <div class="mono text-accent" style="font-size:13px">+${phone}</div>
               <div style="margin-top:4px">${stateBadge}</div>
             </div>
-            <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:6px 12px">
+            <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap;border-radius:10px;">
               <i class="fas fa-trash"></i> مسح
             </button>
           </div>
