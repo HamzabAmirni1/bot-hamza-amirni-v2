@@ -364,14 +364,6 @@ const handler = async (m, { conn, text, command }) => {
 			}
 		} catch (_) {}
 
-		// Show thumbnail preview while downloading
-		if (videoThumb) {
-			await conn.sendMessage(m.chat, {
-				image: { url: videoThumb },
-				caption: `🎵 *${videoTitle || 'جاري البحث...'}*\n⏳ *جاري تحميل الصوت...*\n\n⚡ *bot amirni hamza*`
-			}, { quoted: m });
-		}
-
 		// Try audio downloaders in fallback order — downloadYouTube (multi-engine) first
 		let audioData = null;
 
@@ -409,9 +401,17 @@ const handler = async (m, { conn, text, command }) => {
 			return m.reply('❌ فشل تحميل الصوت من جميع المصادر. حاول مرة أخرى لاحقاً.');
 		}
 
-		const audioTitle = audioData.title || videoTitle || 'audio';
+		// Send single thumbnail preview first if available
+		if (videoThumb) {
+			try {
+				await conn.sendMessage(m.chat, {
+					image: { url: videoThumb },
+					caption: `🎵 *${audioTitle}*\n⏳ *جاري تجهيز وتحميل المقطع الصوتي...*\n\n⚡ *bot amirni hamza*`
+				}, { quoted: m });
+			} catch (_) {}
+		}
 
-		// Download audio via downloadWithProgress with live progress bar and thumbnail
+		// Download audio via downloadWithProgress with live text progress bar
 		let audioBuffer = null;
 		let tmpAudioPath = null;
 		try {
@@ -423,7 +423,6 @@ const handler = async (m, { conn, text, command }) => {
 				m, conn,
 				title: audioTitle,
 				emoji: '🎵',
-				thumbnail: videoThumb || null,
 				outputPath: tmpAudioPath,
 				timeout: 45000
 			});
@@ -563,21 +562,6 @@ const handler = async (m, { conn, text, command }) => {
 			}
 		} catch (_) {}
 
-		// Show thumbnail preview while downloading
-		const ytId = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
-		const thumbUrl = videoThumb || (ytId ? `https://i.ytimg.com/vi/${ytId}/sddefault.jpg` : '');
-		if (thumbUrl) {
-			const downloadingTxt = lang === 'english'
-				? `🎬 *${videoTitle || 'Searching...'}*\n⏳ *Downloading video...*\n\n⚡ *bot amirni hamza*`
-				: lang === 'arabic'
-				? `🎬 *${videoTitle || 'جارٍ البحث...'}*\n⏳ *جارٍ تحميل الفيديو...*\n\n⚡ *bot amirni hamza*`
-				: `🎬 *${videoTitle || 'كنقلبو...'}*\n⏳ *كنحملو الفيديو...*\n\n⚡ *bot amirni hamza*`;
-			await conn.sendMessage(m.chat, {
-				image: { url: thumbUrl },
-				caption: downloadingTxt
-			}, { quoted: m });
-		}
-
 		// Try video downloaders in fallback order
 		let videoData = null;
 		try {
@@ -632,12 +616,21 @@ const handler = async (m, { conn, text, command }) => {
 			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
 			tmpVidPath = `./tmp/yt_vid_${Date.now()}.mp4`;
 
+			// Send single thumbnail preview first if available
+			if (videoThumb) {
+				try {
+					await conn.sendMessage(m.chat, {
+						image: { url: videoThumb },
+						caption: `🎬 *${vidTitle}*\n⏳ *جاري تجهيز وتحميل مقطع الفيديو...*\n\n⚡ *bot amirni hamza*`
+					}, { quoted: m });
+				} catch (_) {}
+			}
+
 			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
 			await downloadWithProgress(finalVideoUrl, {
 				m, conn,
 				title: vidTitle,
 				emoji: '🎬',
-				thumbnail: thumbUrl || null,
 				outputPath: tmpVidPath,
 				timeout: 90000
 			});

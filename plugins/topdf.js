@@ -2,7 +2,9 @@ import { imageSize } from 'image-size';
 
 // Temporary memory for users collecting multiple images into 1 PDF
 // Map<userChatKey, { images: Array<{buffer, width, height}>, timer: Timeout }>
-const pdfSessions = new Map();
+// ⚠️ Use global so session survives across worker threads (Koyeb multi-bot)
+if (!global.pdfSessions) global.pdfSessions = new Map();
+const pdfSessions = global.pdfSessions;
 
 /**
  * دالة لتوليد ملف PDF نقي محلياً 100% بدون أي حزم خارجية أو أخطاء API
@@ -190,9 +192,17 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 ⚠️ *ما كاينا حتى صورة مسجلة عندك دابا!*
 
 باش تجمع عدة تصاور فـ ملف PDF واحد:
-1️⃣ صيفط: \`${usedPrefix}topdf\` وجاوب على أول صورة.
+
+1️⃣ بدا الجلسة بهاد الأمر:
+\u200E← .pdfm
+أو جاوب على أول تصويرة بـ:
+\u200E← .topdf
+
 2️⃣ صيفط باقي الصور بالتتابع (البوت كايزيدهم تلقائياً).
-3️⃣ فاش تسالي، كتب: \`${usedPrefix}donepdf\` باش يجمعهم ليك كاملين فـ PDF واحد بنفس مقاساتهم الأصلية.
+
+3️⃣ فاش تسالي، اضغط على الزر لتحت أو كتب:
+\u200E← .donepdf
+باش يجمعهم ليك كاملين فـ PDF واحد بنفس مقاساتهم الأصلية.
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`,
@@ -201,9 +211,17 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 ⚠️ *لا توجد صور مضافة حالياً في جلستك!*
 
 لتجميع عدة صور في ملف PDF واحد:
-1️⃣ اكتب: \`${usedPrefix}topdf\` مع الرد على أول صورة.
-2️⃣ أرسل بقية الصور وسيتم حفظها تلقائياً.
-3️⃣ عند الانتهاء اكتب: \`${usedPrefix}donepdf\` ليتم دمجها كلها في ملف PDF واحد.
+
+1️⃣ ابدأ الجلسة بهذا الأمر:
+\u200E← .pdfm
+أو قم بالرد على أول صورة بـ:
+\u200E← .topdf
+
+2️⃣ أرسل بقية الصور بالتتابع وسيتم حفظها تلقائياً.
+
+3️⃣ عند الانتهاء، اضغط على الزر أسفله أو اكتب:
+\u200E← .donepdf
+ليتم دمجها كلها في ملف PDF واحد بنفس مقاساتها الأصلية.
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`,
@@ -212,14 +230,51 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 ⚠️ *No images currently collected in your session!*
 
 How to make a multi-image PDF:
-1️⃣ Send/Reply with: \`${usedPrefix}topdf\` on first image.
-2️⃣ Send subsequent images (the bot gathers them automatically).
-3️⃣ When done, type: \`${usedPrefix}donepdf\` to generate the PDF.
+
+1️⃣ Start the session with:
+\u200E← .pdfm
+Or reply to the first photo with:
+\u200E← .topdf
+
+2️⃣ Send subsequent images (bot gathers them automatically).
+
+3️⃣ When done, tap the button below or type:
+\u200E← .donepdf
+To compile all images into one PDF with exact original sizes.
 
 ━━━━━━━━━━━━━━━━━━━━━
 ⚡ *bot amirni hamza • حمزة اعمرني*`
       };
-      return m.reply(noSessionMsgs[userLang] || noSessionMsgs.darija);
+
+      const msgBody = noSessionMsgs[userLang] || noSessionMsgs.darija;
+      try {
+        return await conn.sendButton(
+          m.chat,
+          {
+            body: msgBody,
+            footer: 'bot amirni hamza • حمزة اعمرني',
+            buttons: [
+              {
+                name: 'quick_reply',
+                buttonParamsJson: JSON.stringify({
+                  display_text: '📸 بدء تجميع الصور (.pdfm)',
+                  id: '.pdfm'
+                })
+              },
+              {
+                name: 'quick_reply',
+                buttonParamsJson: JSON.stringify({
+                  display_text: '📑 شرح أوامر الـ PDF',
+                  id: '.topdf'
+                })
+              }
+            ]
+          },
+          { quoted: m }
+        );
+      } catch (_) {
+        return m.reply(msgBody);
+      }
     }
 
     // Build multi-image PDF from collected images
@@ -315,16 +370,42 @@ How to make a multi-image PDF:
       images: [],
       timer: setTimeout(() => pdfSessions.delete(sessionKey), 300000)
     });
-    return m.reply(
+    const multiNotice2 =
       `📸 *تم تفعيل وضع تجميع الصور في PDF واحد!* 🚀\n━━━━━━━━━━━━━━━━━━━━━\n` +
       `1️⃣ أرسل الآن الصور واحدة تلو الأخرى (أو كـ ألبوم).\n` +
       `2️⃣ سيتم حفظ مقاسات كل صورة بدقة 100% بدون أي تغيير في أبعادها.\n` +
-      `3️⃣ عند الانتهاء، أرسل الأمر:\n` +
-      `\u200E← .donepdf\n\n` +
-      `🗑️ للإلغاء في أي وقت:\n` +
-      `\u200E← .cancelpdf\n` +
-      `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`
-    );
+      `3️⃣ عند الانتهاء، اضغط الزر أسفله أو اكتب:\n` +
+      `\u200E← .donepdf\n` +
+      `━━━━━━━━━━━━━━━━━━━━━`;
+
+    try {
+      return await conn.sendButton(
+        m.chat,
+        {
+          body: multiNotice2,
+          footer: 'bot amirni hamza • حمزة اعمرني',
+          buttons: [
+            {
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: '📑 تجميع واستخراج الـ PDF',
+                id: '.donepdf'
+              })
+            },
+            {
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: '🗑️ إلغاء العملية',
+                id: '.cancelpdf'
+              })
+            }
+          ]
+        },
+        { quoted: m }
+      );
+    } catch (_) {
+      return m.reply(multiNotice2);
+    }
   }
 
   // ── 2. Handle image to PDF ──
@@ -346,13 +427,40 @@ How to make a multi-image PDF:
         }, 300000); // 5 minutes inactivity timeout
 
         await m.react('📥');
-        return m.reply(
+        const imgNotice =
           `📸 *تمت إضافة الصورة بنجاح إلى ملف الـ PDF!*\n` +
-          `📊 *العدد الإجمالي حتى الآن:* ${session.images.length} صورة.\n\n` +
-          `• إذا أردت إضافة المزيد، أرسل باقي الصور.\n` +
-          `• عند الانتهاء، اكتب:\n` +
-          `\u200E← .donepdf`
-        );
+          `📊 *العدد الإجمالي حتى الآن:* ${session.images.length} صورة.\n` +
+          `━━━━━━━━━━━━━━━━━━━━━\n` +
+          `• أرسل المزيد من الصور، أو اضغط على الزر أسفله لتجميع ملف الـ PDF فوراً.`;
+
+        try {
+          return await conn.sendButton(
+            m.chat,
+            {
+              body: imgNotice,
+              footer: 'bot amirni hamza • حمزة اعمرني',
+              buttons: [
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: `📑 تجميع الـ PDF (${session.images.length} صور)`,
+                    id: '.donepdf'
+                  })
+                },
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: '🗑️ إلغاء العملية',
+                    id: '.cancelpdf'
+                  })
+                }
+              ]
+            },
+            { quoted: m }
+          );
+        } catch (_) {
+          return m.reply(imgNotice);
+        }
       }
 
       // If user typed .topdf / .pdf without starting a multi session,
@@ -514,7 +622,10 @@ handler.before = async function (m) {
         } catch (_) {
           await m.reply(
             `📸 *تمت إضافة الصورة رقم ${session.images.length} إلى الـ PDF!*\n` +
-            `• أرسل المزيد أو اكتب: *.donepdf* لإصدار الملف النهائي.`
+            `━━━━━━━━━━━━━━━━━━━━━\n` +
+            `• أرسل المزيد من الصور، أو اكتب:\n` +
+            `\u200E← .donepdf\n` +
+            `لإصدار الملف النهائي فوراً.`
           );
         }
       }
