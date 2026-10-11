@@ -1732,10 +1732,9 @@ function startBotWorker(phone, isManual = false) {
 
   w.stdout.on('data', (chunk) => {
     const s = chunk.toString();
-    if (s.includes('Stream Errored (conflict)') || s.includes('Conflict')) {
+    if (s.includes('Stream Errored (conflict)')) {
       global._workerConflicts[cleanPhone] = Date.now();
-      global._workerRestarts[cleanPhone]  = (global._workerRestarts[cleanPhone] || 0) + 1;
-      console.log(`⚠️ [+${cleanPhone}] Stream conflict! Another session is open. Terminating worker and blocking reconnect for 90s...`);
+      console.log(`⚠️ [+${cleanPhone}] Stream conflict detected on WhatsApp socket. Reconnecting in 8s...`);
       try { w.terminate(); } catch (_) {}
     }
   });
@@ -1751,46 +1750,18 @@ function startBotWorker(phone, isManual = false) {
 
     const now = Date.now();
     const lastConflict = global._workerConflicts[cleanPhone] || 0;
-    const restartCount = global._workerRestarts[cleanPhone] || 0;
-
-    // If conflict happened recently → hard block for 90s + escalating wait
     const isRecentConflict = (now - lastConflict) < 15000;
-    let delayMs;
-    if (isRecentConflict) {
-      // Session conflict: escalate wait time — NEVER delete the session!
-      // After many conflicts, wait longer for the old WhatsApp session to expire naturally.
-      // Koyeb old container takes a few minutes to fully shut down.
-      if (restartCount >= 6) {
-        // Too many conflicts — wait 15 minutes then retry with same session
-        delayMs = 900000; // 15 minutes
-        console.log(`⏰ [+${cleanPhone}] Too many conflicts (${restartCount}x). Waiting 15 min for old session to expire...`);
-      } else {
-        // Escalating: 2min → 4min → 6min → 8min → 10min → 12min
-        delayMs = Math.min(120000 + restartCount * 120000, 720000);
-        console.log(`🚫 [+${cleanPhone}] CONFLICT — waiting ${Math.round(delayMs/1000/60)}min for old session to expire (attempt ${restartCount+1}/6)...`);
-      }
-    } else {
-      // Normal disconnect: 5s → 7.5s → 11s … max 45s
-      delayMs = Math.min(5000 * Math.pow(1.5, Math.min(restartCount, 6)), 45000);
-    }
 
-    global._workerRestarts[cleanPhone] = restartCount + 1;
+    // Fast auto-restart: 8s on conflict (gives WhatsApp server time to drop socket), 3s on normal disconnect
+    const delayMs = isRecentConflict ? 8000 : 3000;
     global._launchBlockedUntil[cleanPhone] = Date.now() + delayMs;
-
-    // Reset conflict + restart counters after 10 minutes of no conflicts
-    setTimeout(() => {
-      if (Date.now() - (global._workerConflicts[cleanPhone] || 0) >= 600000) {
-        global._workerRestarts[cleanPhone]  = 0;
-        global._workerConflicts[cleanPhone] = 0;
-      }
-    }, 600000);
 
     setTimeout(() => {
       if (stoppedWorkers.has(cleanPhone)) {
         console.log(`🛑 Worker +${cleanPhone} deleted during delay. Skipping restart.`);
         return;
       }
-      console.log(`🔄 Restarting worker for +${cleanPhone} (attempt ${restartCount + 1}, waited ${Math.round(delayMs/1000)}s)...`);
+      console.log(`🔄 Restarting worker for +${cleanPhone} (waited ${Math.round(delayMs/1000)}s)...`);
       startBotWorker(cleanPhone);
     }, delayMs);
   });
