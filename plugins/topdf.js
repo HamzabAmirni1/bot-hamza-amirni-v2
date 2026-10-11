@@ -253,14 +253,42 @@ How to make a multi-image PDF:
       images: [],
       timer: setTimeout(() => pdfSessions.delete(sessionKey), 300000)
     });
-    return m.reply(
+    const multiNotice =
       `📸 *تم تفعيل وضع تجميع الصور في PDF واحد (.pdfm)!* 🚀\n━━━━━━━━━━━━━━━━━━━━━\n` +
       `1️⃣ أرسل الآن الصور واحدة تلو الأخرى (أو كـ ألبوم).\n` +
       `2️⃣ سيتم حفظ مقاسات كل صورة بدقة 100% بدون أي تغيير في أبعادها.\n` +
-      `3️⃣ عند الانتهاء، أرسل الأمر: *${usedPrefix}donepdf*\n\n` +
-      `🗑️ للإلغاء في أي وقت: *${usedPrefix}cancelpdf*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza • حمزة اعمرني*`
-    );
+      `3️⃣ عند الانتهاء، اضغط الزر أسفله أو اكتب:\n` +
+      `\u200E← .donepdf\n` +
+      `━━━━━━━━━━━━━━━━━━━━━`;
+
+    try {
+      return await conn.sendButton(
+        m.chat,
+        {
+          body: multiNotice,
+          footer: 'bot amirni hamza • حمزة اعمرني',
+          buttons: [
+            {
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: '📑 تجميع واستخراج الـ PDF',
+                id: '.donepdf'
+              })
+            },
+            {
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: '🗑️ إلغاء العملية',
+                id: '.cancelpdf'
+              })
+            }
+          ]
+        },
+        { quoted: m }
+      );
+    } catch (_) {
+      return m.reply(multiNotice);
+    }
   }
 
   // ── 0.2 Handle cancel command (.cancelpdf) ──
@@ -453,10 +481,42 @@ handler.before = async function (m) {
         session.timer = setTimeout(() => pdfSessions.delete(sessionKey), 300000);
 
         await m.react('📥');
-        await m.reply(
+        const imgNotice =
           `📸 *تمت إضافة الصورة رقم ${session.images.length} إلى الـ PDF!* (${processed.width}x${processed.height}px)\n` +
-          `• أرسل المزيد أو اكتب: *.donepdf* لإصدار الملف النهائي.`
-        );
+          `━━━━━━━━━━━━━━━━━━━━━\n` +
+          `• أرسل المزيد من الصور، أو اضغط على الزر أسفله لتجميع واستخراج ملف الـ PDF فوراً.`;
+
+        try {
+          await this.sendButton(
+            m.chat,
+            {
+              body: imgNotice,
+              footer: 'bot amirni hamza • حمزة اعمرني',
+              buttons: [
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: `📑 تجميع الـ PDF (${session.images.length} صور)`,
+                    id: '.donepdf'
+                  })
+                },
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: '🗑️ إلغاء العملية',
+                    id: '.cancelpdf'
+                  })
+                }
+              ]
+            },
+            { quoted: m }
+          );
+        } catch (_) {
+          await m.reply(
+            `📸 *تمت إضافة الصورة رقم ${session.images.length} إلى الـ PDF!*\n` +
+            `• أرسل المزيد أو اكتب: *.donepdf* لإصدار الملف النهائي.`
+          );
+        }
       }
     } catch (e) {
       console.error('[PDF Session Image Collector Error]', e);
