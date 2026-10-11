@@ -13,11 +13,11 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-const BASE_URL = 'https://traidmode.com';
+const BASE_URL = 'https://traidmode.org';
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8',
-  'Referer': 'https://traidmode.com/'
+  'Referer': 'https://traidmode.org/'
 };
 
 export class TraidModeScraper {
@@ -135,7 +135,14 @@ export class TraidModeScraper {
         }
       });
 
-      return downloadOptions;
+      // Filter out promotional launcher stub "TraidMode App" if real app options exist
+      const realOptions = downloadOptions.filter(o => 
+        !o.name.includes('TraidMode App') && 
+        !o.name.includes('اولا عليك تنزيل') &&
+        !o.downloadUrl.includes('TraidMode%20App') &&
+        !o.downloadUrl.includes('traidmode.apk')
+      );
+      return realOptions.length ? realOptions : downloadOptions;
     } catch (e) {
       console.error('[TraidMode] Download extraction error:', e.message);
       return [];
@@ -227,14 +234,10 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
     let apkTitle = 'TraidMode App';
     let apkIcon = '';
 
-    if (target.startsWith('http') && target.includes('traidmode.com')) {
+    if (target.startsWith('http') && /traidmode\.(com|org)/i.test(target)) {
       const options = await TraidModeScraper.getDownloadOptions(target);
-      if (!options.length) {
-        await m.react('❌');
-        return m.reply('❌ لم نتمكن من استخراج روابط التحميل من هذه الصفحة. تأكد من صحة الرابط.');
-      }
 
-      // If page has multiple download buttons (e.g. MicroG and ReVanced APK) and user didn't specify index
+      // If page has multiple download buttons and user didn't specify index
       if (options.length > 1 && !optArg) {
         let msg = `🎮 *خيارات التحميل المتاحة (${options.length} روابط):*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
         const buttons = [];
@@ -276,26 +279,60 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         }
       }
 
-      const selectedIndex = optArg ? parseInt(optArg, 10) - 1 : 0;
-      const selectedOpt = options[selectedIndex] || options[0];
-      directUrl = selectedOpt.downloadUrl;
-      apkTitle = selectedOpt.name || apkTitle;
-      apkIcon = selectedOpt.icon || '';
+      if (options.length > 0) {
+        const selectedIndex = optArg ? parseInt(optArg, 10) - 1 : 0;
+        const selectedOpt = options[selectedIndex] || options[0];
+        directUrl = selectedOpt.downloadUrl;
+        apkTitle = selectedOpt.name || apkTitle;
+        apkIcon = selectedOpt.icon || '';
+      }
     } else if (target.startsWith('http')) {
       directUrl = target;
     }
 
-    if (!directUrl) {
-      await m.react('❌');
-      return m.reply('❌ تعذر العثور على رابط التحميل المباشر.');
+    // Resolve directUrl if it is d.apkpure.com to avoid 403
+    if (directUrl) {
+      const resolved = await resolveDirectApk(directUrl);
+      if (resolved.url) {
+        directUrl = resolved.url;
+        if (resolved.name && apkTitle === 'TraidMode App') apkTitle = resolved.name;
+        if (resolved.icon && !apkIcon) apkIcon = resolved.icon;
+      }
     }
 
-    // Resolve directUrl if it is d.apkpure.com to avoid 403
-    const resolved = await resolveDirectApk(directUrl);
-    if (resolved.url) {
-      directUrl = resolved.url;
-      if (resolved.name && apkTitle === 'TraidMode App') apkTitle = resolved.name;
-      if (resolved.icon && !apkIcon) apkIcon = resolved.icon;
+    // If directUrl is missing, or TraidMode gave promotional stub "TraidMode App" (140 KB),
+    // Fallback immediately to Aptoide/APKPure to fetch the REAL application!
+    if (!directUrl || apkTitle === 'TraidMode App' || directUrl.includes('TraidMode') || directUrl.endsWith('TraidMode App.apk')) {
+      let queryApp = '';
+      if (/traidmode\.(com|org)/i.test(target)) {
+        const slug = target.replace(/https?:\/\/[^\/]+\//, '').replace(/\/.*$/, '')
+          .replace(/-(mod|apk|vip|pro|premium|free|android).*/i, '')
+          .replace(/[-_]+/g, ' ').trim();
+        queryApp = slug;
+      }
+      if (!queryApp && apkTitle && apkTitle !== 'TraidMode App') {
+        queryApp = apkTitle.replace(/^(تحميل|تنزيل)\s*/gi, '').replace(/مهكر.*/gi, '').trim();
+      }
+
+      if (queryApp) {
+        try {
+          const { data } = await axios.get(
+            `https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(queryApp)}&limit=1`,
+            { timeout: 10000 }
+          );
+          const item = data?.datalist?.list?.[0];
+          if (item?.file?.path) {
+            directUrl = item.file.path_alt || item.file.path;
+            apkTitle = item.name || queryApp;
+            if (item.icon) apkIcon = item.icon;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!directUrl) {
+      await m.react('❌');
+      return m.reply('❌ تعذر العثور على رابط التحميل المباشر لهذا التطبيق. جرب البحث باسمه عبر: .apk <الاسم>');
     }
 
     try {
@@ -384,10 +421,33 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
 
   await m.react('🔍');
 
-  const results = await TraidModeScraper.search(query);
+  let results = await TraidModeScraper.search(query);
+  if (!results.length) {
+    // Fallback to Aptoide
+    try {
+      const { data } = await axios.get(
+        `https://ws75.aptoide.com/api/7/apps/search?query=${encodeURIComponent(query)}&limit=8`,
+        { timeout: 8000 }
+      );
+      const list = data?.datalist?.list || [];
+      for (const item of list) {
+        if (item.name && (item.file?.path || item.package)) {
+          results.push({
+            title: item.name,
+            link: item.file?.path_alt || item.file?.path || `https://apkpure.net/app/${item.package}`,
+            icon: item.icon || '',
+            category: 'تطبيق / لعبة للأندرويد',
+            version: item.file?.vername || 'أحدث إصدار',
+            size: item.size ? (item.size / (1024 * 1024)).toFixed(1) + ' MB' : ''
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   if (!results.length) {
     await m.react('❌');
-    return conn.reply(m.chat, `❌ لم يتم العثور على ألعاب أو تطبيقات مهكرة مطابقة لـ *"${query}"* في موقع TraidMode.`, m);
+    return conn.reply(m.chat, `❌ لم يتم العثور على ألعاب أو تطبيقات مطابقة لـ *"${query}"*.`, m);
   }
 
   const headerText = `🔥 *TraidMode — نتائج البحث عن: "${query}"*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;

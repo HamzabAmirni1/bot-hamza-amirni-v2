@@ -401,6 +401,8 @@ const handler = async (m, { conn, text, command }) => {
 			return m.reply('❌ فشل تحميل الصوت من جميع المصادر. حاول مرة أخرى لاحقاً.');
 		}
 
+		const audioTitle = audioData.title || videoTitle || 'audio';
+
 		// Send single thumbnail preview first if available
 		if (videoThumb) {
 			try {
