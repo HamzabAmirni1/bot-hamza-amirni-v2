@@ -1403,51 +1403,121 @@ export async function callUpdate(callEvents = []) {
 				// 4. Notify Owner Hamza Amirni on his personal WhatsApp (212624855939)
 				const ownerJid = '212624855939@s.whatsapp.net';
 
-				// Resolve real phone number from LID or s.whatsapp.net JID
-				let callerNum = (call.from || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-				const isLid = (call.from || '').includes('@lid');
+				// Comprehensive caller identity & phone resolution (handling regular JIDs, LIDs, and push names)
+				const rawFrom = call.from || '';
+				const isLid = rawFrom.includes('@lid');
+				let callerNum = rawFrom.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+				let callerName = '';
+				let resolvedJid = rawFrom;
 
-				if (isLid && callerNum) {
-					// Try resolving LID → real phone via contacts store
+				// 1. Try Baileys internal signalRepository / lidMapping
+				if (isLid) {
 					try {
-						const allContacts = this.store?.contacts || this.contacts || {};
-						// Try s.whatsapp.net equivalent
-						const resolvedPhone = allContacts[callerNum + '@s.whatsapp.net']?.notify
-							|| allContacts[call.from]?.notify
-							|| null;
-
-						// Try onWhatsApp lookup
-						const [found] = await this.onWhatsApp(callerNum + '@s.whatsapp.net').catch(() => [null]);
-						if (found?.jid) {
-							callerNum = found.jid.split('@')[0].replace(/[^0-9]/g, '');
-						} else if (resolvedPhone) {
-							// Use whatever name/notify we found
-							callerNum = callerNum; // keep as is but it's a LID
+						const pnJid = await this.signalRepository?.lidMapping?.getPNForLID?.(rawFrom);
+						if (pnJid && !pnJid.includes('@lid')) {
+							resolvedJid = pnJid;
+							callerNum = pnJid.split('@')[0].replace(/[^0-9]/g, '');
 						}
 					} catch (_) {}
+				}
+
+				// 2. Try conn.getJid(rawFrom)
+				if (isLid && resolvedJid.includes('@lid') && typeof this.getJid === 'function') {
+					try {
+						const mapped = this.getJid(rawFrom);
+						if (mapped && !mapped.includes('@lid')) {
+							resolvedJid = mapped;
+							callerNum = mapped.split('@')[0].replace(/[^0-9]/g, '');
+						}
+					} catch (_) {}
+				}
+
+				// 3. Search conn.chats or group participants if caller is in any group with the bot
+				if (isLid && resolvedJid.includes('@lid') && this.chats) {
+					try {
+						for (const chat of Object.values(this.chats)) {
+							const participant = chat?.metadata?.participants?.find(p => p.lid === rawFrom || p.id === rawFrom);
+							if (participant) {
+								const phone = participant.phoneNumber || participant.jid || participant.id;
+								if (phone && !phone.includes('@lid')) {
+									resolvedJid = phone;
+									callerNum = phone.split('@')[0].replace(/[^0-9]/g, '');
+									if (participant.name || participant.notify) {
+										callerName = participant.name || participant.notify;
+									}
+									break;
+								}
+							}
+						}
+					} catch (_) {}
+				}
+
+				// 4. Extract Name / PushName from conn.getName or chats cache
+				try {
+					if (!callerName && typeof this.getName === 'function') {
+						const fetched = this.getName(resolvedJid) || this.getName(rawFrom);
+						if (fetched && !fetched.includes('@') && !/^\+?[0-9\s-]+$/.test(fetched)) {
+							callerName = fetched;
+						}
+					}
+				} catch (_) {}
+
+				if (!callerName && this.chats) {
+					const cData = this.chats[resolvedJid] || this.chats[rawFrom];
+					callerName = cData?.name || cData?.notify || cData?.vname || cData?.verifiedName || '';
+				}
+
+				// 5. Check global.db users
+				if (!callerName && global.db?.data?.users) {
+					const uData = global.db.data.users[resolvedJid] || global.db.data.users[rawFrom];
+					if (uData?.name) callerName = uData.name;
+				}
+
+				// 6. Check call event metadata
+				if (!callerName && (call.name || call.pushName || call.notify)) {
+					callerName = call.name || call.pushName || call.notify;
 				}
 
 				const botNum = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '') || 'Bot';
 				const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-				// Don't send notification to owner if the caller is the owner himself
+				// Don't send notification to owner if caller is owner himself
 				if (callerNum !== '212624855939') {
-					const isKnownNum = callerNum.length >= 10 && !isLid;
-					const callerDisplay = isKnownNum ? `+${callerNum}` : `${callerNum} _(رقم داخلي LID — غير معروف)_`;
-					const waLink = isKnownNum ? `📲 *للرد عليه مباشرة:* https://wa.me/${callerNum}\n\n` : '';
+					const isRealPhone = callerNum.length >= 8 && !resolvedJid.includes('@lid');
+					const displayNum = isRealPhone ? `+${callerNum}` : `${callerNum} _(رقم خاص / LID)_`;
+					const displayName = callerName ? `*${callerName}*` : '_غير محدد في جهات الاتصال_';
+					const waLink = isRealPhone 
+						? `📲 *رابط الدردشة المباشر:* https://wa.me/${callerNum}\n`
+						: `📲 *محادثة المتصل مباشرة في واتساب:* https://wa.me/?text=Hello&phone_id=${callerNum}\n`;
 
-					const ownerAlert = `🚨 *تنبيه: مكالمة واردة على أحد بوتاتك* 📞
+					const ownerAlert = `🚨 *تنبيه: شخص اتصل بأحد بوتاتك* 📞
 ━━━━━━━━━━━━━━━━━━━━
 
-👤 *المتصل:* ${callerDisplay}
-🤖 *رقم البوت المستلم:* +${botNum}
-📡 *النوع:* ${callTypeLabel} (${callTypeEn})
+👤 *الاسم:* ${displayName}
+📱 *الرقم:* ${displayNum}
+🤖 *البوت المستلم:* +${botNum}
+📡 *نوع المكالمة:* ${callTypeLabel}
 ⏰ *الوقت:* ${timeStr}
 
-${waLink}_تم رفض المكالمة وإرسال الرسالة الصوتية وروابط حساباتك للمتصل._
-⚡ _bot amirni hamza • حمزة اعمرني_`;
+${waLink}
+━━━━━━━━━━━━━━━━━━━━
+_⚡ تم رفض المكالمة تلقائياً وإرسال التسجيل الصوتي وروابطك._
+_bot amirni hamza • حمزة اعمرني_`;
 
 					await this.sendMessage(ownerJid, { text: ownerAlert }).catch(() => {});
+
+					// If we have a real phone number and name, also share contact card (vCard)
+					if (isRealPhone) {
+						try {
+							const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${callerName || ('المتصل ' + callerNum)}\nTEL;type=CELL;type=VOICE;waid=${callerNum}:+${callerNum}\nEND:VCARD`;
+							await this.sendMessage(ownerJid, {
+								contacts: {
+									displayName: callerName || ('المتصل ' + callerNum),
+									contacts: [{ vcard }]
+								}
+							}).catch(() => {});
+						} catch (_) {}
+					}
 				}
 
 			} catch (err) {
