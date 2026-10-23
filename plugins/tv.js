@@ -16,6 +16,7 @@ async function getVoip(conn) {
 }
 
 const TV_CHANNELS = [
+	// ── 🇲🇦 قنوات مغربية ──
 	{
 		id: '2m',
 		aliases: ['2m', 'دوزيم', 'دوزيم_المغربية', '2mmaroc'],
@@ -44,13 +45,119 @@ const TV_CHANNELS = [
 		category: '🇲🇦 مغربية',
 		url: 'https://edge13.vedge.infomaniak.com/livecast/ik:chadatv/manifest.m3u8'
 	},
+
+	// ── 🎬 باقة MBC كاملة ──
+	{
+		id: 'mbc1',
+		aliases: ['mbc1', 'ام_بي_سي_1', 'mbc_1', 'mbc-1'],
+		name: 'MBC 1 (إم بي سي 1)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-1/15cf99af5de54063fdabfefe66adc075/index.m3u8'
+	},
+	{
+		id: 'mbc3',
+		aliases: ['mbc3', 'ام_بي_سي_3', 'mbc_3', 'mbc-3'],
+		name: 'MBC 3 (إم بي سي 3 أطفال)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-3-usa/5d58265a862a476dc7f97694addb5ded/index.m3u8'
+	},
+	{
+		id: 'mbc4',
+		aliases: ['mbc4', 'ام_بي_سي_4', 'mbc_4', 'mbc-4'],
+		name: 'MBC 4 (إم بي سي 4)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-4/24f134f1cd63db9346439e96b86ca6ed/index.m3u8'
+	},
 	{
 		id: 'mbc5',
-		aliases: ['mbc5', 'ام_بي_سي_5', 'mbc_5'],
+		aliases: ['mbc5', 'ام_بي_سي_5', 'mbc_5', 'mbc-5'],
 		name: 'MBC 5 Maroc (إم بي سي 5)',
-		category: '🎬 ترفيه',
+		category: '🎬 باقة MBC',
 		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-5/ee6b000cee0629411b666ab26cb13e9b/index.m3u8'
 	},
+	{
+		id: 'mbcdrama',
+		aliases: ['mbcdrama', 'ام_بي_سي_دراما', 'mbc_drama', 'mbc-drama'],
+		name: 'MBC Drama (إم بي سي دراما)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-drama/2c28a458e2f3253e678b07ac7d13fe71/index.m3u8'
+	},
+	{
+		id: 'mbcmasr',
+		aliases: ['mbcmasr', 'ام_بي_سي_مصر', 'mbc_masr', 'mbc-masr'],
+		name: 'MBC Masr (إم بي سي مصر)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-masr/956eac069c78a35d47245db6cdbb1575/index.m3u8'
+	},
+	{
+		id: 'mbcmasr2',
+		aliases: ['mbcmasr2', 'ام_بي_سي_مصر_2', 'mbc_masr2', 'mbc-masr-2'],
+		name: 'MBC Masr 2 (إم بي سي مصر 2)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-masr-2/754931856515075b0aabf0e583495c68/index.m3u8'
+	},
+	{
+		id: 'mbciraq',
+		aliases: ['mbciraq', 'ام_بي_سي_العراق', 'mbc_iraq', 'mbc-iraq'],
+		name: 'MBC Iraq (إم بي سي العراق)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-iraq/e38c44b1b43474e1c39cb5b90203691e/index.m3u8'
+	},
+	{
+		id: 'mbcbollywood',
+		aliases: ['mbcbollywood', 'بوليوود', 'mbc_bollywood', 'mbc-bollywood'],
+		name: 'MBC Bollywood (إم بي سي بوليوود)',
+		category: '🎬 باقة MBC',
+		url: 'https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-bollywood/546eb40d7dcf9a209255dd2496903764/index.m3u8'
+	},
+
+	// ── 👶 أطفال & رسوم متحركة ──
+	{
+		id: 'spacetoon',
+		aliases: ['spacetoon', 'سبيستون', 'سبيس_تون', 'space_toon', 'spacton'],
+		name: 'Spacetoon (سبيستون - قناة شباب المستقبل)',
+		category: '👶 أطفال',
+		url: 'https://live-uae-next.spacetoongo.com/ST_MENA_NEXT/hls/r9p2hjipmw2kl.m3u8'
+	},
+	{
+		id: 'cn',
+		aliases: ['cn', 'cnarabic', 'cn_arabic', 'كرتون_نتورك', 'cartoon', 'cartoonnetwork'],
+		name: 'CN Arabic (كرتون نتورك بالعربية)',
+		category: '👶 أطفال',
+		url: 'https://live-uae-next.spacetoongo.com/ST_MENA_NEXT/hls/r9p2hjipmw2kl.m3u8'
+	},
+
+	// ── 🦁 وثائقية & طبيعة ──
+	{
+		id: 'natgeo',
+		aliases: ['natgeo', 'national', 'ناشونال', 'ناشونال_جيوغرافيك', 'nationalgeographic'],
+		name: 'National Geographic (ناشونال جيوغرافيك / الجزيرة الوثائقية)',
+		category: '🦁 وثائقية',
+		url: 'https://live-hls-apps-ajd-fa.getaj.net/AJD/04.m3u8'
+	},
+	{
+		id: 'ajd',
+		aliases: ['ajd', 'الجزيرة_الوثائقية', 'وثائقية'],
+		name: 'Al Jazeera Documentary (الجزيرة الوثائقية)',
+		category: '🦁 وثائقية',
+		url: 'https://live-hls-apps-ajd-fa.getaj.net/AJD/04.m3u8'
+	},
+	{
+		id: 'discovery',
+		aliases: ['discovery', 'الشرق_ديسكفري', 'asharqdiscovery'],
+		name: 'Asharq Discovery (الشرق ديسكفري)',
+		category: '🦁 وثائقية',
+		url: 'https://svs.itworkscdn.net/asharqdiscoverylive/asharqd.smil/playlist_dvr.m3u8'
+	},
+	{
+		id: 'asharqdoc',
+		aliases: ['asharqdoc', 'الشرق_الوثائقية', 'asharqdocumentary'],
+		name: 'Asharq Documentary (الشرق الوثائقية)',
+		category: '🦁 وثائقية',
+		url: 'https://svs.itworkscdn.net/asharqdocumentarylive/asharqdocumentary.smil/playlist_dvr.m3u8'
+	},
+
+	// ── 🌐 إخبارية ──
 	{
 		id: 'aljazeera',
 		aliases: ['aljazeera', 'الجزيرة', 'jazeera', 'aj'],
@@ -79,6 +186,8 @@ const TV_CHANNELS = [
 		category: '🌐 إخبارية',
 		url: 'https://tv-trtarabi.medya.trt.com.tr/master.m3u8'
 	},
+
+	// ── 🕋 إسلامية ──
 	{
 		id: 'quran',
 		aliases: ['quran', 'قرآن', 'القرآن', 'مكة'],
