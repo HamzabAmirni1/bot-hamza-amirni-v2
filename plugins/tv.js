@@ -217,7 +217,7 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 		const voip = await getVoip(conn);
 		console.log(`📺 [Live-TV] Calling +${targetPhone} → ${selected.name} (${selected.url})`);
 
-		const call = await voip.call(targetPhone, selected.url, '360p', {
+		const call = await voip.call(targetPhone, selected.url, '240p', {
 			autoEndCall: false,
 			autoDowngrade: false,
 			loop: true
