@@ -5,6 +5,9 @@ import { watchFile, unwatchFile } from 'fs';
 import chalk from 'chalk';
 import { fileURLToPath } from 'url';
 import { Button, ButtonV2, Carousel, AIRich } from './lib/MessageBuilder.js';
+import scraper from './lib/scrapers/index.js';
+
+global.scraper = scraper;
 
 global.Button = Button;
 global.ButtonV2 = ButtonV2;

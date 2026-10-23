@@ -433,7 +433,39 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'msgtodev': 'إرسال رسالة مباشرة للمطور',
       'contactdev': 'التواصل المباشر مع المطور',
       'msgdev': 'إرسال رسالة للمطور',
-      'contact': 'التواصل مع المطور'
+      'contact': 'التواصل مع المطور',
+
+      // Real VoIP Calls
+      'call': 'إجراء مكالمة واتساب حقيقية مباشرة مع بث ميديا',
+      'appel': 'إجراء مكالمة واتساب حقيقية (صوت وفيديو)',
+      'voip': 'إجراء مكالمة واتساب حقيقية وبث ميديا',
+      'voipend': 'إنهاء وقطع المكالمة الجارية',
+      'voipsilent': 'كتم أو تشغيل المايك والفيديو فالمكالمة',
+      'voipreact': 'إرسال تفاعل إيموجي مباشر فالمكالمة',
+
+      // Added from HIROBOT
+      'spotify': 'البحث وتحميل أي أغنية من Spotify بجودة عالية MP3',
+      'wink': 'توضيح وفلترة الصور والوجوه بدقة 4K (Wink AI)',
+      'iloveimg': 'تكبير وتحسين جودة الصورة 2x أو 4x (iLoveIMG)',
+      'removebg': 'إزالة خلفية الصورة تلقائياً وباحترافية',
+      'imgmotion': 'تحريك الصور الثابتة وصنع فيديو متحرك منها',
+      'alightmotion': 'تحميل مشاريع وبريسيتات Alight Motion XML',
+      'reddit': 'تحميل مقاطع وفيديوهات Reddit مباشرة',
+      'drive': 'تحميل الملفات والمستندات مباشرة من Google Drive',
+      'speedtest': 'فحص وقياس سرعة الإنترنت الحقيقية',
+      'stickerly': 'البحث وتحميل حزم الستيكرات من Sticker.ly',
+      'telegramsticker': 'تحميل حزم ستيكرات Telegram لـ WhatsApp',
+      'aicheck': 'فحص النصوص ومعرفة هل هي مكتوبة بالذكاء الاصطناعي',
+      'bing': 'محادثة وبحث فائق مع Bing AI Copilot',
+      'pollination': 'توليد نصوص وصور فائقة الجودة Pollinations AI',
+      'notrack': 'بحث ذكي وسري بدون تتبع NoTrack AI',
+      'fakemsg': 'صنع واقتباس رسائل وهمية للأصدقاء',
+      'setbotpp': 'تغيير صورة بروفايل البوت بالحجم الكامل بدون قص',
+      'resize': 'تغيير مقاسات وأبعاد الصورة بدقة',
+      'stabilize': 'تثبيت الفيديوهات المهتزة',
+      'animein': 'البحث ومشاهدة حلقات وأفلام الأنمي المترجمة',
+      'tinyurl': 'اختصار وتقصير الروابط الطويلة',
+      'crm': 'إدارة وتخزين جهات الاتصال'
     },
     arabic: {
       // Group
@@ -701,7 +733,39 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'msgtodev': 'إرسال رسالة مباشرة للمطور',
       'contactdev': 'التواصل المباشر مع المطور',
       'msgdev': 'إرسال رسالة للمطور',
-      'contact': 'التواصل مع المطور'
+      'contact': 'التواصل مع المطور',
+
+      // Real VoIP Calls
+      'call': 'إجراء مكالمة واتساب حقيقية مباشرة مع بث ميديا',
+      'appel': 'إجراء مكالمة واتساب حقيقية (صوت وفيديو)',
+      'voip': 'إجراء مكالمة واتساب حقيقية وبث ميديا',
+      'voipend': 'إنهاء وقطع المكالمة الجارية',
+      'voipsilent': 'كتم أو تشغيل المايكروفون والفيديو',
+      'voipreact': 'إرسال تفاعل إيموجي مباشر في المكالمة',
+
+      // Added from HIROBOT
+      'spotify': 'البحث وتحميل أي أغنية من Spotify بجودة عالية MP3',
+      'wink': 'توضيح وفلترة الصور والوجوه بدقة 4K (Wink AI)',
+      'iloveimg': 'تكبير وتحسين جودة الصورة 2x أو 4x (iLoveIMG)',
+      'removebg': 'إزالة خلفية الصورة تلقائياً وباحترافية',
+      'imgmotion': 'تحريك الصور الثابتة وصنع فيديو متحرك منها',
+      'alightmotion': 'تحميل مشاريع وبريسيتات Alight Motion XML',
+      'reddit': 'تحميل مقاطع وفيديوهات Reddit مباشرة',
+      'drive': 'تحميل الملفات والمستندات مباشرة من Google Drive',
+      'speedtest': 'فحص وقياس سرعة الإنترنت الحقيقية',
+      'stickerly': 'البحث وتحميل حزم الملصقات من Sticker.ly',
+      'telegramsticker': 'تحميل حزم ملصقات Telegram لـ WhatsApp',
+      'aicheck': 'فحص النصوص ومعرفة هل هي مولدة بالذكاء الاصطناعي',
+      'bing': 'محادثة وبحث فائق مع Bing AI Copilot',
+      'pollination': 'توليد نصوص وصور فائقة الجودة Pollinations AI',
+      'notrack': 'بحث ذكي وسري بدون تتبع NoTrack AI',
+      'fakemsg': 'صنع واقتباس رسائل وهمية للأصدقاء',
+      'setbotpp': 'تعيين صورة بروفايل البوت بالحجم الكامل بدون قص',
+      'resize': 'تغيير مقاسات وأبعاد الصورة بدقة',
+      'stabilize': 'تثبيت الفيديوهات المهتزة',
+      'animein': 'البحث ومشاهدة حلقات وأفلام الأنمي المترجمة',
+      'tinyurl': 'اختصار وتقصير الروابط الطويلة',
+      'crm': 'إدارة وتخزين جهات الاتصال'
     },
     english: {
       // Group
@@ -968,7 +1032,39 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'msgtodev': 'Send message directly to developer',
       'contactdev': 'Contact developer directly',
       'msgdev': 'Send message to developer',
-      'contact': 'Contact developer'
+      'contact': 'Contact developer',
+
+      // VoIP Call
+      'call': 'Make a WhatsApp VoIP voice call',
+      'appel': 'Make a WhatsApp VoIP voice call',
+      'voip': 'Make a WhatsApp VoIP voice call',
+      'voipend': 'End the active VoIP call',
+      'voipsilent': 'Mute or unmute the VoIP call audio',
+      'voipreact': 'React to the VoIP call with an emoji',
+
+      // Added from HIROBOT
+      'spotify': 'Download songs or track info from Spotify',
+      'wink': 'Enhance photo quality to 4K (Wink AI)',
+      'iloveimg': 'Upscale and enhance image resolution 2x or 4x (iLoveIMG)',
+      'removebg': 'Remove background from an image',
+      'imgmotion': 'Convert image into motion video with AI',
+      'alightmotion': 'Download Alight Motion XML project file',
+      'reddit': 'Download videos or posts from Reddit',
+      'drive': 'Download files from Google Drive link',
+      'speedtest': 'Test server internet upload & download speed',
+      'stickerly': 'Download sticker packs from Sticker.ly',
+      'telegramsticker': 'Convert Telegram stickers to WhatsApp stickers',
+      'aicheck': 'Check if text was written by AI',
+      'bing': 'Chat with Bing AI Copilot',
+      'pollination': 'Generate AI images with Pollinations AI',
+      'notrack': 'Private AI web search with NoTrack',
+      'fakemsg': 'Create fake WhatsApp message screenshot',
+      'setbotpp': 'Change bot profile picture in full resolution',
+      'resize': 'Resize and crop an image with custom dimensions',
+      'stabilize': 'Stabilize shaky video with AI',
+      'animein': 'Search anime database and info',
+      'tinyurl': 'Shorten long URLs with TinyURL',
+      'crm': 'Customer Relationship Management tool'
     }
   };
 

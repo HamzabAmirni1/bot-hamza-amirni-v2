@@ -11,6 +11,10 @@
     "lib": "lib",
     "plugins": "plugins"
   },
+  "exports": {
+    "./voip": "./lib/voip/index.js",
+    "./canvas": "./lib/utils/canvas.js"
+  },
   "scripts": {
     "start": "node --expose-gc --max-old-space-size=400 index.js",
     "format": "prettier --write .",
