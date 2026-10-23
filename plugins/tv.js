@@ -134,6 +134,15 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 					footer: 'bot amirni hamza • 📡 Live TV',
 					optionText: '📡 اختر القناة',
 					optionTitle: '📡 اختر القناة',
+					buttons: [
+						{
+							name: 'single_select',
+							buttonParamsJson: JSON.stringify({
+								title: '📡 اختر القناة',
+								sections
+							})
+						}
+					],
 					nativeFlow: [{ text: '📡 اختر القناة', sections }]
 				},
 				{ quoted: m }
