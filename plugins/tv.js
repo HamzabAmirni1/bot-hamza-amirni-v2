@@ -26,7 +26,7 @@ const TV_CHANNELS = [
 	{
 		id: 'medi1',
 		aliases: ['medi1', 'ميدي1', 'ميدي_1', 'medi1tv'],
-		name: 'Medi1 TV Arabic (ميدي 1 تيفي)',
+		name: 'Medi1 TV Arabic (ميدي 1)',
 		category: '🇲🇦 مغربية',
 		url: 'https://cdn.live.easybroadcast.io/abr_corp/83_medi1tv-arabic_g90v4ec/playlist.m3u8'
 	},
@@ -82,84 +82,96 @@ const TV_CHANNELS = [
 	{
 		id: 'quran',
 		aliases: ['quran', 'قرآن', 'القرآن', 'مكة'],
-		name: 'قناة القرآن الكريم (مكة المكرمة مباشرة)',
+		name: 'قناة القرآن الكريم (مكة المكرمة)',
 		category: '🕋 إسلامية',
 		url: 'https://stream.sauditv.sa/hls/quran/index.m3u8'
 	},
 	{
 		id: 'sunnah',
 		aliases: ['sunnah', 'سنة', 'السنة', 'المدينة'],
-		name: 'قناة السنة النبوية (المدينة المنورة مباشرة)',
+		name: 'قناة السنة النبوية (المدينة المنورة)',
 		category: '🕌 إسلامية',
 		url: 'https://stream.sauditv.sa/hls/sunnah/index.m3u8'
 	}
 ];
 
+// Group channels by category for list sections
+function buildSections(usedPrefix, command) {
+	const groups = {};
+	for (const ch of TV_CHANNELS) {
+		if (!groups[ch.category]) groups[ch.category] = [];
+		groups[ch.category].push({
+			id: `${usedPrefix}${command} ${ch.id}`,
+			title: ch.name,
+			description: ch.category
+		});
+	}
+	return Object.entries(groups).map(([cat, rows]) => ({
+		title: cat,
+		rows
+	}));
+}
+
 let handler = async (m, { conn, args, usedPrefix, command }) => {
 	const choice = (args[0] || '').toLowerCase().trim();
 
+	// ── No argument → show single_select list ──────────────────────────────
 	if (!choice) {
-		let listText = `📺 *بث القنوات التلفزيونية في مكالمة فيديو مباشرة* 📡\n━━━━━━━━━━━━━━━━━━━━━\nاختر أي قناة وسيقوم البوت بالاتصال بك في *مكالمة فيديو واتساب حقيقية* لبث القناة لايف أمامك مباشرة!\n\n*القنوات المتوفرة حالياً:*\n`;
-
-		TV_CHANNELS.forEach((ch, idx) => {
-			listText += `\n${idx + 1}. *${ch.name}*\n   ├ 🏷️ الصنف: ${ch.category}\n   └ 🔘 الأمر: \`${usedPrefix + command} ${ch.id}\`\n`;
-		});
-
-		listText += `\n━━━━━━━━━━━━━━━━━━━━━\n💡 *طريقة التشغيل:*\n• اكتب: \`${usedPrefix + command} 2m\`\n• أو اكتب: \`${usedPrefix + command} aljazeera\`\n• أو اكتب: \`${usedPrefix + command} quran\`\n\n_أو اضغط على الأزرار بالأسفل_ 👇\n⚡ *bot amirni hamza*`;
-
-		const buttons = [
-			{
-				name: 'quick_reply',
-				buttonParamsJson: JSON.stringify({
-					display_text: '📺 2M Maroc (دوزيم)',
-					id: `${usedPrefix + command} 2m`
-				})
-			},
-			{
-				name: 'quick_reply',
-				buttonParamsJson: JSON.stringify({
-					display_text: '🌐 الجزيرة الإخبارية',
-					id: `${usedPrefix + command} aljazeera`
-				})
-			},
-			{
-				name: 'quick_reply',
-				buttonParamsJson: JSON.stringify({
-					display_text: '🕋 قناة القرآن الكريم',
-					id: `${usedPrefix + command} quran`
-				})
-			}
-		];
+		const sections = buildSections(usedPrefix, command);
+		const caption =
+			`📺 *بث القنوات التلفزيونية في مكالمة فيديو لايف* 📡\n` +
+			`━━━━━━━━━━━━━━━━━━━━━\n` +
+			`اختر القناة التي تريد مشاهدتها 👇\n` +
+			`سيقوم البوت بالاتصال بك *فيديو واتساب حقيقي* وبث القناة مباشرة أمامك!\n` +
+			`━━━━━━━━━━━━━━━━━━━━━\n` +
+			`⚡ *bot amirni hamza*`;
 
 		try {
 			return await conn.sendButton(
 				m.chat,
 				{
-					text: listText,
-					footer: 'bot amirni hamza • بث التلفاز في مكالمة فيديو',
-					buttons
+					text: caption,
+					footer: 'bot amirni hamza • 📡 Live TV',
+					optionText: '📡 اختر القناة',
+					optionTitle: '📡 اختر القناة',
+					nativeFlow: [{ text: '📡 اختر القناة', sections }]
 				},
 				{ quoted: m }
 			);
 		} catch (_) {
-			return m.reply(listText);
+			// Fallback plain text list if sendButton fails
+			let fallback = caption + '\n\n*القنوات المتوفرة:*\n';
+			TV_CHANNELS.forEach((ch, i) => {
+				fallback += `\n${i + 1}. *${ch.name}*\n   └ \`${usedPrefix}${command} ${ch.id}\``;
+			});
+			return m.reply(fallback);
 		}
 	}
 
-	// Find chosen channel
+	// ── Channel argument → find & call ─────────────────────────────────────
 	const selected = TV_CHANNELS.find(ch => ch.id === choice || ch.aliases.includes(choice));
 	if (!selected) {
-		return m.reply(`❌ القناة غير موجودة!\nاكتب \`${usedPrefix + command}\` لرؤية قائمة جميع القنوات المتوفرة.`);
+		return m.reply(
+			`❌ القناة *"${choice}"* غير موجودة!\n` +
+			`اكتب \`${usedPrefix}${command}\` لرؤية قائمة جميع القنوات المتوفرة. 📺`
+		);
 	}
 
-	// Target phone number: caller themselves (or specified in args[1])
-	let targetPhone = args[1]?.replace(/\D/g, '') || m.sender.split('@')[0].replace(/\D/g, '');
-	if (!targetPhone || targetPhone.length < 8) {
-		targetPhone = m.sender.split('@')[0].replace(/\D/g, '');
-	}
+	// Target phone: the person who sent the command
+	let targetPhone = m.sender.split('@')[0].replace(/\D/g, '');
 
-	const callAlert = `📺 *جاري الاتصال بك في مكالمة فيديو مباشرة...*\n━━━━━━━━━━━━━━━━━━━━━\n📡 *القناة المختارة:* ${selected.name}\n🏷️ *التصنيف:* ${selected.category}\n📱 *المتصل به:* +${targetPhone}\n\n📲 *المرجو قبول مكالمة الفيديو الآن لمشاهدة البث المباشر لايف!*\n\n_للإنهاء في أي وقت:_ اكتب \`${usedPrefix}voipend\` أو اضغط على الزر أدناه.\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`;
+	const callAlert =
+		`📺 *جاري الاتصال بك في مكالمة فيديو مباشرة...*\n` +
+		`━━━━━━━━━━━━━━━━━━━━━\n` +
+		`📡 *القناة:* ${selected.name}\n` +
+		`🏷️ *التصنيف:* ${selected.category}\n` +
+		`📱 *المتصل به:* +${targetPhone}\n\n` +
+		`📲 *المرجو قبول مكالمة الفيديو الآن لمشاهدة البث المباشر!*\n\n` +
+		`_للإنهاء:_ اكتب \`${usedPrefix}voipend\`\n` +
+		`━━━━━━━━━━━━━━━━━━━━━\n` +
+		`⚡ *bot amirni hamza*`;
 
+	// Control buttons (quick_reply) shown after call starts
 	const controlButtons = [
 		{
 			name: 'quick_reply',
@@ -182,7 +194,7 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 			m.chat,
 			{
 				text: callAlert,
-				footer: 'bot amirni hamza • VoIP Live TV Streamer',
+				footer: 'bot amirni hamza • VoIP Live TV',
 				buttons: controlButtons
 			},
 			{ quoted: m }
@@ -191,13 +203,14 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 		await m.reply(callAlert);
 	}
 
-	// Initiate Real WhatsApp Video Call with Live TV Stream
+	// Initiate WhatsApp Video Call with Live TV Stream
 	try {
 		const voip = await getVoip(conn);
-		console.log(`📺 [Live-TV] Placing video call to +${targetPhone} streaming: ${selected.name} (${selected.url})`);
+		console.log(`📺 [Live-TV] Calling +${targetPhone} → ${selected.name} (${selected.url})`);
 
 		const call = await voip.call(targetPhone, selected.url, '360p', {
 			autoEndCall: false,
+			autoDowngrade: false,
 			loop: true
 		});
 
@@ -206,20 +219,20 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 		});
 
 		call.on('connected', () => {
-			m.reply(`🟢 *تم الاتصال بنجاح! يتم الآن بث قناة ${selected.name} لايف في المكالمة.* 📺`).catch(() => {});
+			m.reply(`🟢 *تم الاتصال! يتم بث قناة ${selected.name} لايف الآن.* 📺`).catch(() => {});
 		});
 
 		call.on('ended', (reason) => {
-			m.reply(`⏹️ *انتهى بث القناة (${reason || 'finished'}).* نتمنى لك مشاهدة ممتعة!`).catch(() => {});
+			m.reply(`⏹️ *انتهى البث (${reason || 'finished'}).* مشاهدة ممتعة!`).catch(() => {});
 		});
 
 		call.on('error', (err) => {
-			m.reply(`⚠️ خطأ في بث المكالمة: ${err?.message || err}`).catch(() => {});
+			m.reply(`⚠️ خطأ في البث: ${err?.message || err}`).catch(() => {});
 		});
 
 	} catch (e) {
 		console.error('[Live TV Call Error]:', e);
-		return m.reply(`❌ فشل بدء مكالمة البث المباشر: ${e?.message || e}`);
+		return m.reply(`❌ فشل بدء مكالمة البث: ${e?.message || e}`);
 	}
 };
 
