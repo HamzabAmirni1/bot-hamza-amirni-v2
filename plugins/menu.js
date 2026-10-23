@@ -442,6 +442,8 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'voipend': 'إنهاء وقطع المكالمة الجارية',
       'voipsilent': 'كتم أو تشغيل المايك والفيديو فالمكالمة',
       'voipreact': 'إرسال تفاعل إيموجي مباشر فالمكالمة',
+      'tv': 'بث ومشاهدة القنوات التلفزيونية لايف فـ مكالمة فيديو واتساب',
+      'tlfaz': 'بث قنوات التلفزة المباشرة في مكالمة فيديو',
 
       // Added from HIROBOT
       'spotify': 'البحث وتحميل أي أغنية من Spotify بجودة عالية MP3',
@@ -748,6 +750,8 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'voipend': 'إنهاء وقطع المكالمة الجارية',
       'voipsilent': 'كتم أو تشغيل المايكروفون والفيديو',
       'voipreact': 'إرسال تفاعل إيموجي مباشر في المكالمة',
+      'tv': 'بث ومشاهدة القنوات الفضائية مباشرة في مكالمة فيديو واتساب',
+      'tlfaz': 'بث القنوات التلفزيونية الحية في مكالمة فيديو',
 
       // Added from HIROBOT
       'spotify': 'البحث وتحميل أي أغنية من Spotify بجودة عالية MP3',
@@ -1053,6 +1057,8 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'voipend': 'End the active VoIP call',
       'voipsilent': 'Mute or unmute the VoIP call audio',
       'voipreact': 'React to the VoIP call with an emoji',
+      'tv': 'Live TV broadcast streamed directly into a WhatsApp video call',
+      'tlfaz': 'Stream live television channels inside a video call',
 
       // Added from HIROBOT
       'spotify': 'Download songs or track info from Spotify',
