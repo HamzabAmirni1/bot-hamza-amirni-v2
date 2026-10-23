@@ -957,6 +957,13 @@ export async function handler(chatUpdate) {
 					if (_cmdTimeoutHandle) clearTimeout(_cmdTimeoutHandle);
 					// Error occured
 					m.error = e;
+
+					// If plugin threw a plain string (usage instruction or friendly validation message)
+					if (typeof e === 'string') {
+						m.reply(e).catch(() => {});
+						return;
+					}
+
 					if (e?.message !== 'COMMAND_TIMEOUT') {
 						console.error(e);
 						logErrorToSupabase(command || m.plugin, e?.message || format(e)).catch(() => {});

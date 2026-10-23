@@ -8,15 +8,22 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	let lang = user.language || 'darija';
 	const t = (en, ar, da) => lang === 'english' ? en : lang === 'arabic' ? ar : da;
 
-	if (!text)
-		throw t(
-			`Example:\n← ${usedPrefix}${command} https://www.mediafire.com/file/941xczxhn27qbby/file`,
-			`مثال:\n← ${usedPrefix}${command} https://www.mediafire.com/file/941xczxhn27qbby/file`,
-			`مثال:\n← ${usedPrefix}${command} https://www.mediafire.com/file/941xczxhn27qbby/file`
+	if (!text) {
+		const helpMsg = t(
+			`📥 *MediaFire Downloader*\n━━━━━━━━━━━━━━━━━━━━━\n*How to use:*\nSend the command followed by the MediaFire link:\n← \`${usedPrefix + command} <link>\`\n\n*Example:*\n← \`${usedPrefix + command} https://www.mediafire.com/file/941xczxhn27qbby/file\`\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+			`📥 *تحميل الملفات من ميديافاير (MediaFire)*\n━━━━━━━━━━━━━━━━━━━━━\n*طريقة الاستخدام:*\nأرسل الأمر متبوعاً برابط الملف:\n← \`${usedPrefix + command} <الرابط>\`\n\n*مثال:*\n← \`${usedPrefix + command} https://www.mediafire.com/file/941xczxhn27qbby/file\`\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+			`📥 *تيليشارجي من ميديافاير (MediaFire)*\n━━━━━━━━━━━━━━━━━━━━━\n*كيفاش تخدمو:*\nصيفط الأمر وموراه الرابط ديال الملف:\n← \`${usedPrefix + command} <الرابط>\`\n\n*مثال:*\n← \`${usedPrefix + command} https://www.mediafire.com/file/941xczxhn27qbby/file\`\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
 		);
+		return m.reply(helpMsg);
+	}
 
-	if (!mediaRegex.test(text))
-		throw t('Invalid link! Make sure the MediaFire link is correct.', 'الرابط غير صالح! تأكد من صحة رابط ميديافاير.', 'الرابط ماصحيحش! تحقق من رابط ميديافاير.');
+	if (!mediaRegex.test(text)) {
+		return m.reply(t(
+			'❌ *Invalid link!* Please send a valid MediaFire download link.',
+			'❌ *الرابط غير صالح!* يرجى إرسال رابط ميديافاير صحيح.',
+			'❌ *الرابط ما صحيحش!* عافاك صيفط رابط صحيح ديال MediaFire.'
+		));
+	}
 
 	try {
 		await m.react('📥');
