@@ -21,7 +21,7 @@ const TV_CHANNELS = [
 		aliases: ['2m', 'دوزيم', 'دوزيم_المغربية', '2mmaroc'],
 		name: '2M Maroc (دوزيم المغربية)',
 		category: '🇲🇦 مغربية',
-		url: 'https://d2qh3gh0k5vp3v.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-n6pess5lwbghr/2M_ES.m3u8'
+		url: 'https://d2qh3gh0k5vp3v.cloudfront.net/v1/manifest/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-n6pess5lwbghr/3b79f1e2-c335-47c2-8224-ace721778f83/3.m3u8'
 	},
 	{
 		id: 'medi1',
