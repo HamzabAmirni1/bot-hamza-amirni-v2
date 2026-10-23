@@ -19,5 +19,5 @@ COPY . .
 # Expose health check port
 EXPOSE 8000
 
-# Start the bot
-CMD ["node", "index.js"]
+# Start the bot with optimized memory limit to avoid container OOM kills
+CMD ["node", "--max-old-space-size=400", "index.js"]

@@ -37,7 +37,7 @@ let handler = async (m, { conn, text }) => {
 
     const data = await mediafireDl(text)
 
-    // File size protection: max 300MB
+    // File size protection: safe limit 70MB to prevent container OOM
     const sizeMatch = data.filesize?.match(/([\d.]+)\s*(KB|MB|GB)/i)
     if (sizeMatch) {
       const size = parseFloat(sizeMatch[1])
@@ -47,14 +47,14 @@ let handler = async (m, { conn, text }) => {
       if (unit === 'KB') sizeMB = size / 1024
       if (unit === 'GB') sizeMB = size * 1024
 
-      if (sizeMB > 300) {
-        await m.react('❌');
+      if (sizeMB > 70) {
+        await m.react('⚠️');
         return conn.reply(
           m.chat,
           `📦 *${data.filename}*\n` +
           `━━━━━━━━━━━━━━━━━━━━━\n` +
           `⚖️ *الحجم:* ${data.filesize}\n` +
-          `⚠️ *الملف أكبر من 300MB ولا يمكن إرساله عبر واتساب.*\n\n` +
+          `⚠️ *الملف يتجاوز 70MB ولا يمكن إرساله عبر واتساب تفادياً لتوقف البوت.*\n\n` +
           `🔗 *رابط التحميل المباشر:*\n${data.download}\n\n` +
           `⚡ *bot amirni hamza*`,
           m
@@ -62,21 +62,14 @@ let handler = async (m, { conn, text }) => {
       }
     }
 
-    // Download file as buffer
-    const fileRes = await axios.get(data.download, {
-      responseType: 'arraybuffer',
-      headers
-    })
-
-    const buffer = Buffer.from(fileRes.data)
-
+    // Direct streaming to avoid OOM
     await conn.sendMessage(
       m.chat,
       {
-        document: buffer,
+        document: { url: data.download },
         fileName: data.filename,
-        mimetype: fileRes.headers['content-type'] || 'application/octet-stream',
-        caption: `📦 ${data.filename}\n📊 Size: ${data.filesize || 'Unknown'}`
+        mimetype: 'application/octet-stream',
+        caption: `📦 ${data.filename}\n📊 Size: ${data.filesize || 'Unknown'}\n\n⚡ *bot amirni hamza*`
       },
       { quoted: m }
     )

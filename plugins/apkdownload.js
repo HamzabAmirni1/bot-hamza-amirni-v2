@@ -26,14 +26,36 @@ let handler = async (m, { conn, args }) => {
 
     const { name, lastup, package: pkg, size, icon, dllink } = response.data.result;
 
+    // Parse size to avoid OOM
+    let isTooLarge = false;
+    const sizeMatch = String(size || '').match(/([\d.]+)\s*(MB|GB)/i);
+    if (sizeMatch) {
+      const val = parseFloat(sizeMatch[1]);
+      const unit = sizeMatch[2].toUpperCase();
+      if ((unit === 'MB' && val > 70) || unit === 'GB') isTooLarge = true;
+    }
+
+    if (isTooLarge) {
+      await m.react('⚠️');
+      const captionTooLarge = `📦 *معلومات التطبيق:*\n\n` +
+                              `🔖 *الاسم:* ${name}\n` +
+                              `📅 *آخر تحديث:* ${lastup}\n` +
+                              `📦 *الحزمة:* ${pkg}\n` +
+                              `📏 *الحجم:* ${size}\n\n` +
+                              `⚠️ *الملف أكبر من 70MB ولا يمكن إرساله عبر واتساب تفادياً لتوقف البوت.*\n\n` +
+                              `🔗 *رابط التحميل المباشر:*\n${dllink}\n\n` +
+                              `⚡ *bot amirni hamza*`;
+      return conn.sendMessage(m.chat, {
+        image: { url: icon },
+        caption: captionTooLarge
+      }, { quoted: m });
+    }
+
     // إرسال صورة التطبيق مع رسالة
     await conn.sendMessage(m.chat, {
       image: { url: icon },
       caption: `📦 *جاري تحميل ${name}...*\n\n⚡ *bot amirni hamza*`
     }, { quoted: m });
-
-    const apkRes = await axios.get(dllink, { responseType: 'arraybuffer' });
-    const apkBuffer = Buffer.from(apkRes.data, 'binary');
 
     const caption = `📦 *معلومات التطبيق:*\n\n` +
                     `🔖 *الاسم:* ${name}\n` +
@@ -43,7 +65,7 @@ let handler = async (m, { conn, args }) => {
                     `> 📥 تم التحميل بواسطة: bot amirni hamza`;
 
     await conn.sendMessage(m.chat, {
-      document: apkBuffer,
+      document: { url: dllink },
       mimetype: 'application/vnd.android.package-archive',
       fileName: `${name}.apk`,
       caption

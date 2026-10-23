@@ -354,18 +354,35 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
         sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024);
       } catch (_) {}
 
-      if (sizeMB > 300) {
-        await m.react('❌');
-        return conn.reply(
-          m.chat,
-          `📦 *${apkTitle}*\n` +
+      if (sizeMB > 70) {
+        await m.react('⚠️');
+        const tooLargeMsg = `🎮 *${apkTitle}*\n` +
           `━━━━━━━━━━━━━━━━━━━━━\n` +
           `⚖️ *الحجم:* ${sizeMB.toFixed(1)} MB\n` +
-          `⚠️ *الملف أكبر من 300MB ولا يمكن إرساله عبر واتساب.*\n\n` +
-          `🔗 *رابط التحميل المباشر:*\n${directUrl}\n\n` +
-          `⚡ *bot amirni hamza*`,
-          m
-        );
+          `⚠️ *الملف أكبر من 70MB ولا يمكن إرساله عبر واتساب تفادياً لتوقف السيرفر.*\n\n` +
+          `🔗 *رابط التحميل المباشر للنسخة المهكرة:*\n${directUrl}\n\n` +
+          `⚡ *bot amirni hamza*`;
+
+        const buttons = [
+          {
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+              display_text: '📥 تحميل النسخة المهكرة',
+              url: directUrl
+            })
+          }
+        ];
+
+        try {
+          return await conn.sendButton(m.chat, {
+            image: { url: apkIcon || 'https://ui-avatars.com/api/?name=MOD&background=25D366&color=FFFFFF&size=200' },
+            caption: tooLargeMsg,
+            footer: 'bot amirni hamza',
+            buttons
+          }, { quoted: m });
+        } catch (_) {
+          return conn.reply(m.chat, tooLargeMsg, m);
+        }
       }
 
       // Send photo preview with loading message
@@ -389,9 +406,11 @@ let handler = async (m, { conn, text, args, command, usedPrefix }) => {
           m, conn,
           title: apkTitle,
           emoji: '🎮',
+          maxBytes: 70 * 1024 * 1024
         });
       } catch (pErr) {
         console.log('[TraidMode] Progress bar stream notice:', pErr.message);
+        if (pErr.code === 'FILE_TOO_LARGE') return;
       }
 
       // Step 2: Dispatch modded APK via Baileys 0-RAM direct URL streaming

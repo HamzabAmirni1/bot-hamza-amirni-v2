@@ -200,10 +200,36 @@ const handler = async (m, { conn, text, command }) => {
 				return m.reply(t('❌ Could not find APK file for the requested app.', '❌ لم يتم العثور على ملف APK للتطبيق المطلوب.', '❌ مالقيناش ملف APK دالتطبيق اللي طلبات.'));
 			}
 
-			// Size check (max 300MB)
-			if (info.sizeBytes > 300 * 1024 * 1024) {
+			// Size check (safe WhatsApp limit: 70MB to avoid container OOM crashes)
+			const MAX_APK_BYTES = 70 * 1024 * 1024;
+			if (info.sizeBytes > MAX_APK_BYTES) {
 				await m.react('⚠️');
-				return m.reply(t(`⚠️ *${info.name}* is too large (${info.sizeMB} MB) to send via WhatsApp (max 300MB).`, `⚠️ *${info.name}* كبير جداً (${info.sizeMB} MB) للإرسال عبر واتساب (الحد الأقصى 300MB).\n\nيمكنك تحميله يدوياً.`, `⚠️ *${info.name}* كبير بزاف (${info.sizeMB} MB) باش نصيفطوه فواتساب (حد أقصى 300MB).`));
+				const tooLargeCaption = t(
+					`📦 *${info.name}*\n━━━━━━━━━━━━━━━━━━━━━\n🔢 *Version:* ${info.version}\n⚖️ *Size:* ${info.sizeMB} MB\n\n⚠️ *This app is larger than 70MB and cannot be sent directly via WhatsApp to prevent server crashes.*\n\n🔗 *Download it directly with 1-click:*\n${info.downloadUrl}\n\n⚡ *bot amirni hamza*`,
+					`📦 *${info.name}*\n━━━━━━━━━━━━━━━━━━━━━\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⚠️ *حجم هذا التطبيق (${info.sizeMB} MB) يتجاوز 70MB ولا يمكن إرساله كملف عبر واتساب لتفادي توقف البوت.*\n\n🔗 *يمكنك تحميله مباشرة بنقرة واحدة:*\n${info.downloadUrl}\n\n⚡ *bot amirni hamza*`,
+					`📦 *${info.name}*\n━━━━━━━━━━━━━━━━━━━━━\n🔢 *الإصدار:* ${info.version}\n⚖️ *الحجم:* ${info.sizeMB} MB\n\n⚠️ *هاد التطبيق (${info.sizeMB} MB) كبر من 70MB وما نقدروش نصيفطوه ملف فـ واتساب باش البوت ما يتبلوكاش.*\n\n🔗 *تقدر تيليشارجيه ديريكت بكليك وحدة من هاد الرابط:*\n${info.downloadUrl}\n\n⚡ *bot amirni hamza*`
+				);
+
+				const buttons = [
+					{
+						name: 'cta_url',
+						buttonParamsJson: JSON.stringify({
+							display_text: t('📥 Direct Download', '📥 تحميل مباشر', '📥 تحميل مباشر'),
+							url: info.downloadUrl
+						})
+					}
+				];
+
+				try {
+					return await conn.sendButton(m.chat, {
+						image: { url: info.icon || 'https://ui-avatars.com/api/?name=APK&background=25D366&color=FFFFFF&size=200' },
+						caption: tooLargeCaption,
+						footer: 'bot amirni hamza',
+						buttons
+					}, { quoted: m });
+				} catch (_) {
+					return m.reply(tooLargeCaption);
+				}
 			}
 
 			const captionPreview = t(
@@ -222,6 +248,7 @@ const handler = async (m, { conn, text, command }) => {
 			}
 
 			let tmpApkPath = null;
+			let downloadOk = false;
 			try {
 				if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
 				const cleanName = (info.name || 'app').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -233,14 +260,25 @@ const handler = async (m, { conn, text, command }) => {
 					title: info.name,
 					emoji: '📦',
 					outputPath: tmpApkPath,
-					timeout: 240000
+					timeout: 240000,
+					maxBytes: MAX_APK_BYTES
 				});
+				downloadOk = true;
 			} catch (pErr) {
 				console.log('[apkdl] Progress download notice:', pErr.message);
+				if (pErr.code === 'FILE_TOO_LARGE') {
+					if (tmpApkPath && fs.existsSync(tmpApkPath)) {
+						try { fs.unlinkSync(tmpApkPath); } catch (_) {}
+					}
+					return; // User was already notified in progress bar
+				}
 			}
 
-			// Direct Baileys stream from local disk or direct fallback URL
-			const docTarget = (tmpApkPath && fs.existsSync(tmpApkPath)) ? { url: tmpApkPath } : { url: info.downloadUrl };
+			// Only send if file exists locally or direct fallback
+			const docTarget = (downloadOk && tmpApkPath && fs.existsSync(tmpApkPath)) ? { url: tmpApkPath } : null;
+			if (!docTarget) {
+				throw new Error('فشل تحميل الملف محلياً لتجهيز الإرسال');
+			}
 			try {
 				await conn.sendMessage(m.chat, {
 					document: docTarget,

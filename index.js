@@ -1739,6 +1739,10 @@ function startBotWorker(phone, isManual = false) {
     }
   });
 
+  w.on('error', (err) => {
+    console.error(`💥 Worker error for +${cleanPhone}:`, err?.message || err);
+  });
+
   w.on('exit', (code) => {
     console.log(`🛑 Worker for +${cleanPhone} exited (code ${code})`);
     workersMap.delete(cleanPhone);
