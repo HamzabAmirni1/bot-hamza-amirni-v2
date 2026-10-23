@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8000
 
 # Start the bot with optimized memory limit to avoid container OOM kills
-CMD ["node", "--max-old-space-size=400", "index.js"]
+CMD ["node", "--expose-gc", "--max-old-space-size=400", "index.js"]

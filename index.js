@@ -102,7 +102,7 @@ setupSilencer();
 import { Worker } from 'worker_threads';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { watchFile, unwatchFile, readFileSync, existsSync, writeFileSync, mkdirSync, rmSync, readdirSync, unlinkSync } from 'fs';
+import { watchFile, unwatchFile, readFileSync, existsSync, writeFileSync, mkdirSync, rmSync, readdirSync, unlinkSync, statSync } from 'fs';
 import readline from 'readline';
 import http from 'http';
 
@@ -1739,6 +1739,13 @@ function startBotWorker(phone, isManual = false) {
     }
   });
 
+  w.on('message', (msg) => {
+    botInfo.lastActivity = Date.now();
+    if (msg?.type === 'pong') {
+      botInfo.lastPong = Date.now();
+    }
+  });
+
   w.on('error', (err) => {
     console.error(`💥 Worker error for +${cleanPhone}:`, err?.message || err);
   });
@@ -2052,6 +2059,106 @@ async function pingServerHeartbeat() {
   } catch (_) {}
 }
 
+// ============================================================
+// 🛡️ ANTI-CRASH & WATCHDOG GUARDIAN (نظام الحماية من التوقف والتجميد)
+// Ensures the bot NEVER stops, NEVER freezes, and auto-recovers:
+// 1. Worker Freeze & Deadlock Watchdog (recovers hung workers)
+// 2. Offline / Dropped Bot Resurrector (auto-revives any disconnected bot)
+// 3. Memory & Cache Auto-Purge (prevents OOM crashes)
+// 4. Temporary File Cleaner (cleans ./tmp every 10 min)
+// 5. Cloud Self-Ping Keep-Alive (prevents Koyeb/Render idle sleep)
+// ============================================================
+function startAntiCrashWatchdog() {
+  console.log('🛡️ [Watchdog] Initializing 24/7 Anti-Crash & Anti-Freeze Guardian...');
+
+  // ── 1. Worker Freeze & Deadlock Watchdog (Every 45 seconds) ──
+  setInterval(() => {
+    const now = Date.now();
+    for (const [phone, info] of workersMap.entries()) {
+      if (!info.worker) continue;
+
+      // Send heartbeat ping to worker thread
+      try {
+        info.worker.postMessage({ type: 'ping', timestamp: now });
+      } catch (_) {}
+
+      // If worker was marked connected, but has been completely silent / frozen for > 5 minutes:
+      const inactiveMs = now - (info.lastActivity || now);
+      if (info.connected && inactiveMs > 5 * 60 * 1000) {
+        console.log(`⚠️ [Watchdog] Bot +${phone} is frozen / unresponsive for ${Math.round(inactiveMs/1000)}s. Auto-recovering worker...`);
+        try { info.worker.terminate(); } catch (_) {}
+        workersMap.delete(phone);
+        setTimeout(() => {
+          console.log(`🔄 [Watchdog] Spawning clean worker for +${phone}...`);
+          startBotWorker(phone);
+        }, 2000);
+      }
+    }
+  }, 45 * 1000);
+
+  // ── 2. Missing & Dropped Bots Resurrector (Every 2 minutes) ──
+  setInterval(async () => {
+    try {
+      const res = await fetch(
+        `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=phone_number,status&status=eq.connected&limit=30`,
+        { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
+      );
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return;
+
+      for (const r of rows) {
+        const cleanP = (r.phone_number || '').toString().replace(/[^0-9]/g, '');
+        if (!cleanP || cleanP.length < 10) continue;
+        if (stoppedWorkers.has(cleanP)) continue;
+
+        const currentWorker = workersMap.get(cleanP);
+        if (!currentWorker || !currentWorker.worker) {
+          console.log(`🛡️ [Watchdog] Detected offline / missing connected bot +${cleanP}. Auto-resurrecting...`);
+          startBotWorker(cleanP);
+        }
+      }
+    } catch (_) {}
+  }, 2 * 60 * 1000);
+
+  // ── 3. RAM & Disk Watchdog (Every 10 minutes) ──
+  setInterval(() => {
+    try {
+      // Clean old temporary files in ./tmp
+      if (existsSync('./tmp')) {
+        const files = readdirSync('./tmp');
+        const now = Date.now();
+        for (const file of files) {
+          try {
+            const filePath = join('./tmp', file);
+            const stats = statSync(filePath);
+            // Delete files older than 10 minutes
+            if (now - stats.mtimeMs > 10 * 60 * 1000) {
+              unlinkSync(filePath);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Memory check & Garbage Collection
+      const mem = process.memoryUsage();
+      if (mem.heapUsed > 320 * 1024 * 1024) {
+        if (typeof global.gc === 'function') {
+          global.gc();
+          console.log(`🧹 [Watchdog] High RAM detected (${Math.round(mem.heapUsed/1024/1024)}MB). Garbage Collection executed!`);
+        }
+      }
+    } catch (_) {}
+  }, 10 * 60 * 1000);
+
+  // ── 4. Cloud Self-Ping Keep-Alive (Every 4 minutes) ──
+  setInterval(() => {
+    try {
+      http.get(`http://127.0.0.1:${PORT}/api/stats`, () => {}).on('error', () => {});
+    } catch (_) {}
+  }, 4 * 60 * 1000);
+}
+
 function startServerHeartbeat() {
   pingServerHeartbeat();
   setInterval(pingServerHeartbeat, 15000);
@@ -2060,6 +2167,7 @@ function startServerHeartbeat() {
 async function init() {
   await forceClaimMasterLock();
   startServerHeartbeat();
+  startAntiCrashWatchdog();
   await initGlobalConfigs();
   await initStats();
   startBackupWatcher();

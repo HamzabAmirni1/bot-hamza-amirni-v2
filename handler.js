@@ -45,6 +45,11 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						global[`BOT_WHITELIST_${cleanP}`] = (msg.whitelist || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
 						console.log(`⚙️ [Worker] Bot +${cleanP} command status updated: disabled=${msg.disabled}, whitelist=${msg.whitelist}`);
 					}
+				} else if (msg.type === 'ping') {
+					// Heartbeat Watchdog response: confirms worker event loop is alive & healthy
+					if (parentPort) {
+						parentPort.postMessage({ type: 'pong', timestamp: Date.now() });
+					}
 				}
 			}
 		} catch (err) {
@@ -929,18 +934,36 @@ export async function handler(chatUpdate) {
 					__dirname: ___dirname,
 					__filename,
 				};
+				// Anti-Freeze Shield: Maximum 60 seconds execution time per command
+				const CMD_TIMEOUT_MS = 60000;
+				let _cmdTimeoutHandle = null;
+				const _timeoutPromise = new Promise((_, reject) => {
+					_cmdTimeoutHandle = setTimeout(() => {
+						const err = new Error('COMMAND_TIMEOUT');
+						err.userTimeout = true;
+						reject(err);
+					}, CMD_TIMEOUT_MS);
+				});
+
 				try {
-					await plugin.call(this, m, extra);
+					await Promise.race([
+						plugin.call(this, m, extra),
+						_timeoutPromise
+					]);
+					if (_cmdTimeoutHandle) clearTimeout(_cmdTimeoutHandle);
 					incrementStats(command).catch(() => {});
 					if (!isPrems && !isUserUnlimited) m.limit = m.limit || plugin.limit || false;
 				} catch (e) {
+					if (_cmdTimeoutHandle) clearTimeout(_cmdTimeoutHandle);
 					// Error occured
 					m.error = e;
-					console.error(e);
-					logErrorToSupabase(command || m.plugin, e?.message || format(e)).catch(() => {});
+					if (e?.message !== 'COMMAND_TIMEOUT') {
+						console.error(e);
+						logErrorToSupabase(command || m.plugin, e?.message || format(e)).catch(() => {});
+					}
 					if (e) {
 						let errText = format(e);
-						if (e.name) {
+						if (e.name && e?.message !== 'COMMAND_TIMEOUT') {
 							for (let [jid] of global.owner.filter(([number, _, isDeveloper]) => isDeveloper && number)) {
 								try {
 									let data = (await conn.onWhatsApp(jid))[0] || {};
@@ -957,11 +980,20 @@ export async function handler(chatUpdate) {
 						try {
 							await m.react('❌').catch(() => {});
 							const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
-							const msg = userLang === 'english'
-								? '❌ An unexpected error occurred while processing this command. The developer has been notified.'
-								: userLang === 'arabic'
-								? '❌ حدث خطأ غير متوقع أثناء تنفيذ هذا الأمر. تم إشعار المطور للإصلاح.'
-								: '❌ وقع شي مشكل أثناء تنفيذ هذا الأمر، تم إشعار المطور باش يقادو 🛠️';
+							let msg = '';
+							if (e?.message === 'COMMAND_TIMEOUT') {
+								msg = userLang === 'english'
+									? '⏱️ *Command Timeout!* This request took longer than 60s and was stopped to keep the bot fast & responsive.'
+									: userLang === 'arabic'
+									? '⏱️ *انتهت المهلة!* استغرق هذا الأمر أكثر من 60 ثانية وتم إيقافه لحماية البوت من التعليق.'
+									: '⏱️ *تعطل هاد الأمر بزاف!* فات 60 ثانية وحبسناه تلقائياً باش البوت يبقى خفيف وما يتبلوكاش ⚡';
+							} else {
+								msg = userLang === 'english'
+									? '❌ An unexpected error occurred while processing this command. The developer has been notified.'
+									: userLang === 'arabic'
+									? '❌ حدث خطأ غير متوقع أثناء تنفيذ هذا الأمر. تم إشعار المطور للإصلاح.'
+									: '❌ وقع شي مشكل أثناء تنفيذ هذا الأمر، تم إشعار المطور باش يقادو 🛠️';
+							}
 							m.reply(msg).catch(() => {});
 						} catch (_) {}
 					}
