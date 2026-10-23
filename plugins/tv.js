@@ -56,14 +56,14 @@ const TV_CHANNELS = [
 		aliases: ['aljazeera', 'الجزيرة', 'jazeera', 'aj'],
 		name: 'Al Jazeera (الجزيرة الإخبارية)',
 		category: '🌐 إخبارية',
-		url: 'https://live-hls-apps-aja-fa.getaj.net/AJA/01.m3u8'
+		url: 'https://live-hls-apps-aja-fa.getaj.net/AJA/05.m3u8'
 	},
 	{
 		id: 'ajm',
 		aliases: ['ajm', 'الجزيرة_مباشر', 'mubasher'],
 		name: 'Al Jazeera Mubasher (الجزيرة مباشر)',
 		category: '🌐 إخبارية',
-		url: 'https://live-hls-apps-ajm-fa.getaj.net/AJM/index.m3u8'
+		url: 'https://live-hls-apps-ajm-fa.getaj.net/AJM/04.m3u8'
 	},
 	{
 		id: 'skynews',
