@@ -1763,8 +1763,18 @@ function startBotWorker(phone, isManual = false) {
     const lastConflict = global._workerConflicts[cleanPhone] || 0;
     const isRecentConflict = (now - lastConflict) < 15000;
 
-    // Fast auto-restart: 8s on conflict (gives WhatsApp server time to drop socket), 3s on normal disconnect
-    const delayMs = isRecentConflict ? 8000 : 3000;
+    global._workerExitCounts = global._workerExitCounts || {};
+    const exitCount = (global._workerExitCounts[cleanPhone] || 0) + 1;
+    global._workerExitCounts[cleanPhone] = exitCount;
+
+    // Fast auto-restart on conflict, but backoff if a bot is repeatedly crashing or logged out (saves CPU & RAM)
+    let delayMs = isRecentConflict ? 8000 : 3000;
+    if (exitCount > 5) {
+      delayMs = 60000; // wait 60s
+      console.log(`⚠️ Worker +${cleanPhone} exited ${exitCount} times. Backing off for 60s to save CPU & RAM...`);
+    } else if (exitCount > 2) {
+      delayMs = 15000; // wait 15s
+    }
     global._launchBlockedUntil[cleanPhone] = Date.now() + delayMs;
 
     setTimeout(() => {
@@ -2132,24 +2142,23 @@ function startAntiCrashWatchdog() {
           try {
             const filePath = join('./tmp', file);
             const stats = statSync(filePath);
-            // Delete files older than 10 minutes
-            if (now - stats.mtimeMs > 10 * 60 * 1000) {
+            // Delete files older than 5 minutes
+            if (now - stats.mtimeMs > 5 * 60 * 1000) {
               unlinkSync(filePath);
             }
           } catch (_) {}
         }
       }
 
-      // Memory check & Garbage Collection
+      // Proactive RAM check & Garbage Collection (keeps container around 40-60% RAM)
       const mem = process.memoryUsage();
-      if (mem.heapUsed > 320 * 1024 * 1024) {
+      if (mem.heapUsed > 180 * 1024 * 1024 || (typeof global.gc === 'function')) {
         if (typeof global.gc === 'function') {
           global.gc();
-          console.log(`🧹 [Watchdog] High RAM detected (${Math.round(mem.heapUsed/1024/1024)}MB). Garbage Collection executed!`);
         }
       }
     } catch (_) {}
-  }, 10 * 60 * 1000);
+  }, 3 * 60 * 1000);
 
   // ── 4. Cloud Self-Ping Keep-Alive (Every 4 minutes) ──
   setInterval(() => {

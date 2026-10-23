@@ -16,7 +16,7 @@
     "./canvas": "./lib/utils/canvas.js"
   },
   "scripts": {
-    "start": "node --expose-gc --max-old-space-size=400 index.js",
+    "start": "node --expose-gc --max-old-space-size=350 index.js",
     "format": "prettier --write .",
     "lint": "eslint . --ext .js"
   },
