@@ -1434,14 +1434,12 @@ export async function callUpdate(callEvents = []) {
 					const voip = await getVoip(this);
 					await voip.listen();
 
-					// Wait up to 1.5s for call coordinator to register the incoming offer
+					// Wait up to 3.5s for call coordinator to register the incoming offer and become ready to accept
 					let info = voip.coordinator?.getCall?.(call.id);
-					if (!info) {
-						for (let i = 0; i < 15; i++) {
-							await new Promise(r => setTimeout(r, 100));
-							info = voip.coordinator?.getCall?.(call.id);
-							if (info) break;
-						}
+					for (let i = 0; i < 35; i++) {
+						if (info && info.canAccept) break;
+						await new Promise(r => setTimeout(r, 100));
+						info = voip.coordinator?.getCall?.(call.id);
 					}
 
 					if (info && info.canAccept) {
@@ -1452,6 +1450,8 @@ export async function callUpdate(callEvents = []) {
 						acceptedCall.on('ended', (reason) => {
 							console.log(`⏹️ [Anti-Call] Call ended (${reason}) after streaming audio for ${call.from}`);
 						});
+					} else {
+						console.log(`⚠️ [Anti-Call] Call ${call.id} stateData=${info ? JSON.stringify(info.stateData) : 'not found in coordinator'}`);
 					}
 				} catch (acceptErr) {
 					console.error('[Anti-Call VoIP Accept Error]:', acceptErr?.message || acceptErr);

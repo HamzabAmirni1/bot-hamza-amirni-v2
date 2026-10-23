@@ -465,7 +465,13 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'stabilize': 'تثبيت الفيديوهات المهتزة',
       'animein': 'البحث ومشاهدة حلقات وأفلام الأنمي المترجمة',
       'tinyurl': 'اختصار وتقصير الروابط الطويلة',
-      'crm': 'إدارة وتخزين جهات الاتصال'
+      'crm': 'إدارة وتخزين جهات الاتصال',
+      'shinigami': 'البحث وتحميل فصول المانجا كاملة كملف PDF',
+      'react': 'إرسال تفاعل إيموجي على روابط ومنشورات واتساب',
+      'wm': 'تغيير اسم الحزمة وصاحب الحقوق فالستيكر (Watermark)',
+      'getexif': 'استخراج معلومات وبيانات وحقوق الستيكر EXIF',
+      'grep': 'البحث في سورس كود البوت والملفات بسرعة فائقة',
+      'anticall': 'إدارة نظام الرد التلقائي على المكالمات وبث الصوت'
     },
     arabic: {
       // Group
@@ -765,7 +771,13 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'stabilize': 'تثبيت الفيديوهات المهتزة',
       'animein': 'البحث ومشاهدة حلقات وأفلام الأنمي المترجمة',
       'tinyurl': 'اختصار وتقصير الروابط الطويلة',
-      'crm': 'إدارة وتخزين جهات الاتصال'
+      'crm': 'إدارة وتخزين جهات الاتصال',
+      'shinigami': 'البحث وتحميل فصول المانجا كاملة كملف PDF',
+      'react': 'إرسال تفاعل إيموجي على روابط ومنشورات واتساب',
+      'wm': 'تغيير اسم الحزمة وصاحب الحقوق فالستيكر (Watermark)',
+      'getexif': 'استخراج معلومات وبيانات وحقوق الستيكر EXIF',
+      'grep': 'البحث في سورس كود البوت والملفات بسرعة فائقة',
+      'anticall': 'إدارة نظام الرد التلقائي على المكالمات وبث الصوت'
     },
     english: {
       // Group
@@ -1064,7 +1076,13 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'stabilize': 'Stabilize shaky video with AI',
       'animein': 'Search anime database and info',
       'tinyurl': 'Shorten long URLs with TinyURL',
-      'crm': 'Customer Relationship Management tool'
+      'crm': 'Customer Relationship Management tool',
+      'shinigami': 'Search and download manga chapters as PDF',
+      'react': 'Send emoji reactions to WhatsApp channel posts',
+      'wm': 'Change sticker packname and author watermark',
+      'getexif': 'Extract sticker EXIF metadata and author details',
+      'grep': 'Search fast through bot source code files',
+      'anticall': 'Manage auto-answer VoIP anti-call voice streaming'
     }
   };
 
