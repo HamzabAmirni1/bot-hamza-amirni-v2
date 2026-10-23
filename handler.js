@@ -3,6 +3,8 @@ import { smsg } from './lib/simple.js';
 import { format } from 'util';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { unwatchFile, watchFile } from 'fs';
 import { getSmartAIReply, isValidReply, cleanAIResponse, buildBotSystemPrompt } from './lib/ai.js';
 
@@ -1329,7 +1331,51 @@ global.dfail = (type, m, conn) => {
 };
 
 /**
- * Handle incoming call updates (Anti-Call with Voice Note & Auto-Reply)
+ * Shared VoIP helper and Anti-Call Voice Streamer
+ */
+global.__voipInstances = global.__voipInstances || new WeakMap();
+
+export async function getVoip(conn) {
+	let voip = global.__voipInstances.get(conn);
+	if (!voip) {
+		const { default: Voip } = await import('./lib/voip/index.js');
+		voip = new Voip(conn, { voipLogLevel: 'warn' });
+		global.__voipInstances.set(conn, voip);
+		voip.listen().catch(() => {});
+	}
+	return voip;
+}
+
+let _antiCallAudioPromise = null;
+async function getAntiCallAudioPath() {
+	const audioFile = path.join(os.tmpdir(), 'anticall_voice.mp3');
+	if (fs.existsSync(audioFile) && fs.statSync(audioFile).size > 1000) {
+		return audioFile;
+	}
+	if (!_antiCallAudioPromise) {
+		_antiCallAudioPromise = (async () => {
+			const voiceText = "حمزة اعمرني مكاينش دابا. هاد النمرة ما كتستقبلش المكالمات الصوتية أو مكالمات الفيديو. المرجو ترك رسالة نصية.";
+			const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(voiceText)}&tl=ar&client=tw-ob`;
+			const { default: axios } = await import('axios');
+			const audioRes = await axios.get(ttsUrl, {
+				responseType: 'arraybuffer',
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+					'Referer': 'https://translate.google.com/'
+				},
+				timeout: 10000
+			});
+			fs.writeFileSync(audioFile, Buffer.from(audioRes.data));
+			return audioFile;
+		})().finally(() => {
+			_antiCallAudioPromise = null;
+		});
+	}
+	return _antiCallAudioPromise;
+}
+
+/**
+ * Handle incoming call updates (Auto-Answer with VoIP Engine, Stream Voice Note, Auto-Reply)
  * @param {Array} callEvents
  */
 export async function callUpdate(callEvents = []) {
@@ -1372,61 +1418,93 @@ export async function callUpdate(callEvents = []) {
 	for (const call of callEvents) {
 		if (call.status === 'offer') {
 			try {
-				// 1. Reject the incoming call immediately (Audio & Video)
-				await this.rejectCall(call.id, call.from).catch(() => {});
-				console.log(`📵 [Anti-Call] Rejected incoming ${call.isVideo ? 'video' : 'audio'} call from ${call.from}`);
-
 				const callTypeLabel = call.isVideo ? 'مكالمة فيديو 📹' : 'مكالمة صوتية 📞';
 				const callTypeEn = call.isVideo ? 'Video Call 📹' : 'Voice Call 📞';
 
-				// 2. Send Voice Note (PTT audio: "حمزة اعمرني مكاينش دابا...")
-				const voiceText = "حمزة اعمرني مكاينش دابا. هاد النمرة ما كتستقبلش المكالمات الصوتية أو مكالمات الفيديو. المرجو ترك رسالة نصية.";
-				const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(voiceText)}&tl=ar&client=tw-ob`;
-
+				// 1. Answer incoming call with VoIP engine & stream voice message
+				let callAnswered = false;
+				let audioPath = null;
 				try {
-					const { default: axios } = await import('axios');
-					const audioRes = await axios.get(ttsUrl, {
-						responseType: 'arraybuffer',
-						headers: {
-							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-							'Referer': 'https://translate.google.com/'
-						},
-						timeout: 10000
-					});
-
-					const audioBuffer = Buffer.from(audioRes.data);
-					let sentPtt = false;
-
-					try {
-						const { toPTT } = await import('./lib/converter.js');
-						const ptt = await toPTT(audioBuffer, 'mp3');
-						if (ptt?.data) {
-							await this.sendMessage(call.from, {
-								audio: ptt.data,
-								mimetype: 'audio/ogg; codecs=opus',
-								ptt: true
-							});
-							sentPtt = true;
-						}
-					} catch (_) {}
-
-					if (!sentPtt) {
-						await this.sendMessage(call.from, {
-							audio: audioBuffer,
-							mimetype: 'audio/mpeg',
-							ptt: false
-						}).catch(() => {});
-					}
-				} catch (audioErr) {
-					console.error('[Anti-Call Audio Error]:', audioErr?.message || audioErr);
+					audioPath = await getAntiCallAudioPath();
+				} catch (err) {
+					console.error('[Anti-Call Audio Cache Error]:', err?.message || err);
 				}
 
-				// 3. Send structured text message with social accounts
-				const warnMsg = `⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*
+				try {
+					const voip = await getVoip(this);
+					await voip.listen();
+
+					// Wait up to 1.5s for call coordinator to register the incoming offer
+					let info = voip.coordinator?.getCall?.(call.id);
+					if (!info) {
+						for (let i = 0; i < 15; i++) {
+							await new Promise(r => setTimeout(r, 100));
+							info = voip.coordinator?.getCall?.(call.id);
+							if (info) break;
+						}
+					}
+
+					if (info && info.canAccept) {
+						console.log(`📞 [Anti-Call] Answering incoming call ${call.id} from ${call.from} to stream voice note...`);
+						const acceptedCall = await voip.accept(call.id, audioPath || 'silence', undefined, { autoEndCall: true });
+						callAnswered = true;
+
+						acceptedCall.on('ended', (reason) => {
+							console.log(`⏹️ [Anti-Call] Call ended (${reason}) after streaming audio for ${call.from}`);
+						});
+					}
+				} catch (acceptErr) {
+					console.error('[Anti-Call VoIP Accept Error]:', acceptErr?.message || acceptErr);
+				}
+
+				// 2. If VoIP auto-answer couldn't connect (e.g. caller cancelled quickly or network issue), reject cleanly
+				if (!callAnswered) {
+					await this.rejectCall(call.id, call.from).catch(() => {});
+					console.log(`📵 [Anti-Call] Rejected incoming ${call.isVideo ? 'video' : 'audio'} call from ${call.from}`);
+				}
+
+				// 3. Send Voice Note in chat as well (so caller has the recording)
+				if (audioPath && fs.existsSync(audioPath)) {
+					try {
+						const audioBuffer = fs.readFileSync(audioPath);
+						let sentPtt = false;
+
+						try {
+							const { toPTT } = await import('./lib/converter.js');
+							const ptt = await toPTT(audioBuffer, 'mp3');
+							if (ptt?.data) {
+								await this.sendMessage(call.from, {
+									audio: ptt.data,
+									mimetype: 'audio/ogg; codecs=opus',
+									ptt: true
+								});
+								sentPtt = true;
+							}
+						} catch (_) {}
+
+						if (!sentPtt) {
+							await this.sendMessage(call.from, {
+								audio: audioBuffer,
+								mimetype: 'audio/mpeg',
+								ptt: false
+							}).catch(() => {});
+						}
+					} catch (audioErr) {
+						console.error('[Anti-Call Chat Audio Error]:', audioErr?.message || audioErr);
+					}
+				}
+
+				// 4. Send structured text message with social accounts
+				const statusTitle = callAnswered ? '📞 *تمت الإجابة على المكالمة وبث التسجيل الصوتي / Call Answered*' : '⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*';
+				const statusDesc = callAnswered 
+					? '🤖 *تم فتح المكالمة وتسميعك التسجيل الصوتي بالكامل.*'
+					: '🚫 *هاد النمرة ما كتستقبلش المكالمات المباشرة.*';
+
+				const warnMsg = `${statusTitle}
 ━━━━━━━━━━━━━━━━
 
 👤 *حمزة اعمرني (Hamza Amirni) مكاينش دابا.*
-🚫 *هاد النمرة ما كتستقبلش المكالمات (${callTypeLabel} / ${callTypeEn}).*
+${statusDesc}
 
 📝 *المرجو ترك رسالة نصية هنا وسيقوم بالرد عليك في أقرب وقت.*
 
@@ -1536,11 +1614,12 @@ export async function callUpdate(callEvents = []) {
 📱 *الرقم:* ${displayNum}
 🤖 *البوت المستلم:* +${botNum}
 📡 *نوع المكالمة:* ${callTypeLabel}
+⚙️ *الإجراء:* ${callAnswered ? 'تمت الإجابة عليها وبث الصوت 🔊' : 'تم رفضها تلقائياً 📵'}
 ⏰ *الوقت:* ${timeStr}
 
 ${waLink}
 ━━━━━━━━━━━━━━━━━━━━
-_⚡ تم رفض المكالمة تلقائياً وإرسال التسجيل الصوتي وروابطك._
+_⚡ ${callAnswered ? 'تم فتح المكالمة وبث الصوت للمتصل ثم إغلاقها تلقائياً.' : 'تم رفض المكالمة وإرسال التسجيل الصوتي وروابطك.'}_
 _bot amirni hamza • حمزة اعمرني_`;
 
 					await this.sendMessage(ownerJid, { text: ownerAlert }).catch(() => {});

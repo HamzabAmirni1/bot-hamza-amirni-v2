@@ -7,14 +7,15 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs';
 
-const voipInstances = new WeakMap();
+global.__voipInstances = global.__voipInstances || new WeakMap();
 
 async function getVoip(conn) {
-	let voip = voipInstances.get(conn);
+	let voip = global.__voipInstances.get(conn);
 	if (!voip) {
 		const { default: Voip } = await import('../lib/voip/index.js');
 		voip = new Voip(conn, { voipLogLevel: 'info' });
-		voipInstances.set(conn, voip);
+		global.__voipInstances.set(conn, voip);
+		voip.listen().catch(() => {});
 	}
 	return voip;
 }
