@@ -131,16 +131,16 @@ const TV_CHANNELS = [
 	{
 		id: 'natgeo',
 		aliases: ['natgeo', 'national', 'ناشونال', 'ناشونال_جيوغرافيك', 'nationalgeographic'],
-		name: 'National Geographic (ناشونال جيوغرافيك / الجزيرة الوثائقية)',
+		name: 'National Geographic (ناشونال جيوغرافيك — الشرق ديسكفري)',
 		category: '🦁 وثائقية',
-		url: 'https://live-hls-apps-ajd-fa.getaj.net/AJD/04.m3u8'
+		url: 'https://svs.itworkscdn.net/asharqdiscoverylive/asharqd.smil/playlist_dvr.m3u8'
 	},
 	{
 		id: 'ajd',
 		aliases: ['ajd', 'الجزيرة_الوثائقية', 'وثائقية'],
-		name: 'Al Jazeera Documentary (الجزيرة الوثائقية)',
+		name: 'Asharq Documentary (الشرق الوثائقية)',
 		category: '🦁 وثائقية',
-		url: 'https://live-hls-apps-ajd-fa.getaj.net/AJD/04.m3u8'
+		url: 'https://svs.itworkscdn.net/asharqdocumentarylive/asharqdocumentary.smil/playlist_dvr.m3u8'
 	},
 	{
 		id: 'discovery',
