@@ -1,58 +1,7 @@
 // scrape by hannuniverse
 
 import axios from 'axios'
-
-class YouTubeDownloader {
-  constructor() {
-    this.baseUrl = 'https://p.savenow.to'
-    this.headers = {
-      'User-Agent': 'Mozilla/5.0',
-      Referer: 'https://y2down.cc/',
-      Origin: 'https://y2down.cc'
-    }
-  }
-
-  async request(url, format) {
-    const res = await axios.get(`${this.baseUrl}/ajax/download.php`, {
-      params: {
-        copyright: '0',
-        format,
-        url,
-        api: 'dfcb6d76f2f6a9894gjkege8a4ab232222'
-      },
-      headers: this.headers
-    })
-
-    if (!res.data?.progress_url) return null
-
-    return {
-      progress: res.data.progress_url,
-      title: res.data.info?.title || 'YouTube Video'
-    }
-  }
-
-  async wait(progressUrl) {
-    for (let i = 0; i < 60; i++) {
-      const res = await axios.get(progressUrl, { headers: this.headers })
-      if (res.data?.download_url) return res.data.download_url
-      await new Promise(r => setTimeout(r, 2000))
-    }
-    return null
-  }
-
-  async download(url, format) {
-    const req = await this.request(url, format)
-    if (!req) return null
-
-    const dl = await this.wait(req.progress)
-    if (!dl) return null
-
-    return {
-      downloadUrl: dl,
-      title: req.title
-    }
-  }
-}
+import { downloadYouTube } from '../lib/ytdl.js'
 
 /* ================= HELPERS ================= */
 
@@ -73,7 +22,7 @@ Download YouTube videos directly.
 .ytdl <youtube_url> [quality]
 
 🎥 *Video qualities*
-144, 240, 320, 480, 720, 1080, 1440, 4k
+144, 240, 320, 480, 720, 1080
 
 ⭐ *Default quality*
 720p (if not specified)
@@ -83,69 +32,79 @@ Download YouTube videos directly.
 .ytdl https://youtu.be/9zvdMLfYFkM 480
 .ytdl https://youtube.com/watch?v=9zvdMLfYFkM 1080
 
-⚠️ *Notes*
-• Large videos may be sent as a download link
-• WhatsApp size limits apply
-• File name will match the video title
+⚡ *bot amirni hamza*
 `.trim())
 }
 
 /* ================= HANDLER ================= */
 
-let handler = async (m, { conn, args }) => {
+let handler = async (m, { conn, args, usedPrefix, command }) => {
   if (!args[0]) return sendGuide(m)
 
   const url = args[0]
-  const format = args[1] || '720'
+  const quality = (args[1] || '720').replace(/p$/i, '')
 
   if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
     return sendGuide(m)
   }
 
-  await conn.reply(m.chat, '⏳ Processing, please wait...', m)
+  await m.react('⏳')
 
-  const ytdl = new YouTubeDownloader()
-  const data = await ytdl.download(url, format)
+  try {
+    const data = await downloadYouTube(url, 'mp4', quality)
 
-  if (!data)
-    throw '❌ Failed to download the video. Please try another quality.'
+    if (!data?.download) {
+      await m.react('❌')
+      throw '❌ تعذر تحميل الفيديو. جرب جودة أخرى أو رابط آخر.'
+    }
 
-  // check size first
-  const head = await axios.head(data.downloadUrl)
-  const sizeMB = Number(head.headers['content-length'] || 0) / (1024 * 1024)
+    // Try sending as streaming video first
+    try {
+      await conn.sendMessage(
+        m.chat,
+        {
+          video: { url: data.download },
+          mimetype: 'video/mp4',
+          fileName: `${cleanFileName(data.title || 'video')}.mp4`,
+          caption: `🎬 *${data.title || 'YouTube Video'}*\n📺 *الجودة:* ${data.quality || quality}p\n\n⚡ *bot amirni hamza*`
+        },
+        { quoted: m }
+      )
+    } catch (_) {
+      // Fallback: document mode (clean download)
+      const head = await axios.head(data.download, { timeout: 10000 }).catch(() => null)
+      const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024)
 
-  if (sizeMB > 95) {
-    return conn.reply(
-      m.chat,
-      `❌ File is too large for WhatsApp (${sizeMB.toFixed(1)} MB)
+      if (sizeMB > 95) {
+        return conn.reply(
+          m.chat,
+          `⚠️ حجم الفيديو كبير على الواتساب (${sizeMB.toFixed(1)} MB)\n\n🔗 *رابط التحميل المباشر:*\n${data.download}`,
+          m
+        )
+      }
 
-🔗 Download it here:
-${data.downloadUrl}`,
-      m
-    )
+      await conn.sendMessage(
+        m.chat,
+        {
+          document: { url: data.download },
+          mimetype: 'video/mp4',
+          fileName: `${cleanFileName(data.title || 'video')}.mp4`
+        },
+        { quoted: m }
+      )
+    }
+
+    await m.react('✅')
+  } catch (err) {
+    console.error('[ytdl error]:', err?.message || err)
+    await m.react('❌')
+    m.reply(`❌ فشل تحميل الفيديو: ${err?.message || err}`)
   }
-
-  const fileRes = await axios.get(data.downloadUrl, {
-    responseType: 'arraybuffer'
-  })
-
-  const buffer = Buffer.from(fileRes.data)
-
-  const safeTitle = cleanFileName(data.title)
-
-  await conn.sendMessage(
-    m.chat,
-    {
-      document: buffer,
-      mimetype: 'video/mp4',
-      fileName: `${safeTitle}.mp4`
-    },
-    { quoted: m }
-  )
 }
 
-handler.help = handler.command = ['ytdl']
+handler.help = ['ytdl <url> [quality]']
 handler.tags = ['downloader']
+handler.command = /^(ytdl)$/i
 handler.limit = false
 
 export default handler
