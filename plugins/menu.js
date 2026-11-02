@@ -117,10 +117,12 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'مرحبا بيك أ الحبيب، البوت راه ضاحك ومناشط معاك اليوم! 😂',
       'كلشي ناضي ومقاد، غير اختار واش بغيتي وخلّي البوت يتكلف 🎯'
     ];
+    const botTitle = (global.namebot || 'BOT AMIRNI HAMZA').toUpperCase();
+    const botAuthor = global.author || 'حمزة اعمرني (Hamza Amirni)';
     const joke = jokes[Math.floor(Math.random() * jokes.length)];
     greetingMsg = `
-✨ *BOT AMIRNI HAMZA* ✨
-👑 *المطور:* حمزة اعمرني (Hamza Amirni)
+✨ *${botTitle}* ✨
+👑 *المطور:* ${botAuthor}
 ━━━━━━━━━━━━━━━━━━━━━
 👤 *المستخدم:* %name
 📅 *التاريخ:* %date
@@ -131,9 +133,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
 ━━━━━━━━━━━━━━━━━━━━━
 📌 *اختر قسم الأوامر من القائمة أسفله:*`;
   } else if (lang === 'arabic') {
+    const botTitle = (global.namebot || 'BOT AMIRNI HAMZA').toUpperCase();
+    const botAuthor = global.author || 'حمزة اعمرني (Hamza Amirni)';
     greetingMsg = `
-✨ *BOT AMIRNI HAMZA* ✨
-👑 *المطور:* حمزة اعمرني (Hamza Amirni)
+✨ *${botTitle}* ✨
+👑 *المطور:* ${botAuthor}
 ━━━━━━━━━━━━━━━━━━━━━
 👤 *المستخدم:* %name
 📅 *التاريخ:* %date
@@ -143,9 +147,11 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
 ━━━━━━━━━━━━━━━━━━━━━
 📌 *اختر قسم الأوامر من القائمة أسفله:*`;
   } else {
+    const botTitle = (global.namebot || 'BOT AMIRNI HAMZA').toUpperCase();
+    const botAuthor = global.author || 'Hamza Amirni';
     greetingMsg = `
-✨ *BOT AMIRNI HAMZA* ✨
-👑 *Owner:* Hamza Amirni
+✨ *${botTitle}* ✨
+👑 *Owner:* ${botAuthor}
 ━━━━━━━━━━━━━━━━━━━━━
 👤 *User:* %name
 📅 *Date:* %date
@@ -1097,7 +1103,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
     header: '\n┌───〔 %category 〕─┈⬣',
     body: '│ 🚀 *%cmd* %flags%desc',
     footer: '└────────────────┈⬣',
-    after: '\n⚡ *bot amirni hamza • حمزة اعمرني*'
+    after: `\n⚡ *${global.namebot || 'bot amirni hamza'} • ${global.author || 'حمزة اعمرني'}*`
   };
 
   try {
@@ -1273,7 +1279,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
         {
           image: imageBuffer,
           caption: finalCaption,
-          footer: 'bot amirni hamza • حمزة اعمرني',
+          footer: `${global.namebot || 'bot amirni hamza'} • ${global.author || 'حمزة اعمرني'}`,
           buttons: stdButtons
         },
         { quoted: m }
@@ -1283,7 +1289,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
         m.chat,
         {
           body: finalCaption,
-          footer: 'bot amirni hamza • حمزة اعمرني',
+          footer: `${global.namebot || 'bot amirni hamza'} • ${global.author || 'حمزة اعمرني'}`,
           buttons: stdButtons
         },
         { quoted: m }

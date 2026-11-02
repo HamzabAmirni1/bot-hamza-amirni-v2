@@ -1439,21 +1439,57 @@ function switchSettingsTab(tab) {
   if (tab === 'bot') loadBotSettings();
 }
 
-function saveBotSettings() {
+async function saveBotSettings() {
+  const botname = document.getElementById('s-botname').value.trim();
+  const author = document.getElementById('s-author').value.trim();
+  const source = document.getElementById('s-source').value.trim();
+  const owner1 = document.getElementById('s-owner1').value.trim();
+  const owner2 = document.getElementById('s-owner2').value.trim();
+  const pairing = document.getElementById('s-pairing').value.trim();
+
   const data = {
-    botname: document.getElementById('s-botname').value.trim(),
-    author: document.getElementById('s-author').value.trim(),
-    source: document.getElementById('s-source').value.trim(),
-    owner1: document.getElementById('s-owner1').value.trim(),
-    owner2: document.getElementById('s-owner2').value.trim(),
-    pairing: document.getElementById('s-pairing').value.trim(),
+    botname,
+    author,
+    source,
+    owner1,
+    owner2,
+    pairing
   };
   localStorage.setItem('bot_settings', JSON.stringify(data));
-  toast('✅ تم حفظ إعدادات البوت', 'ok');
+
+  // Save directly to Supabase via /api/settings
+  try {
+    const payload = {};
+    if (botname) {
+      payload.bot_name = botname;
+      payload.namebot = botname;
+    }
+    if (author) payload.author = author;
+    if (source) payload.source = source;
+    if (owner1) payload.owner1 = owner1;
+    if (owner2) payload.owner2 = owner2;
+    if (pairing) payload.pairing_number = pairing;
+
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      toast('✅ تم حفظ اسم وهوية البوت بنجاح في قاعدة البيانات!', 'ok');
+    } else {
+      toast('⚠️ تم الحفظ محلياً فقط، تعذر الحفظ في قاعدة البيانات', 'err');
+    }
+  } catch (err) {
+    console.error('Error saving bot settings to server:', err);
+    toast('✅ تم حفظ الإعدادات محلياً', 'ok');
+  }
 }
 
 async function loadBotSettings() {
   try {
+    // 1. Load from localStorage as fast initial render
     const saved = JSON.parse(localStorage.getItem('bot_settings') || '{}');
     if (saved.botname) document.getElementById('s-botname').value = saved.botname;
     if (saved.author) document.getElementById('s-author').value = saved.author;
@@ -1462,9 +1498,35 @@ async function loadBotSettings() {
     if (saved.owner2) document.getElementById('s-owner2').value = saved.owner2;
     if (saved.pairing) document.getElementById('s-pairing').value = saved.pairing;
 
+    // 2. Fetch fresh values from Supabase DB via /api/settings
     const res = await fetch('/api/settings');
     if (res.ok) {
       const cfg = await res.json();
+      
+      const remoteBotName = cfg.bot_name || cfg.namebot;
+      if (remoteBotName) {
+        document.getElementById('s-botname').value = remoteBotName;
+      } else if (!saved.botname) {
+        document.getElementById('s-botname').value = 'bot amirni hamza';
+      }
+
+      const remoteAuthor = cfg.author || cfg.bot_author;
+      if (remoteAuthor) {
+        document.getElementById('s-author').value = remoteAuthor;
+      } else if (!saved.author) {
+        document.getElementById('s-author').value = 'Hamza Amirni';
+      }
+
+      const remoteSource = cfg.source || cfg.channel;
+      if (remoteSource) {
+        document.getElementById('s-source').value = remoteSource;
+      } else if (!saved.source) {
+        document.getElementById('s-source').value = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
+      }
+
+      if (cfg.owner1) document.getElementById('s-owner1').value = cfg.owner1;
+      if (cfg.owner2) document.getElementById('s-owner2').value = cfg.owner2;
+      if (cfg.pairing_number) document.getElementById('s-pairing').value = cfg.pairing_number;
       if (cfg.default_user_limit !== undefined) {
         const lim = parseInt(cfg.default_user_limit);
         const sliderVal = (lim === -1 || lim >= 100) ? 100 : lim;

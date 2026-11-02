@@ -23,6 +23,24 @@ if (parentPort && !global.__parentPortListenerAdded) {
 				} else if (msg.type === 'update_configs' && msg.settings) {
 					for (const [k, v] of Object.entries(msg.settings)) {
 						const boolVal = (v === 'true' || v === true);
+						if (k === 'bot_name' || k === 'namebot') {
+							const bName = String(v || '').trim();
+							if (bName) {
+								global.namebot = bName;
+								global.stickauth = bName;
+							}
+						}
+						if (k === 'author') {
+							const aName = String(v || '').trim();
+							if (aName) global.author = aName;
+						}
+						if (k === 'source') {
+							const sLink = String(v || '').trim();
+							if (sLink) {
+								global.source = sLink;
+								global.channel = sLink;
+							}
+						}
 						if (k === 'auto_ai') global.AUTO_AI = boolVal;
 						if (k.startsWith('auto_ai_')) global[k.toUpperCase()] = boolVal;
 						if (k === 'auto_read') global.AUTO_READ = boolVal;

@@ -763,6 +763,9 @@ ${reply_text}
         } catch (_) {}
 
         // Fallback: fill from live globals if not found in DB
+        if (cfg.bot_name === undefined) cfg.bot_name = global.namebot || 'bot amirni hamza';
+        if (cfg.author === undefined) cfg.author = global.author || 'Hamza Amirni';
+        if (cfg.source === undefined) cfg.source = global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
         if (cfg.auto_ai === undefined) cfg.auto_ai = String(global.AUTO_AI !== undefined ? global.AUTO_AI : true);
         if (cfg.auto_read === undefined) cfg.auto_read = String(global.AUTO_READ !== undefined ? global.AUTO_READ : true);
         if (cfg.auto_status_read === undefined) cfg.auto_status_read = String(global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true);
@@ -814,7 +817,19 @@ ${reply_text}
             // 3. Update global vars if bot is running
             if (settings.apk_daily_limit !== undefined) global.APK_DAILY_LIMIT = parseInt(settings.apk_daily_limit);
             if (settings.default_user_limit !== undefined) global.DEFAULT_USER_LIMIT = parseInt(settings.default_user_limit);
-            if (settings.bot_name) global.namebot = settings.bot_name;
+            if (settings.bot_name || settings.namebot) {
+              const bName = String(settings.bot_name || settings.namebot).trim();
+              global.namebot = bName;
+              global.stickauth = bName;
+            }
+            if (settings.author) {
+              const aName = String(settings.author).trim();
+              global.author = aName;
+            }
+            if (settings.source) {
+              global.source = String(settings.source).trim();
+              global.channel = String(settings.source).trim();
+            }
             if (settings.auto_read !== undefined) global.AUTO_READ = (settings.auto_read === 'true' || settings.auto_read === true);
             if (settings.auto_status_read !== undefined) global.AUTO_STATUS_READ = (settings.auto_status_read === 'true' || settings.auto_status_read === true);
             if (settings.anti_call !== undefined) global.ANTI_CALL = (settings.anti_call === 'true' || settings.anti_call === true);
@@ -1659,6 +1674,9 @@ function startBotWorker(phone, isManual = false) {
       ...process.env,
       PAIRING_NUMBER: cleanPhone,
       SESSION_FOLDER: sessionDir,
+      BOT_NAME: global.namebot || 'bot amirni hamza',
+      BOT_AUTHOR: global.author || 'Hamza Amirni',
+      BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
       UV_THREADPOOL_SIZE: '16'
     }
   });
@@ -1969,8 +1987,21 @@ async function initGlobalConfigs() {
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
       global.BOT_MODE = cfg.bot_mode || 'private';
+      if (cfg.bot_name || cfg.namebot) {
+        global.namebot = String(cfg.bot_name || cfg.namebot).trim();
+        global.stickauth = global.namebot;
+      }
+      if (cfg.author) {
+        global.author = String(cfg.author).trim();
+      }
+      if (cfg.source) {
+        global.source = String(cfg.source).trim();
+        global.channel = String(cfg.source).trim();
+      }
       
       console.log('⚙️ Initialized global configs from Supabase:', {
+        BOT_NAME: global.namebot,
+        AUTHOR: global.author,
         AUTO_READ: global.AUTO_READ,
         AUTO_STATUS_READ: global.AUTO_STATUS_READ,
         ANTI_CALL: global.ANTI_CALL,

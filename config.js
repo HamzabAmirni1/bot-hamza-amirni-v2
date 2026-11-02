@@ -38,10 +38,10 @@ global.owner = [
 	['212624855939', 'Hamza Amirni', true],
 ];
 
-global.namebot = 'bot amirni hamza';
-global.author = 'Hamza Amirni';
-global.source = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
-global.channel = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
+global.namebot = process.env.BOT_NAME || 'bot amirni hamza';
+global.author = process.env.BOT_AUTHOR || 'Hamza Amirni';
+global.source = process.env.BOT_SOURCE || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
+global.channel = process.env.BOT_SOURCE || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p';
 global.instagram = 'https://www.instagram.com/hamza_amirni_01';
 global.facebook = 'https://www.facebook.com/hamzaamirni01';
 global.youtube = 'https://www.youtube.com/@hamzaamirni';

@@ -871,19 +871,27 @@
         </div>
 
         <!-- 🤖 Bot Identity -->
-        <div class="g2 mb-20">
-          <div class="card">
-            <div class="ch"><div class="ci green"><i class="fas fa-robot"></i></div><div class="ct">هوية البوت</div></div>
-            <div class="fg"><label class="fl">اسم البوت</label><input type="text" id="s-botname" class="fi" value="bot amirni hamza" /></div>
-            <div class="fg"><label class="fl">المطور</label><input type="text" id="s-author" class="fi" value="Hamza Amirni" /></div>
-            <div class="fg"><label class="fl">قناة الواتساب</label><input type="text" id="s-source" class="fi" value="https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p" /></div>
+        <div class="card mb-20" style="border-top:3px solid var(--green)">
+          <div class="ch">
+            <div class="ci green"><i class="fas fa-robot"></i></div>
+            <div>
+              <div class="ct">🤖 هوية البوت والمالك (تغيير وحفظ دائم فـ Base de Données)</div>
+              <div style="font-size:11px;color:var(--text2)">تغيير اسم البوت والمطور والروابط مع الحفظ المباشر فـ Supabase والتحديث الفوري في جميع البوتات</div>
+            </div>
           </div>
-          <div class="card">
-            <div class="ch"><div class="ci purple"><i class="fas fa-crown"></i></div><div class="ct">أرقام المالكين</div></div>
-            <div class="fg"><label class="fl">المالك الأول</label><input type="tel" id="s-owner1" class="fi ltr" value="212624855939" /></div>
-            <div class="fg"><label class="fl">المالك الثاني</label><input type="tel" id="s-owner2" class="fi ltr" value="212624855939" /></div>
-            <div class="fg"><label class="fl">رقم الإقران الافتراضي</label><input type="tel" id="s-pairing" class="fi ltr" value="212624855939" /></div>
+          <div class="g2 mb-16">
+            <div>
+              <div class="fg"><label class="fl">✨ اسم البوت (Bot Name)</label><input type="text" id="s-botname" class="fi" placeholder="bot amirni hamza" /></div>
+              <div class="fg"><label class="fl">👑 اسم المطور / الصانع (Author)</label><input type="text" id="s-author" class="fi" placeholder="Hamza Amirni" /></div>
+              <div class="fg"><label class="fl">📢 رابط قناة الواتساب (Channel)</label><input type="text" id="s-source" class="fi ltr" placeholder="https://whatsapp.com/channel/..." /></div>
+            </div>
+            <div>
+              <div class="fg"><label class="fl">👑 رقم المالك الأول</label><input type="tel" id="s-owner1" class="fi ltr" placeholder="212624855939" /></div>
+              <div class="fg"><label class="fl">👑 رقم المالك الثاني</label><input type="tel" id="s-owner2" class="fi ltr" placeholder="212XXXXXXXXX" /></div>
+              <div class="fg"><label class="fl">🔢 رقم الإقران الافتراضي</label><input type="tel" id="s-pairing" class="fi ltr" placeholder="212624855939" /></div>
+            </div>
           </div>
+          <button class="btn btn-g full lg" onclick="saveBotSettings()"><i class="fas fa-save"></i> 💾 حفظ هوية البوت في قاعدة البيانات (Enregistrer)</button>
         </div>
 
         <!-- 📊 Commands Daily Limit -->
