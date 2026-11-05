@@ -1125,7 +1125,7 @@ ${reply_text}
       if (endpoint === 'bot-mode' && req.method === 'GET') {
         try {
           const cfg = await getConfigsFromSupabase();
-          let mode = cfg.bot_mode || 'private';
+          let mode = cfg.bot_mode || 'public';
           let admins = [];
           try { admins = JSON.parse(cfg.bot_admins || '[]'); } catch (_) {}
 
@@ -1149,8 +1149,11 @@ ${reply_text}
             if (!VALID.includes(mode)) throw new Error('Invalid mode');
 
             await saveConfigToSupabase('bot_mode', mode);
-            const w = getActiveWorker();
-            if (w) w.postMessage({ type: 'set_bot_mode', mode });
+            global.BOT_MODE = mode;
+            // Broadcast mode update to all workers
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) info.worker.postMessage({ type: 'set_bot_mode', mode });
+            }
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, mode }));
@@ -1195,8 +1198,9 @@ ${reply_text}
               await saveConfigToSupabase('bot_admins', admins);
             }
 
-            const w = getActiveWorker();
-            if (w) w.postMessage({ type: 'add_bot_admin', jid });
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) info.worker.postMessage({ type: 'add_bot_admin', jid });
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, jid }));
           } catch (err) {
@@ -1225,8 +1229,9 @@ ${reply_text}
               await saveConfigToSupabase('bot_admins', admins);
             }
 
-            const w = getActiveWorker();
-            if (w) w.postMessage({ type: 'remove_bot_admin', jid });
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) info.worker.postMessage({ type: 'remove_bot_admin', jid });
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, jid }));
           } catch (err) {
@@ -1677,6 +1682,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_NAME: global.namebot || 'bot amirni hamza',
       BOT_AUTHOR: global.author || 'Hamza Amirni',
       BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
+      BOT_MODE: global.BOT_MODE || 'public',
       UV_THREADPOOL_SIZE: '16'
     }
   });
@@ -1986,7 +1992,7 @@ async function initGlobalConfigs() {
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
-      global.BOT_MODE = cfg.bot_mode || 'private';
+      global.BOT_MODE = cfg.bot_mode || 'public';
       if (cfg.bot_name || cfg.namebot) {
         global.namebot = String(cfg.bot_name || cfg.namebot).trim();
         global.stickauth = global.namebot;

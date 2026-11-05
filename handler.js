@@ -58,6 +58,28 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						}
 					}
 					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', msg.settings);
+				} else if (msg.type === 'set_bot_mode') {
+					if (global.db?.data) {
+						if (!global.db.data.settings) global.db.data.settings = {};
+						global.db.data.settings.botMode = msg.mode;
+					}
+					global.BOT_MODE = msg.mode;
+					console.log(`⚙️ [Worker] Bot mode updated to: ${msg.mode}`);
+				} else if (msg.type === 'add_bot_admin') {
+					if (global.db?.data) {
+						if (!global.db.data.settings) global.db.data.settings = {};
+						if (!Array.isArray(global.db.data.settings.botAdmins)) global.db.data.settings.botAdmins = [];
+						if (!global.db.data.settings.botAdmins.includes(msg.jid)) {
+							global.db.data.settings.botAdmins.push(msg.jid);
+						}
+					}
+					console.log(`👑 [Worker] Added bot admin: ${msg.jid}`);
+				} else if (msg.type === 'remove_bot_admin') {
+					if (global.db?.data?.settings?.botAdmins) {
+						const idx = global.db.data.settings.botAdmins.indexOf(msg.jid);
+						if (idx !== -1) global.db.data.settings.botAdmins.splice(idx, 1);
+					}
+					console.log(`👑 [Worker] Removed bot admin: ${msg.jid}`);
 				} else if (msg.type === 'update_bot_command_status') {
 					const cleanP = String(msg.phone || '').replace(/[^0-9]/g, '');
 					if (cleanP) {
@@ -384,6 +406,22 @@ async function syncGlobalConfigsFromSupabase() {
 			const rows = await fetchRes.json();
 			if (Array.isArray(rows)) {
 				rows.forEach(r => {
+					if (r.key === 'bot_mode') {
+						if (global.db?.data) {
+							if (!global.db.data.settings) global.db.data.settings = {};
+							global.db.data.settings.botMode = r.value;
+						}
+						global.BOT_MODE = r.value;
+					}
+					if (r.key === 'bot_admins') {
+						try {
+							const admList = JSON.parse(r.value || '[]');
+							if (global.db?.data) {
+								if (!global.db.data.settings) global.db.data.settings = {};
+								global.db.data.settings.botAdmins = admList;
+							}
+						} catch (_) {}
+					}
 					if (r.key === 'auto_read') global.AUTO_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_status_read') global.AUTO_STATUS_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'anti_call') global.ANTI_CALL = (r.value === 'true' || r.value === true);
@@ -419,6 +457,22 @@ async function syncGlobalConfigsFromSupabase() {
 			if (Array.isArray(rows2)) {
 				rows2.forEach(r => {
 					const k = r.jid.replace('config_', '');
+					if (k === 'bot_mode') {
+						if (global.db?.data) {
+							if (!global.db.data.settings) global.db.data.settings = {};
+							global.db.data.settings.botMode = r.history;
+						}
+						global.BOT_MODE = r.history;
+					}
+					if (k === 'bot_admins') {
+						try {
+							const admList = JSON.parse(r.history || '[]');
+							if (global.db?.data) {
+								if (!global.db.data.settings) global.db.data.settings = {};
+								global.db.data.settings.botAdmins = admList;
+							}
+						} catch (_) {}
+					}
 					if (k === 'auto_ai') global.AUTO_AI = (r.history === 'true' || r.history === true);
 					if (k.startsWith('auto_ai_')) global[k.toUpperCase()] = (r.history === 'true' || r.history === true);
 					if (k === 'auto_read') global.AUTO_READ = (r.history === 'true' || r.history === true);
@@ -643,7 +697,7 @@ export async function handler(chatUpdate) {
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || 'private';
+		const _botMode = _settings.botMode || global.BOT_MODE || 'public';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
