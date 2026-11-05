@@ -26,7 +26,7 @@ function getGlobalSettings() {
 	if (!global.db.data.settings) global.db.data.settings = {};
 	const s = global.db.data.settings;
 	if (!Array.isArray(s.botAdmins)) s.botAdmins = [];
-	if (!s.botMode) s.botMode = 'public'; // Default to public (everyone can use)
+	if (!s.botMode) s.botMode = 'private'; // Default to private (DMs only)
 	return s;
 }
 
@@ -164,7 +164,7 @@ let handler = async (m, { command, text, conn }) => {
 		const rawOwner = Array.isArray(global.owner?.[0]) ? global.owner[0][0] : global.owner?.[0];
 		const ownerNum = String(rawOwner || '212624855939').replace(/[^0-9]/g, '');
 		const ownerJid = ownerNum + '@s.whatsapp.net';
-		const currentMode = settings.botMode || 'admin';
+		const currentMode = settings.botMode || 'private';
 		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️' };
 
 		let msg = t(

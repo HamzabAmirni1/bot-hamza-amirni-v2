@@ -390,6 +390,44 @@ async function ensureAutoAiEnabledInSupabase() {
 // Fire on startup
 ensureAutoAiEnabledInSupabase();
 
+async function ensureDefaultBotModeInSupabase() {
+	try {
+		const fetchRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs?key=eq.bot_mode&select=key,value', {
+			headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+		});
+		if (fetchRes.ok) {
+			const rows = await fetchRes.json();
+			const current = rows?.[0]?.value;
+			if (!current || current === 'group') {
+				await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs', {
+					method: 'POST',
+					headers: {
+						'apikey': SB_KEY,
+						'Authorization': 'Bearer ' + SB_KEY,
+						'Content-Type': 'application/json',
+						'Prefer': 'resolution=merge-duplicates'
+					},
+					body: JSON.stringify({ key: 'bot_mode', value: 'private' })
+				}).catch(() => {});
+				await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+					method: 'POST',
+					headers: {
+						'apikey': SB_KEY,
+						'Authorization': 'Bearer ' + SB_KEY,
+						'Content-Type': 'application/json',
+						'Prefer': 'resolution=merge-duplicates'
+					},
+					body: JSON.stringify({ jid: 'config_bot_mode', history: 'private' })
+				}).catch(() => {});
+				if (global.db?.data?.settings) global.db.data.settings.botMode = 'private';
+				global.BOT_MODE = 'private';
+				console.log('🔒 [Config] bot_mode set to default PRIVATE (DMs only) in Supabase');
+			}
+		}
+	} catch (_) {}
+}
+ensureDefaultBotModeInSupabase();
+
 async function syncGlobalConfigsFromSupabase() {
 	const now = Date.now();
 	if (now - lastConfigSync < 8000) return;
@@ -697,7 +735,7 @@ export async function handler(chatUpdate) {
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || global.BOT_MODE || 'public';
+		const _botMode = _settings.botMode || global.BOT_MODE || 'private';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
