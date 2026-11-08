@@ -128,6 +128,12 @@ const recentMessages = new Map();
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
 
+const _initDisabled = process.env.BOT_DISABLED_COMMANDS === 'true';
+const _workerPhone = (process.env.PAIRING_NUMBER || '').replace(/[^0-9]/g, '');
+if (_workerPhone && _initDisabled) {
+	global[`BOT_DISABLED_COMMANDS_${_workerPhone}`] = true;
+}
+
 async function incrementStats(cmd) {
 	try {
 		const controller = new AbortController();

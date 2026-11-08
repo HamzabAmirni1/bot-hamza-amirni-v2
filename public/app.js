@@ -444,26 +444,47 @@ async function loadBotStatus() {
     const cards = bots.map(bot => {
       const phone = bot.phone || '—';
       const connected = !!bot.connected;
-      const dotClass = connected ? 'dot-on' : 'dot-off';
-      const stateBadge = connected
-        ? `<span class="badge b-g">🟢 متصل ونشط</span>`
-        : `<span class="badge b-r">🔴 غير متصل</span>`;
+      const isDisabled = !!bot.disabled;
+      const dotClass = connected ? (isDisabled ? 'dot-on dot-amber' : 'dot-on') : 'dot-off';
+      const dotStyle = (connected && isDisabled) ? 'background:#f59e0b;box-shadow:0 0 10px #f59e0b;' : '';
+
+      let stateBadge = '';
+      if (connected) {
+        if (isDisabled) {
+          stateBadge = `<span class="badge b-g">🟢 متصل</span> <span class="badge" style="background:rgba(245,158,11,0.2);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);font-weight:700;"><i class="fas fa-eye"></i> وضع Vu فقط (صامت)</span>`;
+        } else {
+          stateBadge = `<span class="badge b-g">🟢 متصل ونشط</span>`;
+        }
+      } else {
+        stateBadge = `<span class="badge b-r">🔴 غير متصل</span>`;
+      }
+
+      const vuBtn = isDisabled
+        ? `<button onclick="toggleBotVuMode('${phone}', false)" class="btn btn-g" style="font-size:12px;padding:7px 13px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;" title="إلغاء وضع الصامت وتفعيل الردود على الرسائل والأوامر">
+             <i class="fas fa-play"></i> تفعيل الرد
+           </button>`
+        : `<button onclick="toggleBotVuMode('${phone}', true)" class="btn btn-warning" style="font-size:12px;padding:7px 13px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;" title="تعطيل الردود وإبقاء قراءة الرسائل (Vu) فقط">
+             <i class="fas fa-eye"></i> وضع Vu فقط
+           </button>`;
 
       return `
         <div class="bot-row" style="margin-bottom:12px">
           <div class="row">
             <div class="bot-ava">
               🤖
-              <div class="dot ${dotClass}"></div>
+              <div class="dot ${dotClass}" style="${dotStyle}"></div>
             </div>
             <div style="flex:1">
               <div style="font-weight:800;font-size:15px">bot amirni hamza</div>
               <div class="mono text-accent" style="font-size:13px">+${phone}</div>
-              <div style="margin-top:4px">${stateBadge}</div>
+              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${stateBadge}</div>
             </div>
-            <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap;border-radius:10px;">
-              <i class="fas fa-trash"></i> مسح
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
+              ${vuBtn}
+              <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;">
+                <i class="fas fa-trash"></i> مسح
+              </button>
+            </div>
           </div>
         </div>`;
     }).join('');
@@ -471,6 +492,52 @@ async function loadBotStatus() {
     wrap.innerHTML = cards;
   } catch(e) {
     wrap.innerHTML = empty('fas fa-exclamation-triangle', 'فشل التحميل: ' + e.message);
+  }
+}
+
+async function toggleBotVuMode(phone, setDisabled) {
+  const cleanPhone = String(phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) return;
+
+  const actionText = setDisabled ? 'تفعيل وضع Vu فقط (تعطيل الردود)' : 'إلغاء وضع Vu فقط (تشغيل الردود)';
+  const confirmDesc = setDisabled
+    ? `واش متأكد باغي ترجع البوت +${cleanPhone} فـ وضع "Vu فقط"؟\nالبوت ما غاديش يجاوب على حتى شي أمر أو رسالة، وغادي يخلي غير علامة القراءة (Vu زرقاء).`
+    : `واش باغي ترجع البوت +${cleanPhone} يجاوب على الأوامر والرسائل بشكل عادي؟`;
+
+  const ok = await showConfirm({
+    title: actionText,
+    text: confirmDesc,
+    confirmText: setDisabled ? 'تفعيل Vu فقط' : 'تشغيل الردود',
+    icon: setDisabled ? '👁️' : '🔔',
+    isDanger: false
+  });
+  if (!ok) return;
+
+  try {
+    toast('⏳ جاري تحديث حالة البوت...', 'info');
+    const res = await fetch('/api/bot-toggle-commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: cleanPhone,
+        disabled: setDisabled,
+        whitelist: ''
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (setDisabled) {
+        toast(`👁️ تم تفعيل وضع Vu فقط للبوت +${cleanPhone} (ما كايجاوبش دابا)`, 'ok');
+      } else {
+        toast(`🔔 تم تفعيل الردود للبوت +${cleanPhone} بنجاح!`, 'ok');
+      }
+      loadBotStatus();
+      if (typeof loadSessionsTable === 'function') loadSessionsTable();
+    } else {
+      toast('❌ فشل تغيير الحالة: ' + (data.error || 'خطأ غير معروف'), 'err');
+    }
+  } catch(e) {
+    toast('❌ خطأ في الاتصال: ' + e.message, 'err');
   }
 }
 
@@ -570,6 +637,7 @@ async function loadBotMode() {
         else btn.classList.remove('active');
       }
     });
+    if (typeof updateModeBtnUI === 'function') updateModeBtnUI(mode);
 
     // 3. Render Admins Table
     const tableWrap = document.getElementById('bot-admins-table-wrap');
@@ -653,54 +721,6 @@ async function setBotMode(newMode) {
     const d = await r.json();
     if (d.success) {
       toast(`✅ تم تغيير وضع البوت إلى: ${newMode.toUpperCase()}`, 'ok');
-      loadBotMode();
-    } else {
-      toast('❌ خطأ: ' + d.error, 'err');
-    }
-  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
-}
-
-async function addBotAdmin() {
-  const input = document.getElementById('admin-phone-input');
-  if (!input || !input.value.trim()) return toast('⚠️ أدخل رقم الهاتف أولاً', 'err');
-  const phone = input.value.trim();
-  try {
-    const r = await fetch('/api/bot-admins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone })
-    });
-    const d = await r.json();
-    if (d.success) {
-      toast(`✅ تمت إضافة +${phone.replace(/[^0-9]/g, '')} كـ أدمين`, 'ok');
-      input.value = '';
-      loadBotMode();
-    } else {
-      toast('❌ خطأ: ' + d.error, 'err');
-    }
-  } catch(e) { toast('❌ خطأ: ' + e.message, 'err'); }
-}
-
-async function removeBotAdmin(jid) {
-  const num = jid.split('@')[0];
-  const ok = await showConfirm({
-    title: 'حذف مشرف البوت',
-    text: `هل أنت متأكد من حذف +${num} من قائمة مشرفي البوت؟`,
-    confirmText: 'حذف',
-    icon: '👤',
-    isDanger: true
-  });
-  if (!ok) return;
-
-  try {
-    const r = await fetch('/api/bot-admins', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jid })
-    });
-    const d = await r.json();
-    if (d.success) {
-      toast(`✅ تم حذف +${num} من المشرفين`, 'ok');
       loadBotMode();
     } else {
       toast('❌ خطأ: ' + d.error, 'err');
@@ -1576,57 +1596,6 @@ async function loadBotSettings() {
   await loadAdmins();
 }
 
-async function loadPerBotAiList() {
-  const wrap = document.getElementById('per-bot-ai-list');
-  if (!wrap) return;
-  try {
-    const res = await fetch('/api/sessions');
-    if (!res.ok) return;
-    const list = await res.json() || [];
-    if (!list.length) {
-      wrap.innerHTML = '<div style="font-size:11px;color:var(--text2)">لا توجد جلسات مسجلة بعد. قم بربط بوت أولاً من القائمة الجانبية.</div>';
-      return;
-    }
-
-    let settings = {};
-    try {
-      const sRes = await fetch('/api/settings');
-      if (sRes.ok) settings = await sRes.json();
-    } catch(_) {}
-
-    wrap.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;">
-        ${list.map(s => {
-          const phone = (s.phone_number || '').replace(/\D/g, '');
-          const isConn = s.status === 'connected';
-          const localVal = localStorage.getItem('toggle_auto_ai_' + phone);
-          let isChecked = false;
-          if (localVal !== null) {
-            isChecked = (localVal === 'true');
-          } else if (settings['auto_ai_' + phone] !== undefined) {
-            isChecked = (settings['auto_ai_' + phone] === 'true' || settings['auto_ai_' + phone] === true);
-          } else if (settings.auto_ai !== undefined) {
-            isChecked = (settings.auto_ai === 'true' || settings.auto_ai === true);
-          }
-
-          return `
-            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
-              <div style="display:flex;align-items:center;gap:12px">
-                <input type="checkbox" id="chk-bot-ai-${phone}" ${isChecked ? 'checked' : ''} onchange="toggleBotAiCheckbox('${phone}', this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:var(--accent)">
-                <div>
-                  <div style="font-weight:800;font-size:13px;font-family:monospace;color:var(--accent)">+${phone}</div>
-                  <div style="font-size:10px;color:${isConn ? 'var(--green)' : 'var(--red)'};font-weight:600">${isConn ? '🟢 متصل ونشط' : '🔴 غير متصل'}</div>
-                </div>
-              </div>
-              <span class="badge ${isChecked ? 'b-g' : 'b-r'}" id="badge-bot-ai-${phone}">${isChecked ? '🧠 AI شغال' : '⏸️ AI موقف'}</span>
-            </div>`;
-        }).join('')}
-      </div>`;
-  } catch(e) {
-    wrap.innerHTML = '<div style="font-size:11px;color:var(--red)">فشل تحميل قائمة البوتات</div>';
-  }
-}
-
 async function toggleBotAiCheckbox(phone, isChecked) {
   const key = 'auto_ai_' + phone;
   localStorage.setItem('toggle_' + key, isChecked ? 'true' : 'false');
@@ -1769,37 +1738,8 @@ async function saveApkLimit() {
 }
 
 /* ─────────────────────────────────────────────
-   BOT MODE SWITCHER
+   BOT MODE SWITCHER UI
    ───────────────────────────────────────────── */
-async function setBotMode(mode) {
-  try {
-    const res = await fetch('/api/bot-mode', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode })
-    });
-    const data = await res.json();
-    if (data.success) {
-      const labels = { public: '🟢 عام (Public)', private: '🔒 خاص DM فقط', group: '👥 مجموعات فقط', admin: '🛡️ مشرفين فقط' };
-      toast('✅ تم تغيير وضع البوت إلى: ' + (labels[mode] || mode), 'ok');
-      updateModeBtnUI(mode);
-    } else {
-      toast('⚠️ ' + (data.error || 'فشل تغيير الوضع'), 'warn');
-    }
-  } catch(e) {
-    toast('❌ خطأ: ' + e.message, 'err');
-  }
-}
-
-async function loadBotMode() {
-  try {
-    const res = await fetch('/api/bot-mode');
-    if (!res.ok) return;
-    const data = await res.json();
-    updateModeBtnUI(data.mode || 'public');
-  } catch(e) {}
-}
-
 function updateModeBtnUI(activeMode) {
   const modeMap = {
     public:  { id: 'mode-btn-public',  label: '🟢 عام (Public)' },
@@ -1906,7 +1846,7 @@ async function loadAdmins() {
 }
 
 async function addBotAdmin() {
-  const inp = document.getElementById('new-admin-phone');
+  const inp = document.getElementById('new-admin-phone') || document.getElementById('admin-phone-input') || document.getElementById('admin-page-phone-input');
   const phone = inp ? inp.value.trim().replace(/[^0-9]/g, '') : '';
   if (!phone || phone.length < 8) return toast('⚠️ أدخل رقماً صحيحاً', 'warn');
   try {
@@ -1919,7 +1859,8 @@ async function addBotAdmin() {
     if (data.success) {
       toast(`✅ تمت إضافة +${phone} كأدمين`, 'ok');
       if (inp) inp.value = '';
-      await loadAdmins();
+      if (typeof loadAdmins === 'function') await loadAdmins();
+      if (typeof loadBotMode === 'function') await loadBotMode();
     } else {
       toast('⚠️ ' + (data.error || 'فشل الإضافة'), 'warn');
     }
@@ -1928,10 +1869,12 @@ async function addBotAdmin() {
   }
 }
 
-async function removeBotAdmin(phone) {
+async function removeBotAdmin(target) {
+  const num = String(target || '').replace(/[^0-9]/g, '');
+  const jid = String(target || '').includes('@') ? target : num + '@s.whatsapp.net';
   const ok = await showConfirm({
     title: 'حذف الأدمين',
-    text: `هل تريد إزالة +${phone} من قائمة الأدمينات؟`,
+    text: `هل تريد إزالة +${num} من قائمة الأدمينات؟`,
     confirmText: '🗑️ نعم، احذف',
     icon: '⚠️',
     isDanger: true
@@ -1941,12 +1884,13 @@ async function removeBotAdmin(phone) {
     const res = await fetch('/api/bot-admins', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone })
+      body: JSON.stringify({ phone: num, jid })
     });
     const data = await res.json();
     if (data.success) {
-      toast(`✅ تمت إزالة +${phone} من الأدمينات`, 'ok');
-      await loadAdmins();
+      toast(`✅ تمت إزالة +${num} من الأدمينات`, 'ok');
+      if (typeof loadAdmins === 'function') await loadAdmins();
+      if (typeof loadBotMode === 'function') await loadBotMode();
     } else {
       toast('⚠️ ' + (data.error || 'فشل الحذف'), 'warn');
     }

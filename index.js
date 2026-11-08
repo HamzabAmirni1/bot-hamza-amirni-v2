@@ -1081,7 +1081,13 @@ ${reply_text}
       if (endpoint === 'bot-status') {
         const statuses = [];
         for (const [phone, info] of workersMap.entries()) {
-          statuses.push({ phone, connected: info.connected });
+          const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+          const isDisabled = global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true;
+          statuses.push({
+            phone: cleanPhone,
+            connected: !!info.connected,
+            disabled: isDisabled
+          });
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ bots: statuses }));
@@ -1361,7 +1367,7 @@ ${reply_text}
             const isDisabled = !!(disabled === true || disabled === 'true');
             const cleanWhitelist = (whitelist || '').toString().trim();
 
-            // 1. Save to Supabase ai_memory (config_bot_disabled_commands_PHONE)
+            // 1. Save to Supabase ai_memory & bot_configs (config_bot_disabled_commands_PHONE)
             await Promise.all([
               fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
                 method: 'POST',
@@ -1370,6 +1376,14 @@ ${reply_text}
                   'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
                 },
                 body: JSON.stringify([{ jid: `config_bot_disabled_commands_${cleanPhone}`, history: String(isDisabled) }])
+              }).catch(() => {}),
+              fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/bot_configs', {
+                method: 'POST',
+                headers: {
+                  'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                  'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify({ key: `bot_disabled_commands_${cleanPhone}`, value: String(isDisabled) })
               }).catch(() => {}),
               fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
                 method: 'POST',
@@ -1683,6 +1697,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_AUTHOR: global.author || 'Hamza Amirni',
       BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
       BOT_MODE: global.BOT_MODE || 'private',
+      BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
       UV_THREADPOOL_SIZE: '16'
     }
   });
@@ -1982,7 +1997,28 @@ async function initGlobalConfigs() {
     if (fetchRes.ok) {
       const rows = await fetchRes.json();
       const cfg = {};
-      if (Array.isArray(rows)) rows.forEach(r => { cfg[r.key] = r.value; });
+      if (Array.isArray(rows)) rows.forEach(r => {
+        cfg[r.key] = r.value;
+        if (r.key && r.key.startsWith('bot_disabled_commands_')) {
+          const p = r.key.replace('bot_disabled_commands_', '');
+          if (p) global[`BOT_DISABLED_COMMANDS_${p}`] = (r.value === 'true' || r.value === true);
+        }
+      });
+
+      try {
+        const memRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=like.config_bot_disabled_commands_*&select=jid,history', {
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+        if (memRes.ok) {
+          const memRows = await memRes.json();
+          if (Array.isArray(memRows)) {
+            memRows.forEach(r => {
+              const p = r.jid.replace('config_bot_disabled_commands_', '');
+              if (p) global[`BOT_DISABLED_COMMANDS_${p}`] = (r.history === 'true' || r.history === true);
+            });
+          }
+        }
+      } catch (_) {}
 
       global.AUTO_READ = cfg.auto_read !== undefined ? (cfg.auto_read === 'true' || cfg.auto_read === true) : true;
       global.AUTO_STATUS_READ = cfg.auto_status_read !== undefined ? (cfg.auto_status_read === 'true' || cfg.auto_status_read === true) : true;
