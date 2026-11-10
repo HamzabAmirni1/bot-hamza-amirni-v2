@@ -1376,13 +1376,23 @@ async function sendReply() {
   const id   = document.getElementById('reply-id').value;
   const text = document.getElementById('reply-text').value.trim();
   if (!text) return toast('❌ اكتب الرد أولاً', 'err');
-  const { error } = await sb.from('dev_messages').update({
-    replied: true, reply_text: text, reply_timestamp: new Date().toISOString()
-  }).eq('id', id);
-  if (error) return toast('❌ فشل الرد: ' + error.message, 'err');
-  toast('✅ تم إرسال الرد للمستخدم!', 'ok');
-  closeM('modal-reply');
-  loadDevMsg();
+  try {
+    const res = await fetch('/api/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, reply_text: text })
+    });
+    const d = await res.json();
+    if (d.success) {
+      toast('✅ تم إرسال الرد للمستخدم على الواتساب بنجاح!', 'ok');
+      closeM('modal-reply');
+      loadDevMsg();
+    } else {
+      toast('❌ فشل إرسال الرد: ' + (d.error || 'خطأ غير معروف'), 'err');
+    }
+  } catch (err) {
+    toast('❌ خطأ في الاتصال: ' + err.message, 'err');
+  }
 }
 
 // ── Error Logs ─────────────────────────────────────────────────────────────────

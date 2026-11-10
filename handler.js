@@ -15,10 +15,20 @@ if (parentPort && !global.__parentPortListenerAdded) {
 		try {
 			if (typeof msg === 'object' && msg) {
 				if (msg.type === 'send_msg') {
-					const { jid, text } = msg;
-					if (global.conn && jid && text) {
-						await global.conn.sendMessage(jid, { text: text });
-						console.log(`✅ [Dashboard -> WhatsApp] Message sent to ${jid}`);
+					let { jid, text } = msg;
+					if (jid && jid.includes(':') && jid.includes('@')) {
+						jid = jid.split(':')[0] + '@' + jid.split('@')[1];
+					}
+					const sock = global.conn;
+					if (sock && jid && text) {
+						try {
+							await sock.sendMessage(jid, { text: text });
+							console.log(`✅ [Dashboard -> WhatsApp] Message successfully delivered to ${jid}`);
+						} catch (sendErr) {
+							console.error(`❌ [Dashboard -> WhatsApp] Failed to send to ${jid}:`, sendErr.message);
+						}
+					} else {
+						console.error(`⚠️ [Dashboard -> WhatsApp] Cannot send message: sock=${Boolean(sock)}, jid=${jid}`);
 					}
 				} else if (msg.type === 'update_configs' && msg.settings) {
 					for (const [k, v] of Object.entries(msg.settings)) {

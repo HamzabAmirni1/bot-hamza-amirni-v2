@@ -654,7 +654,7 @@ ${text}
               })
             });
 
-            // Post reply message to worker thread so Baileys sends reply live to WhatsApp from the EXACT receiving bot
+            // Post reply message to worker thread so Baileys sends reply live to WhatsApp
             if (id) {
               try {
                 const mRes = await fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/dev_messages?id=eq.${id}&select=sender_jid,sender_phone,bot_phone`, {
@@ -662,7 +662,10 @@ ${text}
                 });
                 const mRows = await mRes.json();
                 if (mRows && mRows[0]) {
-                  const rJid = mRows[0].sender_jid || (mRows[0].sender_phone ? mRows[0].sender_phone + '@s.whatsapp.net' : null);
+                  let rJid = mRows[0].sender_jid || (mRows[0].sender_phone ? mRows[0].sender_phone + '@s.whatsapp.net' : null);
+                  if (rJid && rJid.includes(':') && rJid.includes('@')) {
+                    rJid = rJid.split(':')[0] + '@' + rJid.split('@')[1];
+                  }
                   const botPhone = mRows[0].bot_phone || null;
                   const targetWorker = getActiveWorker(botPhone);
                   if (rJid && targetWorker) {
@@ -681,10 +684,15 @@ ${reply_text}
 📸 *Instagram:* @hamza_amirni_01
 📢 *قناة الواتساب:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 ╰━━━━━━━━━━━━━━━━━━━━━╯`;
+                    console.log(`📤 [Reply API] Sending reply to WhatsApp JID: ${rJid} (target bot: ${botPhone || 'cluster-auto'})`);
                     targetWorker.postMessage({ type: 'send_msg', jid: rJid, text: formattedReply });
+                  } else {
+                    console.warn(`⚠️ [Reply API] Cannot send: rJid=${rJid}, workerFound=${Boolean(targetWorker)}`);
                   }
                 }
-              } catch (_) {}
+              } catch (rErr) {
+                console.error(`❌ [Reply API] Worker dispatch error:`, rErr.message);
+              }
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1634,13 +1642,19 @@ const workersMap = new Map();
 function getActiveWorker(phone) {
   if (phone) {
     const clean = phone.toString().replace(/[^0-9]/g, '');
-    if (workersMap.has(clean)) return workersMap.get(clean).worker;
+    if (workersMap.has(clean)) {
+      const b = workersMap.get(clean);
+      if (b && b.worker && b.connected) return b.worker;
+    }
   }
   for (const info of workersMap.values()) {
-    if (info.worker && info.connected) return info.worker;
+    if (info && info.worker && info.connected) return info.worker;
   }
-  const first = workersMap.values().next().value;
-  return first ? first.worker : null;
+  // Fallback: any worker available
+  for (const info of workersMap.values()) {
+    if (info && info.worker) return info.worker;
+  }
+  return null;
 }
 
 const stoppedWorkers = new Set();
