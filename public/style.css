@@ -737,6 +737,97 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   BOT PRO CARDS (Modern Multi-Bot Server Nodes)
+   ════════════════════════════════════════════════════════════════ */
+.bot-card-pro {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all var(--transition);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bot-card-pro:hover {
+  background: rgba(22, 34, 58, 0.9);
+  border-color: var(--border-hover);
+  box-shadow: 0 6px 25px rgba(0, 242, 254, 0.15);
+  transform: translateY(-2px);
+}
+
+.bcp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bcp-info-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bcp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bcp-name {
+  font-weight: 800;
+  font-size: 15px;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.bcp-phone {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(0, 242, 254, 0.08);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  display: inline-block;
+  width: fit-content;
+}
+
+.bcp-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bcp-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(56, 189, 248, 0.1);
+  padding-top: 12px;
+}
+
+.bcm-btn {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════
    BOT ROWS & MULTI-BOT CARDS (Sleek Server Tiles)
    ════════════════════════════════════════════════════════════════ */
 .bot-row {
@@ -1304,6 +1395,86 @@ body {
 
 /* Mobile Screens */
 @media (max-width: 768px) {
+  .bg-grid {
+    background-size: 100% 100%, 100% 100%, 26px 26px, 26px 26px;
+    opacity: 0.45;
+  }
+
+  .main {
+    padding: 14px 12px !important;
+    padding-bottom: 110px !important;
+  }
+
+  .pg-head {
+    margin-bottom: 16px;
+  }
+  .pg-head h1 {
+    font-size: 19px;
+  }
+
+  .card {
+    padding: 16px 14px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+
+  .bot-card-pro {
+    padding: 14px 12px;
+    gap: 12px;
+    border-radius: 14px;
+  }
+
+  .bcp-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bcp-name {
+    font-size: 14px;
+  }
+
+  .bcp-phone {
+    font-size: 11.5px;
+  }
+
+  .bcp-actions {
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .bcm-btn {
+    padding: 9px 8px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  .pair-mode-toggle {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pair-mode-btn {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 11.5px;
+  }
+
+  .bottom-nav {
+    height: 64px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  .bn-item {
+    font-size: 9px;
+    padding: 4px 2px;
+  }
+
+  .bn-item i {
+    font-size: 16px;
+  }
+
   .g3 { grid-template-columns: 1fr; }
 
   .stat-grid {
@@ -1336,9 +1507,10 @@ body {
   }
 
   .bot-ava {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     font-size: 18px;
+    border-radius: 10px;
   }
 }
 
@@ -1346,4 +1518,12 @@ body {
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
   .topbar-status-txt { display: none; }
+  .bcp-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .bcp-badge-wrap {
+    width: 100%;
+  }
 }

@@ -1624,7 +1624,12 @@ ${reply_text}
     else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
     else if (filePath.endsWith('.ico')) contentType = 'image/x-icon';
 
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     res.end(data);
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });

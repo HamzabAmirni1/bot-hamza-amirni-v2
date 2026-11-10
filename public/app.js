@@ -425,16 +425,20 @@ async function loadBotStatus() {
 
     if (bots.length === 0) {
       wrap.innerHTML = `
-        <div class="bot-row">
-          <div class="row">
-            <div class="bot-ava">
-              🤖
-              <div class="dot dot-off"></div>
+        <div class="bot-card-pro">
+          <div class="bcp-header">
+            <div class="bcp-info-group">
+              <div class="bot-ava">
+                🤖
+                <div class="dot dot-off"></div>
+              </div>
+              <div class="bcp-details">
+                <div class="bcp-name">bot amirni hamza</div>
+                <div class="bcp-phone mono">—</div>
+              </div>
             </div>
-            <div>
-              <div style="font-weight:800;font-size:15px">bot amirni hamza</div>
-              <div class="mono text-accent" style="font-size:13px">—</div>
-              <div style="margin-top:4px"><span class="badge b-r">🔴 غير متصل</span></div>
+            <div class="bcp-badge-wrap">
+              <span class="badge b-r">🔴 لا توجد جلسات متصلة</span>
             </div>
           </div>
         </div>`;
@@ -451,7 +455,7 @@ async function loadBotStatus() {
       let stateBadge = '';
       if (connected) {
         if (isDisabled) {
-          stateBadge = `<span class="badge b-g">🟢 متصل</span> <span class="badge" style="background:rgba(245,158,11,0.2);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);font-weight:700;"><i class="fas fa-eye"></i> وضع Vu فقط (صامت)</span>`;
+          stateBadge = `<span class="badge b-g">🟢 متصل</span> <span class="badge b-y"><i class="fas fa-eye"></i> وضع Vu فقط</span>`;
         } else {
           stateBadge = `<span class="badge b-g">🟢 متصل ونشط</span>`;
         }
@@ -460,31 +464,35 @@ async function loadBotStatus() {
       }
 
       const vuBtn = isDisabled
-        ? `<button onclick="toggleBotVuMode('${phone}', false)" class="btn btn-g" style="font-size:12px;padding:7px 13px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;" title="إلغاء وضع الصامت وتفعيل الردود على الرسائل والأوامر">
-             <i class="fas fa-play"></i> تفعيل الرد
+        ? `<button onclick="toggleBotVuMode('${phone}', false)" class="btn btn-g bcm-btn" title="إلغاء وضع الصامت وتفعيل الردود على الرسائل والأوامر">
+             <i class="fas fa-play"></i> تشغيل الردود
            </button>`
-        : `<button onclick="toggleBotVuMode('${phone}', true)" class="btn btn-warning" style="font-size:12px;padding:7px 13px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;" title="تعطيل الردود وإبقاء قراءة الرسائل (Vu) فقط">
+        : `<button onclick="toggleBotVuMode('${phone}', true)" class="btn btn-warning bcm-btn" title="تعطيل الردود وإبقاء قراءة الرسائل (Vu) فقط">
              <i class="fas fa-eye"></i> وضع Vu فقط
            </button>`;
 
       return `
-        <div class="bot-row" style="margin-bottom:12px">
-          <div class="row">
-            <div class="bot-ava">
-              🤖
-              <div class="dot ${dotClass}" style="${dotStyle}"></div>
+        <div class="bot-card-pro">
+          <div class="bcp-header">
+            <div class="bcp-info-group">
+              <div class="bot-ava">
+                🤖
+                <div class="dot ${dotClass}" style="${dotStyle}"></div>
+              </div>
+              <div class="bcp-details">
+                <div class="bcp-name">bot amirni hamza</div>
+                <div class="bcp-phone mono">+${phone}</div>
+              </div>
             </div>
-            <div style="flex:1">
-              <div style="font-weight:800;font-size:15px">bot amirni hamza</div>
-              <div class="mono text-accent" style="font-size:13px">+${phone}</div>
-              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${stateBadge}</div>
+            <div class="bcp-badge-wrap">
+              ${stateBadge}
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
-              ${vuBtn}
-              <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger" style="font-size:12px;padding:7px 14px;flex-shrink:0;white-space:nowrap;border-radius:10px;display:inline-flex;align-items:center;gap:6px;">
-                <i class="fas fa-trash"></i> مسح
-              </button>
-            </div>
+          </div>
+          <div class="bcp-actions">
+            ${vuBtn}
+            <button onclick="deleteSessionRow('${phone}')" class="btn btn-danger bcm-btn">
+              <i class="fas fa-trash-alt"></i> مسح الجلسة
+            </button>
           </div>
         </div>`;
     }).join('');
