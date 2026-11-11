@@ -292,7 +292,7 @@ const handler = async (m, { conn, text, command }) => {
 	if (/^(play|ytplay|song|music|aghani|ytmp3)$/i.test(command)) {
 		if (!text) return m.reply(txtPromptPlay);
 
-		// If it's a search term, search and get video
+		// If it's a search term, auto-download first result directly (no broken buttons)
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
@@ -304,51 +304,16 @@ const handler = async (m, { conn, text, command }) => {
 
 			const firstVid = videos[0];
 
-			// Build formatted text list for 100% mobile screen compatibility
-			let captionText = `${txtSearchResultTitle} *${text}*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
-			const rows = [];
-			videos.slice(0, 7).forEach((v, i) => {
-				const num = i + 1;
-				captionText += `*${num}️⃣ ${v.title}*\n⏱️ *المدة:* ${v.timestamp} | 👤 *القناة:* ${v.author.name}\n← .play ${v.url}\n\n`;
-				rows.push({
-					title: `🎵 ${num}. ${v.title.slice(0, 40)}`,
-					description: `⏱️ ${v.timestamp} | 👤 ${v.author.name.slice(0, 25)}`,
-					id: `.play ${v.url}`
-				});
-			});
-			captionText += `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`;
-
-			const selectTitle = lang === 'english' ? '🎧 Choose Song to Download' : lang === 'arabic' ? '🎧 اختر مقطعاً للتحميل' : '🎧 عزل الأغنية باش تهبطها';
-
+			// Send thumbnail preview with info
 			try {
-				await conn.sendButton(m.chat, {
+				await conn.sendMessage(m.chat, {
 					image: { url: firstVid.thumbnail },
-					caption: captionText,
-					footer: 'bot amirni hamza',
-					buttons: [
-						{
-							name: 'single_select',
-							buttonParamsJson: JSON.stringify({
-								title: selectTitle,
-								sections: [{ title: '🎵 YouTube Results', rows }]
-							})
-						},
-						{
-							name: 'quick_reply',
-							buttonParamsJson: JSON.stringify({ display_text: btnAudio, id: `.play ${firstVid.url}` })
-						},
-						{
-							name: 'quick_reply',
-							buttonParamsJson: JSON.stringify({ display_text: btnVideo, id: `.video ${firstVid.url}` })
-						}
-					]
+					caption: `🎵 *${firstVid.title}*\n⏱️ *المدة:* ${firstVid.timestamp} | 👤 *القناة:* ${firstVid.author?.name || ''}\n\n⏳ *جاري التحميل...*\n\n⚡ *bot amirni hamza*`
 				}, { quoted: m });
-			} catch (_) {
-				await conn.sendMessage(m.chat, { image: { url: firstVid.thumbnail }, caption: captionText }, { quoted: m });
-			}
+			} catch (_) {}
 
-			await m.react('✅');
-			return;
+			// Redirect to URL download flow
+			text = firstVid.url;
 		}
 
 		await m.react('🎧');
@@ -496,7 +461,7 @@ const handler = async (m, { conn, text, command }) => {
 
 		if (!text) return m.reply(txtPromptVideo);
 
-		// If it's a search term, search and get video list
+		// If it's a search term, auto-download first result directly (no broken buttons)
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
 			const search = await yts(text);
@@ -505,51 +470,16 @@ const handler = async (m, { conn, text, command }) => {
 
 			const firstVid = videos[0];
 
-			// Build formatted text list for 100% mobile screen compatibility
-			let captionText = `${txtSearchResultTitle} *${text}*\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
-			const rows = [];
-			videos.slice(0, 7).forEach((v, i) => {
-				const num = i + 1;
-				captionText += `*${num}️⃣ ${v.title}*\n⏱️ *المدة:* ${v.timestamp} | 👤 *القناة:* ${v.author.name}\n← .video ${v.url}\n\n`;
-				rows.push({
-					title: `🎥 ${num}. ${v.title.slice(0, 40)}`,
-					description: `⏱️ ${v.timestamp} | 👤 ${v.author.name.slice(0, 25)}`,
-					id: `.video ${v.url}`
-				});
-			});
-			captionText += `━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`;
-
-			const selectTitle = lang === 'english' ? '🎬 Choose Video to Download' : lang === 'arabic' ? '🎬 اختر فيديو للتحميل' : '🎬 عزل الفيديو باش تهبطو';
-
+			// Send thumbnail preview with info
 			try {
-				await conn.sendButton(m.chat, {
+				await conn.sendMessage(m.chat, {
 					image: { url: firstVid.thumbnail },
-					caption: captionText,
-					footer: 'bot amirni hamza',
-					buttons: [
-						{
-							name: 'single_select',
-							buttonParamsJson: JSON.stringify({
-								title: selectTitle,
-								sections: [{ title: '🎥 YouTube Results', rows }]
-							})
-						},
-						{
-							name: 'quick_reply',
-							buttonParamsJson: JSON.stringify({ display_text: btnVideo, id: `.video ${firstVid.url}` })
-						},
-						{
-							name: 'quick_reply',
-							buttonParamsJson: JSON.stringify({ display_text: btnAudio, id: `.play ${firstVid.url}` })
-						}
-					]
+					caption: `🎬 *${firstVid.title}*\n⏱️ *المدة:* ${firstVid.timestamp} | 👤 *القناة:* ${firstVid.author?.name || ''}\n\n⏳ *جاري التحميل...*\n\n⚡ *bot amirni hamza*`
 				}, { quoted: m });
-			} catch (_) {
-				await conn.sendMessage(m.chat, { image: { url: firstVid.thumbnail }, caption: captionText }, { quoted: m });
-			}
+			} catch (_) {}
 
-			await m.react('✅');
-			return;
+			// Redirect to URL download flow
+			text = firstVid.url;
 		}
 
 		await m.react('🎬');
