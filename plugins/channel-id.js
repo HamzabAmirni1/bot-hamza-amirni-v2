@@ -12,7 +12,8 @@ let handler = async (m, { text, conn }) => {
   await m.reply(teks);
 };
 
-handler.help = handler.command = ['channel-id'];
+handler.help = ['channelid <رابط القناة>'];
+handler.command = ['channel-id', 'channelid', 'cid'];
 handler.tags = ['tools'];
 handler.limit = false;
 

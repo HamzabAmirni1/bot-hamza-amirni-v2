@@ -89,7 +89,8 @@ let handler = async (m, { text, isOwner, usedPrefix, command }) => {
     }
 }
 
-handler.help = handler.command = ['audiototxt']
-handler.tags = ['ai']
-handler.limit = false
-export default handler         
+handler.help = ['audiototxt'];
+handler.command = ['audiototxt', 'voicetotext', 'totext'];
+handler.tags = ['ai'];
+handler.limit = false;
+export default handler;

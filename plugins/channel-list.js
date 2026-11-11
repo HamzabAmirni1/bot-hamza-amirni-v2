@@ -35,6 +35,7 @@ let handler = async (m, { conn, command }) => {
     }
 };
 
-handler.help = handler.command = ["channel-list"];
+handler.help = ['channellist'];
+handler.command = ["channel-list", "channellist", "channels"];
 handler.tags = ["tools"];
 export default handler;
