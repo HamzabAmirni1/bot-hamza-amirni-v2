@@ -202,24 +202,39 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     await conn.reply(m.chat, "⏳ Fetching your video, please wait...", m);
 
     try {
-        const info = await extractYouTube(link);
+        try {
+            const info = await extractYouTube(link);
+            if (info.isLive) throw new Error("Live streams cannot be downloaded.");
+            if (info.streamStatus !== "OK") {
+                throw new Error("YouTube blocked direct download links for this video.");
+            }
 
-        if (info.isLive) throw new Error("Live streams cannot be downloaded.");
-        if (info.streamStatus !== "OK") {
-            throw new Error("YouTube blocked direct download links for this video (bot check / login required). Try another video.");
+            const video = pickBestVideo(info);
+            if (!video) throw new Error("No downloadable video stream found.");
+            if (video.contentLength > MAX_SIZE) throw new Error(`Video is too large (${formatSize(video.contentLength)}).`);
+
+            const caption = `🎬 *${info.title}*\n👤 Channel: ${info.author}\n⏱️ Duration: ${formatDuration(info.durationSeconds)}\n📺 Quality: ${video.quality || video.resolution} (${formatSize(video.contentLength)})\n🔗 ${info.canonicalUrl}`;
+
+            await conn.sendFile(m.chat, video.directUrl, `${info.title}.mp4`, caption, m);
+        } catch (innerErr) {
+            console.log('[youtubemp4] Innertube failed, falling back to unified engine:', innerErr.message);
+            const { downloadYouTube } = await import('../lib/ytdl.js');
+            const res = await downloadYouTube(link, 'mp4');
+            if (!res?.download) throw innerErr;
+
+            const title = res.title || 'video';
+            const caption = `🎬 *${title}*\n\n⚡ *bot amirni hamza*`;
+            const vidTarget = (res.isLocalFile || (typeof res.download === 'string' && (await import('fs')).existsSync(res.download)))
+                ? { url: res.download }
+                : { url: res.download };
+
+            await conn.sendMessage(m.chat, {
+                video: vidTarget,
+                mimetype: 'video/mp4',
+                fileName: `${title}.mp4`,
+                caption
+            }, { quoted: m });
         }
-
-        const video = pickBestVideo(info);
-        if (!video) throw new Error("No downloadable video stream found.");
-        if (video.contentLength > MAX_SIZE) throw new Error(`Video is too large (${formatSize(video.contentLength)}).`);
-
-        const caption = `🎬 *${info.title}*
-👤 Channel: ${info.author}
-⏱️ Duration: ${formatDuration(info.durationSeconds)}
-📺 Quality: ${video.quality || video.resolution} (${formatSize(video.contentLength)})
-🔗 ${info.canonicalUrl}`;
-
-        await conn.sendFile(m.chat, video.directUrl, `${info.title}.mp4`, caption, m);
     } catch (e) {
         console.error(e);
         await conn.reply(m.chat, `❌ Failed.\n${e.message}`, m);

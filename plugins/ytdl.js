@@ -59,21 +59,26 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
     }
 
     // Try sending as streaming video first
+    const fs = await import('fs');
+    const isLocal = data.isLocalFile || (typeof data.download === 'string' && fs.existsSync(data.download));
+    const vidTarget = isLocal ? fs.readFileSync(data.download) : { url: data.download };
+
     try {
       await conn.sendMessage(
         m.chat,
         {
-          video: { url: data.download },
+          video: vidTarget,
           mimetype: 'video/mp4',
           fileName: `${cleanFileName(data.title || 'video')}.mp4`,
           caption: `🎬 *${data.title || 'YouTube Video'}*\n📺 *الجودة:* ${data.quality || quality}p\n\n⚡ *bot amirni hamza*`
         },
         { quoted: m }
       )
+      if (isLocal) { try { fs.unlinkSync(data.download); } catch (_) {} }
     } catch (_) {
       // Fallback: document mode (clean download)
-      const head = await axios.head(data.download, { timeout: 10000 }).catch(() => null)
-      const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024)
+      const head = !isLocal ? await axios.head(data.download, { timeout: 10000 }).catch(() => null) : null;
+      const sizeMB = isLocal ? (vidTarget.length / (1024 * 1024)) : (Number(head?.headers?.['content-length'] || 0) / (1024 * 1024));
 
       if (sizeMB > 95) {
         return conn.reply(
@@ -86,12 +91,13 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
       await conn.sendMessage(
         m.chat,
         {
-          document: { url: data.download },
+          document: vidTarget,
           mimetype: 'video/mp4',
           fileName: `${cleanFileName(data.title || 'video')}.mp4`
         },
         { quoted: m }
       )
+      if (isLocal) { try { fs.unlinkSync(data.download); } catch (_) {} }
     }
 
     await m.react('✅')

@@ -23,12 +23,20 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 		const result = await downloadYouTube(url, 'mp4', quality);
 		if (!result?.download) throw new Error('تعذر استخراج رابط التحميل');
 
+		const fs = await import('fs');
+		const isLocal = result.isLocalFile || (typeof result.download === 'string' && fs.existsSync(result.download));
+		const videoTarget = isLocal ? fs.readFileSync(result.download) : { url: result.download };
+
 		await conn.sendMessage(m.chat, {
-			video: { url: result.download },
+			video: videoTarget,
 			mimetype: 'video/mp4',
 			fileName: `${result.title || 'video'}.mp4`,
 			caption: `🎬 *${result.title || 'YouTube Video'}*\n📺 *الجودة:* ${result.quality || quality}p\n\n⚡ *bot amirni hamza*`,
 		}, { quoted: m });
+
+		if (isLocal) {
+			try { fs.unlinkSync(result.download); } catch (_) {}
+		}
 
 		await m.react('✅');
 	} catch (e) {

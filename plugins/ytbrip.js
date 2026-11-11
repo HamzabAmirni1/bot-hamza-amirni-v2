@@ -167,24 +167,42 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
   try {
     await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-    const info = await ytbrip.getAvailable(url);
-    if (!info.success) {
-      throw new Error(info.message || "Failed to fetch video info");
+    let title, ext, download_url, type;
+    let isLocal = false;
+
+    try {
+      const info = await ytbrip.getAvailable(url);
+      if (!info.success) throw new Error(info.message || "Failed to fetch video info");
+
+      const result = await ytbrip.download(url, quality);
+      if (!result.success) throw new Error(result.message || "Download failed");
+
+      title = result.data.title;
+      ext = result.data.ext;
+      download_url = result.data.download_url;
+      type = result.data.type;
+    } catch (ytbErr) {
+      console.log('[ytbrip] Failed, falling back to unified engine:', ytbErr.message);
+      const { downloadYouTube } = await import('../lib/ytdl.js');
+      const isAud = quality === 'audio';
+      const res = await downloadYouTube(url, isAud ? 'mp3' : 'mp4', quality);
+      if (!res?.download) throw ytbErr;
+
+      title = res.title || 'YouTube Media';
+      ext = res.ext || (isAud ? 'mp3' : 'mp4');
+      download_url = res.download;
+      type = isAud ? 'audio' : 'video';
+      isLocal = res.isLocalFile || (typeof res.download === 'string' && (await import('fs')).existsSync(res.download));
     }
 
-    const result = await ytbrip.download(url, quality);
-    if (!result.success) {
-      const available = info.data.qualities.map((q) => q.quality).join(", ");
-      throw new Error(`${result.message}\n\nAvailable qualities: ${available}`);
-    }
-
-    const { title, ext, download_url, type } = result.data;
+    const fs = await import('fs');
+    const mediaTarget = isLocal ? fs.readFileSync(download_url) : { url: download_url };
 
     if (type === "audio") {
       await conn.sendMessage(
         m.chat,
         {
-          audio: { url: download_url },
+          audio: mediaTarget,
           mimetype: "audio/mp4",
           fileName: `${title}.${ext}`
         },
@@ -194,14 +212,15 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
       await conn.sendMessage(
         m.chat,
         {
-          video: { url: download_url },
-          caption: `*${title}*\n\n› Quality : ${result.data.quality}p\n› Format  : ${ext}`,
+          video: mediaTarget,
+          caption: `*${title}*\n\n› Quality : ${quality}p\n› Format  : ${ext}\n\n⚡ *bot amirni hamza*`,
           fileName: `${title}.${ext}`
         },
         { quoted: m }
       );
     }
 
+    if (isLocal) { try { fs.unlinkSync(download_url); } catch (_) {} }
     await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
   } catch (error) {
     console.error("YT Download Error:", error.message);

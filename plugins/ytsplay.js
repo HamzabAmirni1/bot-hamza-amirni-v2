@@ -381,37 +381,46 @@ const handler = async (m, { conn, text, command }) => {
 		// Download audio via downloadWithProgress with live text progress bar
 		let audioBuffer = null;
 		let tmpAudioPath = null;
-		try {
-			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
-			tmpAudioPath = `./tmp/yt_aud_${Date.now()}.mp3`;
 
-			await downloadWithProgress(audioData.download, {
-				m, conn,
-				title: audioTitle,
-				emoji: '🎵',
-				outputPath: tmpAudioPath,
-				timeout: 45000
-			});
-
-			if (fs.existsSync(tmpAudioPath)) {
-				audioBuffer = fs.readFileSync(tmpAudioPath);
-			}
-		} catch (dlErr) {
-			console.log('[ytsplay/audio] Progress download notice, trying direct buffer:', dlErr.message);
+		// Check if downloaded directly as local file (e.g. via yt-dlp)
+		if (audioData.isLocalFile || (typeof audioData.download === 'string' && fs.existsSync(audioData.download))) {
+			tmpAudioPath = audioData.download;
 			try {
-				const aRes = await axios.get(audioData.download, {
-					responseType: 'arraybuffer',
-					timeout: 30000,
-					headers: {
-						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-						'Accept': '*/*'
-					}
-				});
-				if (aRes.data && aRes.data.byteLength > 1024) {
-					audioBuffer = Buffer.from(aRes.data);
-				}
+				audioBuffer = fs.readFileSync(tmpAudioPath);
 			} catch (_) {}
+		} else {
+			try {
+				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+				if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+				tmpAudioPath = `./tmp/yt_aud_${Date.now()}.mp3`;
+
+				await downloadWithProgress(audioData.download, {
+					m, conn,
+					title: audioTitle,
+					emoji: '🎵',
+					outputPath: tmpAudioPath,
+					timeout: 45000
+				});
+
+				if (fs.existsSync(tmpAudioPath)) {
+					audioBuffer = fs.readFileSync(tmpAudioPath);
+				}
+			} catch (dlErr) {
+				console.log('[ytsplay/audio] Progress download notice, trying direct buffer:', dlErr.message);
+				try {
+					const aRes = await axios.get(audioData.download, {
+						responseType: 'arraybuffer',
+						timeout: 30000,
+						headers: {
+							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+							'Accept': '*/*'
+						}
+					});
+					if (aRes.data && aRes.data.byteLength > 1024) {
+						audioBuffer = Buffer.from(aRes.data);
+					}
+				} catch (_) {}
+			}
 		}
 
 		try {
@@ -524,50 +533,56 @@ const handler = async (m, { conn, text, command }) => {
 			return m.reply(failVideoMsg);
 		}
 
-		// Resolve any 302 redirects before sending to Baileys
-		const finalVideoUrl = await resolveFinalUrl(videoData.download);
 		const vidTitle = videoData.title || videoTitle || 'video';
-
-		// Stream video with live progress bar and thumbnail preview (0 MB heap RAM usage, prevents OOM on Koyeb)
 		let tmpVidPath = null;
-		try {
-			const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
-			const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
+		let finalVideoUrl = videoData.download;
 
-			if (sizeMB > 85) {
-				await m.react('⚠️');
-				return m.reply(
-					`🎬 *${vidTitle}*\n` +
-					`━━━━━━━━━━━━━━━━━━━━━\n` +
-					`📦 *حجم الفيديو:* ${sizeMB.toFixed(1)} MB (كبير بالنسبة للواتساب)\n\n` +
-					`🔗 *رابط التحميل المباشر والسريع:*\n${finalVideoUrl}\n\n` +
-					`⚡ *bot amirni hamza*`
-				);
+		if (videoData.isLocalFile || (typeof videoData.download === 'string' && fs.existsSync(videoData.download))) {
+			tmpVidPath = videoData.download;
+		} else {
+			// Resolve any 302 redirects before sending to Baileys
+			finalVideoUrl = await resolveFinalUrl(videoData.download);
+
+			// Stream video with live progress bar and thumbnail preview (0 MB heap RAM usage, prevents OOM on Koyeb)
+			try {
+				const head = await axios.head(finalVideoUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
+				const sizeMB = Number(head?.headers?.['content-length'] || 0) / (1024 * 1024);
+
+				if (sizeMB > 85) {
+					await m.react('⚠️');
+					return m.reply(
+						`🎬 *${vidTitle}*\n` +
+						`━━━━━━━━━━━━━━━━━━━━━\n` +
+						`📦 *حجم الفيديو:* ${sizeMB.toFixed(1)} MB (كبير بالنسبة للواتساب)\n\n` +
+						`🔗 *رابط التحميل المباشر والسريع:*\n${finalVideoUrl}\n\n` +
+						`⚡ *bot amirni hamza*`
+					);
+				}
+
+				if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
+				tmpVidPath = `./tmp/yt_vid_${Date.now()}.mp4`;
+
+				// Send single thumbnail preview first if available
+				if (videoThumb) {
+					try {
+						await conn.sendMessage(m.chat, {
+							image: { url: videoThumb },
+							caption: `🎬 *${vidTitle}*\n⏳ *جاري تجهيز وتحميل مقطع الفيديو...*\n\n⚡ *bot amirni hamza*`
+						}, { quoted: m });
+					} catch (_) {}
+				}
+
+				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
+				await downloadWithProgress(finalVideoUrl, {
+					m, conn,
+					title: vidTitle,
+					emoji: '🎬',
+					outputPath: tmpVidPath,
+					timeout: 90000
+				});
+			} catch (bErr) {
+				console.log('[ytsplay/video] Video progress stream failed, will try direct URL:', bErr.message);
 			}
-
-			if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
-			tmpVidPath = `./tmp/yt_vid_${Date.now()}.mp4`;
-
-			// Send single thumbnail preview first if available
-			if (videoThumb) {
-				try {
-					await conn.sendMessage(m.chat, {
-						image: { url: videoThumb },
-						caption: `🎬 *${vidTitle}*\n⏳ *جاري تجهيز وتحميل مقطع الفيديو...*\n\n⚡ *bot amirni hamza*`
-					}, { quoted: m });
-				} catch (_) {}
-			}
-
-			const { downloadWithProgress } = await import('../lib/downloadProgress.js');
-			await downloadWithProgress(finalVideoUrl, {
-				m, conn,
-				title: vidTitle,
-				emoji: '🎬',
-				outputPath: tmpVidPath,
-				timeout: 90000
-			});
-		} catch (bErr) {
-			console.log('[ytsplay/video] Video progress stream failed, will try direct URL:', bErr.message);
 		}
 
 		try {

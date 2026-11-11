@@ -1,8 +1,9 @@
 FROM node:20-slim
 
-# Install ffmpeg, imagemagick and git for media processing
+# Install ffmpeg, imagemagick, git, python3, pip and yt-dlp for media processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg imagemagick git \
+    ffmpeg imagemagick git python3 python3-pip curl \
+    && pip3 install -q --break-system-packages yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

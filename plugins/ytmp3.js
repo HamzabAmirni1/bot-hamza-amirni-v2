@@ -22,12 +22,20 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 		const result = await downloadYouTube(url, 'mp3');
 		if (!result?.download) throw new Error('تعذر استخراج رابط التحميل');
 
+		const fs = await import('fs');
+		const isLocal = result.isLocalFile || (typeof result.download === 'string' && fs.existsSync(result.download));
+		const audioTarget = isLocal ? fs.readFileSync(result.download) : { url: result.download };
+
 		await conn.sendMessage(m.chat, {
-			audio: { url: result.download },
+			audio: audioTarget,
 			mimetype: 'audio/mpeg',
 			fileName: `${result.title || 'audio'}.mp3`,
 			ptt: false,
 		}, { quoted: m });
+
+		if (isLocal) {
+			try { fs.unlinkSync(result.download); } catch (_) {}
+		}
 
 		await m.react('✅');
 	} catch (e) {

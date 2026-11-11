@@ -169,21 +169,33 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     await conn.sendMessage(m.chat, { react: { text: '🕒', key: m.key } });
 
     const info = await ytMeta(videoId);
-    if (!info.available) throw new Error('Video not found, private, or deleted.');
+    let buffer = null;
+    let finalTitle = info.title || videoId;
 
-    const conv = await convert(videoId, format, quality);
-
-    let buffer;
     try {
+      const conv = await convert(videoId, format, quality);
       buffer = await fetchBuffer(conv.url);
-    } catch (fetchErr) {
-      throw new Error('Could not fetch the file from the download server (link may have expired or is blocked). Try again.');
+    } catch (cnvErr) {
+      console.log('[ytdlv2] cnv.cx failed, falling back to unified engine:', cnvErr.message);
+      const { downloadYouTube } = await import('../lib/ytdl.js');
+      const res = await downloadYouTube(urlArg, format, String(quality));
+      if (!res?.download) throw cnvErr;
+      finalTitle = res.title || finalTitle;
+
+      const fs = await import('fs');
+      if (res.isLocalFile || (typeof res.download === 'string' && fs.existsSync(res.download))) {
+        buffer = fs.readFileSync(res.download);
+        try { fs.unlinkSync(res.download); } catch (_) {}
+      } else {
+        buffer = await fetchBuffer(res.download);
+      }
     }
 
     const caption =
-      `*${info.title || 'YouTube Media'}*\n\n` +
+      `*${finalTitle}*\n\n` +
       `📥 Format: ${format.toUpperCase()}\n` +
-      `🎚️ Quality: ${format === 'mp3' ? quality + 'kbps' : quality + 'p'}`;
+      `🎚️ Quality: ${format === 'mp3' ? quality + 'kbps' : quality + 'p'}\n\n` +
+      `⚡ *bot amirni hamza*`;
 
     if (format === 'mp3') {
       await conn.sendMessage(
@@ -191,7 +203,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         {
           audio: buffer,
           mimetype: 'audio/mpeg',
-          fileName: `${info.title || videoId}.mp3`,
+          fileName: `${finalTitle}.mp3`,
         },
         { quoted: m },
       );
@@ -201,7 +213,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         {
           video: buffer,
           caption,
-          fileName: `${info.title || videoId}.mp4`,
+          fileName: `${finalTitle}.mp4`,
         },
         { quoted: m },
       );

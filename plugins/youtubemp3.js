@@ -219,34 +219,53 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     await conn.reply(m.chat, "⏳ Fetching your audio, please wait...", m);
 
     try {
-        const info = await extractAudio(link);
+        let buffer = null;
+        let safeName = "audio";
+        let thumbUrl = null;
+        let title = "YouTube Audio";
 
-        if (info.isLive) throw new Error("Live streams cannot be downloaded.");
-        if (info.streamStatus !== "OK") {
-            throw new Error("YouTube blocked direct download links for this video (bot check / login required). Try another video.");
+        try {
+            const info = await extractAudio(link);
+            if (info.isLive) throw new Error("Live streams cannot be downloaded.");
+            if (info.streamStatus !== "OK") {
+                throw new Error("YouTube blocked direct download links for this video.");
+            }
+
+            const audio = pickBestAudio(info);
+            if (!audio) throw new Error("No audio stream found.");
+            if (audio.contentLength > MAX_SIZE) throw new Error(`Audio is too large (${formatSize(audio.contentLength)}).`);
+
+            title = info.title;
+            thumbUrl = info.bestThumbnail;
+            safeName = info.title.replace(/[\\/:*?"<>|]/g, "").slice(0, 80) || "audio";
+
+            const caption = `🎵 *${info.title}*\n👤 Channel: ${info.author}\n⏱️ Duration: ${formatDuration(info.durationSeconds)}\n📦 Size: ${formatSize(audio.contentLength)}\n🔗 ${info.canonicalUrl}`;
+            await conn.sendMessage(m.chat, { image: { url: info.bestThumbnail }, caption }, { quoted: m });
+
+            buffer = await downloadBuffer(audio.directUrl, audio.contentLength);
+        } catch (innerErr) {
+            console.log('[youtubemp3] Innertube failed, falling back to unified engine:', innerErr.message);
+            const { downloadYouTube } = await import('../lib/ytdl.js');
+            const res = await downloadYouTube(link, 'mp3');
+            if (!res?.download) throw innerErr;
+
+            title = res.title || 'audio';
+            safeName = title.replace(/[\\/:*?"<>|]/g, "").slice(0, 80) || "audio";
+
+            if (res.isLocalFile || (typeof res.download === 'string' && (await import('fs')).existsSync(res.download))) {
+                const fs = await import('fs');
+                buffer = fs.readFileSync(res.download);
+            } else {
+                const aRes = await axios.get(res.download, { responseType: 'arraybuffer', timeout: 60000 });
+                buffer = Buffer.from(aRes.data);
+            }
         }
 
-        const audio = pickBestAudio(info);
-        if (!audio) throw new Error("No audio stream found.");
-        if (audio.contentLength > MAX_SIZE) throw new Error(`Audio is too large (${formatSize(audio.contentLength)}).`);
-
-        const caption = `🎵 *${info.title}*
-👤 Channel: ${info.author}
-⏱️ Duration: ${formatDuration(info.durationSeconds)}
-📦 Size: ${formatSize(audio.contentLength)}
-🔗 ${info.canonicalUrl}`;
-
-        // 1) Info card with thumbnail
-        await conn.sendMessage(m.chat, { image: { url: info.bestThumbnail }, caption }, { quoted: m });
-
-        // 2) Download the audio and send it
-        const buffer = await downloadBuffer(audio.directUrl, audio.contentLength);
         if (!buffer?.length) throw new Error("Downloaded audio is empty.");
 
-        const safeName = info.title.replace(/[\\/:*?"<>|]/g, "").slice(0, 80) || "audio";
         await conn.sendMessage(
             m.chat,
-            { audio: buffer, mimetype: "audio/mp4", fileName: `${safeName}.m4a`, ptt: false },
+            { audio: buffer, mimetype: "audio/mp4", fileName: `${safeName}.mp3`, ptt: false },
             { quoted: m }
         );
     } catch (e) {
