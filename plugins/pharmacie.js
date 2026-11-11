@@ -11,7 +11,7 @@
 // Results are cached 1 hour per city. Tags: morocco.
 
 const BASE = 'https://www.annuaire-gratuit.ma'
-const UA = 'Mozilla/5.0 (Linux; Android 13) SilanaBot'
+const UA = 'Mozilla/5.0 (Linux; Android 13) AmirniBot'
 const CITIES = [
     ['الدار البيضاء', 'casablanca'], ['الرباط', 'rabat'], ['مراكش', 'marrakech'],
     ['أكادير', 'agadir'], ['طنجة', 'tanger'], ['فاس', 'fes'], ['مكناس', 'meknes'],
@@ -151,7 +151,7 @@ let handler = async (m, { conn, text, args, usedPrefix }) => {
                 const listBtn = { name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'اختار المدينة', sections }) }
                 return await conn.sendButton(m.chat, {
                     text: '💊 *صيدلية الحراسة* — اختار المدينة 👇',
-                    footer: 'Silana • pharmacies de garde',
+                    footer: (global.namebot || 'bot amirni hamza') + ' • pharmacies de garde',
                     buttons: [listBtn], interactiveButtons: [listBtn], headerType: 1
                 }, { quoted: m })
             } catch { /* fall through to text */ }

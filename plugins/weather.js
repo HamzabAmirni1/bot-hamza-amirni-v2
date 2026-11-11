@@ -17,7 +17,7 @@ import { randomUUID, randomBytes } from 'crypto'
 
 const TZ = 'Africa/Casablanca'
 const SEND_HOUR = 20
-const UA = { 'User-Agent': 'Mozilla/5.0 (SilanaBot)' }
+const UA = { 'User-Agent': 'Mozilla/5.0 (AmirniBot)' }
 
 const CITIES = {
     'الدار البيضاء': [33.5731, -7.5898, 'الدار البيضاء'], 'كازا': [33.5731, -7.5898, 'الدار البيضاء'], 'casablanca': [33.5731, -7.5898, 'الدار البيضاء'],
@@ -135,7 +135,7 @@ function textCard(city, w) {
         `🌅 الشروق ${w.sunrise} • 🌇 الغروب ${w.sunset}\n\n` +
         `🕐 *خلال النهار:*\n` +
         w.hours.map(x => `${String(x.hr).padStart(2, '0')}:00 — ${x.temp}° ${wmo(x.code)[0]} ${wmo(x.code)[1]}`).join('\n') +
-        `\n\n${advice(w).join('\n')}\n\n⚡ SILANA AI • Open-Meteo`
+        `\n\n${advice(w).join('\n')}\n\n⚡ ${(global.namebot || 'bot amirni hamza')} • Open-Meteo`
     )
 }
 
@@ -172,7 +172,7 @@ async function sendRichWeather(conn, jid, city, w) {
             deviceListMetadata: {},
             deviceListMetadataVersion: 2,
             botMetadata: {
-                messageDisclaimerText: 'SILANA AI • طقس الغد',
+                messageDisclaimerText: (global.namebot || 'bot amirni hamza') + ' • طقس الغد',
                 richResponseSourcesMetadata: { sources: [] },
                 botResponseId: responseId,
                 verificationMetadata: { proofs: [{ certificateChain: [_cert(685), _cert(892)], version: 1, useCase: 1, signature: randomBytes(64) }] },
@@ -233,8 +233,8 @@ async function tick(force = false) {
     }
 }
 
-if (!global.__silanaWeatherTimer) {
-    global.__silanaWeatherTimer = setInterval(() => { tick().catch(() => {}) }, 60000)
+if (!global.__amirniWeatherTimer) {
+    global.__amirniWeatherTimer = setInterval(() => { tick().catch(() => {}) }, 60000)
 }
 
 let handler = async (m, { conn, text, args, usedPrefix, command, isOwner }) => {

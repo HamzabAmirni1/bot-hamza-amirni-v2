@@ -1,5 +1,5 @@
 /**
- * dlpack.js — Multi-platform downloader pack for Silana v2 (ChiiMD base, Baileys ESM)
+ * dlpack.js — Multi-platform downloader pack (ChiiMD base, Baileys ESM)
  *
  * One plugin, nineteen downloaders — every command starts with "dl-":
  *   .dl           → menu of the pack (with a working example for each command)
@@ -34,7 +34,7 @@
  * verified (expired links return the API's own structured errors). Likee is
  * still awaiting a real video link to test with.
  * v6.2 (same day): the Gofile menu example is now a tiny test clip uploaded
- * for this pack (silana-dl-test.mp4) — test examples must always be files
+ * for this pack (dl-test.mp4) — test examples must always be files
  * whose content is known and clean, never random public uploads.
  *
  * v3: Dailymotion and Bilibili were REMOVED — both platforms hard-block
@@ -136,7 +136,7 @@ async function dlReddit(conn, m, url) {
     const out = path.join(TMPDIR, `reddit-${stamp()}.mp4`)
     if (vredd) {
         await redditDashToFile(vredd[1], out)
-        return sendByType(conn, m, out, 'video/mp4', '🎬 Reddit video — via Silana DL Pack')
+        return sendByType(conn, m, out, 'video/mp4', '🎬 Reddit video — via DL Pack')
     }
     const post = url.match(/reddit\.com(\/r\/[^?#]+?\/comments\/[a-z0-9]+[^?#]*)|redd\.it\/([a-z0-9]+)/i)
     if (!post) throw new Error('bad-link: not a reddit post / v.redd.it link')
@@ -278,12 +278,12 @@ async function dlTg(conn, m, url) {
     if (vid) {
         const out = path.join(TMPDIR, `tg-${stamp()}.mp4`)
         await downloadToFile(vid.replace(/&amp;/g, '&'), out)
-        return sendByType(conn, m, out, 'video/mp4', '🎬 Telegram video — via Silana DL Pack')
+        return sendByType(conn, m, out, 'video/mp4', '🎬 Telegram video — via DL Pack')
     }
     const photo = html.match(/background-image:url\('(https:\/\/cdn\d*\.telesco\.pe\/[^']+)'\)/)?.[1]
     if (photo) {
         const { buf } = await fetchBuf(photo.replace(/&amp;/g, '&'))
-        return conn.sendMessage(m.chat, { image: buf, caption: '🖼️ Telegram photo — via Silana DL Pack' }, { quoted: m })
+        return conn.sendMessage(m.chat, { image: buf, caption: '🖼️ Telegram photo — via DL Pack' }, { quoted: m })
     }
     throw new Error('telegram: no downloadable media in this post (text-only, private channel, or a group/channel the web preview cannot see)')
 }
@@ -380,7 +380,7 @@ async function dlKwai(conn, m, url) {
     if (!src) throw new Error('kwai: no video URL in the page — Kwai shows most of its web pages only inside the app')
     const out = path.join(TMPDIR, `kwai-${stamp()}.mp4`)
     await downloadToFile(src.replace(/&amp;/g, '&'), out)
-    return sendByType(conn, m, out, 'video/mp4', '🎬 Kwai video — via Silana DL Pack')
+    return sendByType(conn, m, out, 'video/mp4', '🎬 Kwai video — via DL Pack')
 }
 
 /* ---------------- Rumble ---------------- */
@@ -644,7 +644,7 @@ async function dlFb(conn, m, url) {
     if (!src) throw new Error('facebook: no video source in the embed page (private video, or this server is walled)')
     const out = path.join(TMPDIR, `fb-${stamp()}.mp4`)
     await downloadToFile(src, out)
-    return sendByType(conn, m, out, 'video/mp4', '📘 Facebook video — via Silana DL Pack')
+    return sendByType(conn, m, out, 'video/mp4', '📘 Facebook video — via DL Pack')
 }
 
 /* ---------------- Likee ---------------- */
@@ -668,7 +668,7 @@ async function dlLk(conn, m, url) {
     const title = cleanName(html.match(/property="og:title" content="([^"]+)"/)?.[1], 'Likee video')
     const out = path.join(TMPDIR, `lk-${stamp()}.mp4`)
     await downloadToFile(src, out, { Referer: 'https://likee.video/' })
-    return sendByType(conn, m, out, 'video/mp4', '🎵 ' + title + ' — via Silana DL Pack')
+    return sendByType(conn, m, out, 'video/mp4', '🎵 ' + title + ' — via DL Pack')
 }
 
 /* ---------------- Gofile ---------------- */
@@ -790,7 +790,7 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
         const names = Object.values(SOURCES).map(s => s.label)
         const nameList = names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]
         return conn.reply(m.chat,
-            `📥 *Silana DL Pack* v6.2\n` +
+            `📥 *Universal DL Pack* v6.2\n` +
             `With these commands you can download from ${names.length} platforms: ${nameList}.\n\n` +
             `Every command below has a working example — copy it to test the feature yourself:\n\n` +
             lines + `\n\nMax file size: 95 MB.`, m)

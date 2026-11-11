@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // رد (quote) على أي فيديو واكتب .reel → كيرجع بصيغة ريلز 1080×1920
 // احترافية جاهزة للنشر: خلفية ضبابية من نفس الفيديو، تحسين ألوان خفيف،
-// واترمارك silana_ai، وتوحيد مستوى الصوت.
+// واترمارك amirni_bot، وتوحيد مستوى الصوت.
 //
 //   .reel            → وضع الخلفية الضبابية (الافتراضي)
 //   .reel full       → ملء الشاشة بالقص (بلا خلفية)
@@ -136,7 +136,7 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
 
         const blur = caps.gblur ? 'gblur=sigma=45' : 'boxblur=luma_radius=38:luma_power=3'
         const wm = caps.drawtext
-            ? `,drawtext=text='silana_ai':fontcolor=white@0.45:fontsize=54:shadowcolor=black@0.4:shadowx=1:shadowy=1:x=w-tw-28:y=h-175`
+            ? `,drawtext=text='amirni_bot':fontcolor=white@0.45:fontsize=54:shadowcolor=black@0.4:shadowx=1:shadowy=1:x=w-tw-28:y=h-175`
             : ''
         let vf
         if (already) {
@@ -165,8 +165,8 @@ let handler = async (m, { conn, args, usedPrefix, command }) => {
         if (!fs.existsSync(out) || fs.statSync(out).size < 10000) throw new Error('encode: المخرجات خاوية')
 
         const modeTxt = already ? 'كان بصيغة الريلز' : full ? 'ملء الشاشة' : 'خلفية ضبابية'
-        await conn.sendFile(m.chat, out, 'silana-reel.mp4',
-            `✂️ *صافي!* ريلز 1080×1920 (${modeTxt}${startAt || endAt ? `، مقصوص ${Math.round(clipDur)}s` : ''}) — جاهز للنشر.\n⚡ SILANA AI`, m)
+        await conn.sendFile(m.chat, out, 'reel.mp4',
+            `✂️ *صافي!* ريلز 1080×1920 (${modeTxt}${startAt || endAt ? `، مقصوص ${Math.round(clipDur)}s` : ''}) — جاهز للنشر.\n⚡ ${(global.namebot || 'bot amirni hamza')}`, m)
 
     } catch (e) {
         const msg = String(e.message || e)

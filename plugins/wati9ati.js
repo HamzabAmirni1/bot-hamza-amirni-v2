@@ -108,7 +108,7 @@ let handler = async (m, { conn, text, args, usedPrefix, command }) => {
     }]
     if (typeof conn.sendButton === 'function') {
         try {
-            await conn.sendButton(m.chat, { text: body, footer: 'SILANA AI • وثيقتي', buttons: [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'اختر الوثيقة', sections }) }] }, { quoted: m })
+            await conn.sendButton(m.chat, { text: body, footer: (global.namebot || 'bot amirni hamza') + ' • وثيقتي', buttons: [{ name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'اختر الوثيقة', sections }) }] }, { quoted: m })
             return
         } catch {}
     }

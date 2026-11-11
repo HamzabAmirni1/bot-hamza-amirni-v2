@@ -76,10 +76,15 @@ async function fgetFacebook(url) {
       if (href && !bestUrl) bestUrl = href;
     });
     if (bestUrl) return { type: 'video', url: bestUrl, title: $('.result-title').first().text().trim() || 'Facebook Video' };
-    return null;
-  } catch {
-    return null;
-  }
+  } catch (_) {}
+
+  try {
+    const { data } = await axios.get(`https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(url)}`, { timeout: 15000 });
+    const videoUrl = data?.data?.hd || data?.data?.sd || data?.data?.video;
+    if (videoUrl) return { type: 'video', url: videoUrl, title: data?.data?.title || 'Facebook Video' };
+  } catch (_) {}
+
+  return null;
 }
 
 // ─── mever.zeabur.app fallback ──────────────────────────────────────────────

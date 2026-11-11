@@ -484,7 +484,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'grep': 'البحث في سورس كود البوت والملفات بسرعة فائقة',
       'anticall': 'إدارة نظام الرد التلقائي على المكالمات وبث الصوت',
 
-      // Added from silana-v2
+      // Added plugins
       'mahroukat': 'أسعار المحروقات بالمغرب وحساب تكلفة السفر بين المدن',
       'pharmacie': 'صيدليات الحراسة بـ 21 مدينة مغربية',
       'concours': 'جديد مباريات التوظيف والوظيفة العمومية بالمغرب',
@@ -825,7 +825,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'grep': 'البحث في سورس كود البوت والملفات بسرعة فائقة',
       'anticall': 'إدارة نظام الرد التلقائي على المكالمات وبث الصوت',
 
-      // Added from silana-v2
+      // Added plugins
       'mahroukat': 'أسعار المحروقات بالمغرب وحساب تكلفة السفر بين المدن',
       'pharmacie': 'صيدليات الحراسة بـ 21 مدينة مغربية',
       'concours': 'جديد مباريات التوظيف والوظيفة العمومية بالمغرب',
@@ -1165,7 +1165,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'grep': 'Search fast through bot source code files',
       'anticall': 'Manage auto-answer VoIP anti-call voice streaming',
 
-      // Added from silana-v2
+      // Added plugins
       'mahroukat': 'Morocco fuel prices & travel cost calculator',
       'pharmacie': 'On-call pharmacies across 21 Moroccan cities',
       'concours': 'Moroccan public job competitions (emploi-public.ma)',

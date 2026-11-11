@@ -74,7 +74,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         const ogVideo = metaContent(html, 'og:video:secure_url') || metaContent(html, 'og:video')
         if (ogVideo && /\.sc-cdn\.net|snapcdn/i.test(ogVideo)) {
             const buf = await download(ogVideo)
-            await conn.sendMessage(m.chat, { video: buf, caption: `👻 ${title || 'Snapchat Spotlight'}\n⚡ SILANA AI`, mimetype: 'video/mp4' }, { quoted: m })
+            await conn.sendMessage(m.chat, { video: buf, caption: `👻 ${title || 'Snapchat Spotlight'}\n⚡ ${(global.namebot || 'bot amirni hamza')}`, mimetype: 'video/mp4' }, { quoted: m })
             return
         }
 

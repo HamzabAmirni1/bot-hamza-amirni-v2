@@ -14,7 +14,7 @@
 // Tags: morocco.
 
 const SITE = 'https://alwadifa-club.com'
-const UA = 'Mozilla/5.0 (Linux; Android 13) SilanaBot'
+const UA = 'Mozilla/5.0 (Linux; Android 13) AmirniBot'
 const CACHE_MS = 30 * 60 * 1000
 const cache = new Map()
 const lastList = new Map()

@@ -1,21 +1,21 @@
 /**
- * aivoice.js — Talk to Silana by voice (Silana v2, ChiiMD base, Baileys ESM)
+ * aivoice.js — Talk to Bot by voice (Baileys ESM)
  *
  *   .aivoice                  → quote a voice note, or type a question after
- *                               the command — Silana answers with a VOICE NOTE
+ *                               the command — bot answers with a VOICE NOTE
  *   .aivoice <question>       → ask by text, get the answer spoken
  *   .aivoice voices           → list the available AI voices (Arabic first)
  *   .aivoice sample <n>       → hear voice n°<n> say a sample line
- *   .aivoice setvoice <n>     → (owner) make voice n°<n> Silana's voice
+ *   .aivoice setvoice <n>     → (owner) set voice n°<n> as bot's voice
  *   .aivoice reset            → forget this chat's conversation
- *   .aivoice on|off           → (owner) AUTO voice chat in this chat (v2):
- *                               no command needed — talk and Silana answers
+ *   .aivoice on|off           → (owner) AUTO voice chat in this chat:
+ *                               no command needed — talk and bot answers
  *                               by voice, like chatting with a human.
  *                               Private chats: every message counts.
  *                               Groups: voice notes, or messages that start
- *                               with "Silana" — so a busy group stays sane.
+ *                               with "bot" — so a busy group stays sane.
  * v2 also carries a speed pass: a cached Gemini guest cookie (new chats
- * skip one round-trip), a "recording…" presence while Silana prepares the
+ * skip one round-trip), a "recording…" presence while the bot prepares the
  * answer, and extra-short answers in auto mode (shorter text = faster
  * voice rendering).
  *
@@ -136,7 +136,7 @@ const geminiWeb = {
     },
 }
 
-const SYS = `You are Silana, a warm and charming Moroccan AI companion inside WhatsApp. Your answer will be SPOKEN ALOUD as a voice note, so:
+const SYS = `You are a warm and charming Moroccan AI voice assistant inside WhatsApp created by Hamza Amirni. Your answer will be SPOKEN ALOUD as a voice note, so:
 - Reply in the SAME language and dialect as the user (Moroccan Darija if they speak Darija, Arabic if Arabic, French if French, English if English).
 - Keep it SHORT and conversational: at most 60 words, like talking to a close friend.
 - NO markdown, no lists, no emojis, no links — only natural spoken words.
@@ -189,7 +189,7 @@ async function fetchVoices() {
         gender: v.gender || '',
     })).filter((v) => v.id)
     if (!voices.length) throw new Error('aivoice: voices list is empty')
-    // Arabic voices first (Silana speaks Darija/Arabic by default), then the rest
+    // Arabic voices first (bot speaks Darija/Arabic by default), then the rest
     voices.sort((a, b) => (/arab/i.test(b.language) ? 1 : 0) - (/arab/i.test(a.language) ? 1 : 0))
     voicesCache = voices
     voicesCacheAt = Date.now()
@@ -294,7 +294,7 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
         const t = store()
         if (arg.toLowerCase() === 'on') {
             t.chats[m.chat] = true
-            return conn.reply(m.chat, '🎙️ *Auto voice chat ON* for this chat.\nJust talk — voice notes or plain messages — and Silana answers by voice. No command needed.\nPrivate chat: every message. Group: voice notes, or messages starting with "Silana".', m)
+            return conn.reply(m.chat, '🎙️ *Auto voice chat ON* for this chat.\nJust talk — voice notes or plain messages — and the bot answers by voice. No command needed.\nPrivate chat: every message. Group: voice notes, or messages starting with "bot".', m)
         }
         delete t.chats[m.chat]
         return conn.reply(m.chat, '🔕 Auto voice chat OFF for this chat. The .aivoice command still works.', m)
@@ -306,7 +306,7 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
             const voices = await fetchVoices()
             lastList.set(m.sender, { at: Date.now(), voices })
             const lines = voices.slice(0, 30).map((v, i) => `${i + 1}. ${v.name}${v.language ? ' — ' + v.language : ''}${v.gender ? ' (' + v.gender + ')' : ''}`)
-            return conn.reply(m.chat, `🎙️ *Silana's voices* (HeyGen)\n\n${lines.join('\n')}\n\nHear one: ${usedPrefix + command} sample <number>\nSet it (owner): ${usedPrefix + command} setvoice <number>`, m)
+            return conn.reply(m.chat, `🎙️ *AI Voices* (HeyGen)\n\n${lines.join('\n')}\n\nHear one: ${usedPrefix + command} sample <number>\nSet it (owner): ${usedPrefix + command} setvoice <number>`, m)
         } catch (e) { return fail(e) }
     }
     const sampleM = arg.match(/^sample\s+(\d+)$/i)
@@ -317,10 +317,10 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
         const v = entry.voices[Number((sampleM || setM)[1]) - 1]
         if (!v) return conn.reply(m.chat, 'That number is not in the list.', m)
         if (setM) {
-            if (!isOwner) return conn.reply(m.chat, '🔒 Only the owner chooses Silana\'s voice. You can still hear samples.', m)
+            if (!isOwner) return conn.reply(m.chat, '🔒 Only the owner chooses the bot\'s voice. You can still hear samples.', m)
             store().voiceId = v.id
             store().voiceName = v.name
-            return conn.reply(m.chat, `✅ Silana's voice is now *${v.name}*.`, m)
+            return conn.reply(m.chat, `✅ The bot's voice is now *${v.name}*.`, m)
         }
         if (isBusy(m.sender)) return conn.reply(m.chat, '⏳ One voice job at a time — wait a moment.', m)
         busyUsers.set(m.sender, Date.now())
@@ -348,14 +348,14 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
     if (!question && !q) {
         const cur = store().voiceName ? `\nCurrent voice: *${store().voiceName}*` : ''
         return conn.reply(m.chat,
-            `🎙️ *Talk to Silana by voice*\n\n` +
-            `• Quote a voice note with ${usedPrefix + command} — she listens and answers by voice\n` +
+            `🎙️ *Talk to Bot by voice*\n\n` +
+            `• Quote a voice note with ${usedPrefix + command} — it listens and answers by voice\n` +
             `• Or type: ${usedPrefix + command} <your question>${cur}\n\n` +
             `Voices: ${usedPrefix + command} voices · hear one: ${usedPrefix + command} sample <n> · set (owner): ${usedPrefix + command} setvoice <n>\n` +
             `Auto chat in this chat (owner): ${usedPrefix + command} on / off\n` +
             `Forget the chat: ${usedPrefix + command} reset`, m)
     }
-    if (isBusy(m.sender)) return conn.reply(m.chat, '⏳ Silana is already answering you — one voice at a time.', m)
+    if (isBusy(m.sender)) return conn.reply(m.chat, '⏳ The bot is already answering you — one voice at a time.', m)
     busyUsers.set(m.sender, Date.now())
     ensureTmp()
     try {
@@ -408,7 +408,7 @@ handler.before = async function (m, { conn }) {
             const txt = String(m.text || '').trim()
             if (!txt || /^[.!/#]/.test(txt)) return // commands are not chat
             if (isGroup) {
-                const nm = txt.match(/^(silana|سيلانا)\b[،,:]?\s*/i)
+                const nm = txt.match(/^(bot|amirni|hamza|البوت|حمزة)\b[،,:]?\s*/i)
                 if (!nm) return
                 question = txt.slice(nm[0].length).trim()
                 if (!question) return

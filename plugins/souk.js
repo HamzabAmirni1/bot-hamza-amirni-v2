@@ -1,4 +1,4 @@
-// SILANA Souk (v1) — a marketplace inside each group.
+// Souk (v1) — a marketplace inside each group.
 //   .sell <item> | <price> | <details>   -> post something for sale
 //   .souk                                -> see what's for sale in this group
 //   .buy <number>                        -> tell the seller you want it
@@ -46,7 +46,7 @@ let handler = async (m, { conn, text, usedPrefix, command, isOwner }) => {
   if (!m.isGroup) return conn.reply(m.chat, '🛒 The souk works in *groups* only — post and shop where the people are.', m)
   const list = groupList(m.chat)
   const help =
-    '🛒 *SILANA SOUK* (' + VER + ') — this group\'s marketplace\n' +
+    '🛒 *SOUK* (' + VER + ') — this group\'s marketplace\n' +
     '━━━━━━━━━━━━━━━\n' +
     '• `' + prefix + 'sell <item> | <price> | <details>` — post for sale\n' +
     '• `' + prefix + 'souk` — browse (' + list.length + ' listed now)\n' +

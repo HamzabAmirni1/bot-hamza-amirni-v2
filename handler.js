@@ -1168,7 +1168,8 @@ export async function handler(chatUpdate) {
 
 		const botJid = this.user?.jid || conn.user?.jid || '';
 		const isBotMentionedInGroup = m.isGroup && ((m.mentionedJid || []).includes(botJid) || (m.quoted && m.quoted.sender === botJid));
-		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && (!m.isGroup || isBotMentionedInGroup);
+		const isSocialUrl = /(https?:\/\/(www\.)?(facebook\.com|fb\.watch|instagram\.com|instagr\.am|tiktok\.com|douyin\.com|youtube\.com|youtu\.be|pin\.it|pinterest\.com|twitter\.com|x\.com)[^\s]*)/i.test(m.text || '');
+		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && !isSocialUrl && (!m.isGroup || isBotMentionedInGroup);
 
 		if (shouldProcessAi) {
 			console.log(`🤖 [Auto AI] Processing message from ${m.sender} in ${m.chat}: "${m.text}"`);

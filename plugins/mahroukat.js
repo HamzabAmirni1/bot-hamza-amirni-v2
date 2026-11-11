@@ -9,7 +9,7 @@
 // coastal cities tend to be cheaper, the south more expensive.
 // Cache: 6 hours. Tags: morocco.
 
-const UA = 'Mozilla/5.0 (Linux; Android 13) SilanaBot'
+const UA = 'Mozilla/5.0 (Linux; Android 13) AmirniBot'
 const PAGES = {
     gasoil: 'https://oilpricez.com/ma/morocco-diesel-price',
     essence: 'https://oilpricez.com/ma/morocco-gasoline-price'

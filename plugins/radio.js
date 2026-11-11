@@ -43,7 +43,7 @@ async function sendList(conn, m, usedPrefix) {
             const listBtn = { name: 'single_select', buttonParamsJson: JSON.stringify({ title: 'اختار المحطة', sections }) }
             return await conn.sendButton(m.chat, {
                 text: '📻 *راديو المغرب — البث المباشر*\nاختار محطة وغادي توصلك عينة حية ديال 30 ثانية 🎧',
-                footer: 'Silana • Radio Maroc', buttons: [listBtn], interactiveButtons: [listBtn], headerType: 1
+                footer: (global.namebot || 'bot amirni hamza') + ' • Radio Maroc', buttons: [listBtn], interactiveButtons: [listBtn], headerType: 1
             }, { quoted: m })
         } catch { /* fall through to text */ }
     }
