@@ -292,6 +292,8 @@ const handler = async (m, { conn, text, command }) => {
 	if (/^(play|ytplay|song|music|aghani|ytmp3)$/i.test(command)) {
 		if (!text) return m.reply(txtPromptPlay);
 
+		const originalQuery = text;
+
 		// If it's a search term, auto-download first result directly (no broken buttons)
 		if (!text.startsWith('http')) {
 			await m.react('🔍');
@@ -358,6 +360,21 @@ const handler = async (m, { conn, text, command }) => {
 				} catch (e) {
 					console.log(`[play] ❌ ${name} failed: ${e.message}`);
 				}
+			}
+		}
+
+		// Fallback: Try SoundCloud via yt-dlp if YouTube blocks datacenter IPs!
+		if (!audioData?.download && originalQuery && !originalQuery.startsWith('http')) {
+			try {
+				console.log('[play] YouTube blocked on cloud IP, trying SoundCloud fallback for:', originalQuery);
+				const { soundcloudDownload } = await import('../lib/ytdlp.js');
+				const scRes = await soundcloudDownload(videoTitle || originalQuery);
+				if (scRes?.download) {
+					audioData = scRes;
+					console.log('[play] ✅ Audio successfully fetched via SoundCloud fallback!');
+				}
+			} catch (scErr) {
+				console.log('[play] SoundCloud fallback failed:', scErr.message);
 			}
 		}
 
