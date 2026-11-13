@@ -1168,6 +1168,31 @@ export async function handler(chatUpdate) {
 
 		const botJid = this.user?.jid || conn.user?.jid || '';
 		const isBotMentionedInGroup = m.isGroup && ((m.mentionedJid || []).includes(botJid) || (m.quoted && m.quoted.sender === botJid));
+
+		// ── Auto Voice-to-Text Transcription for Auto AI (قراءة الأوديو بالذكاء الاصطناعي) ──
+		let isFromVoiceAudio = false;
+		let voiceTranscript = '';
+		const isAudioMessage = !m.isCommand && !usedPrefix && !m.isBaileys &&
+			(m.mtype === 'audioMessage' || (m.msg?.mimetype && m.msg.mimetype.includes('audio')));
+
+		if (isAutoAiOn && isAudioMessage && (!m.isGroup || isBotMentionedInGroup)) {
+			try {
+				await m.react('🎧').catch(() => {});
+				const audioBuffer = await m.download().catch(() => null);
+				if (audioBuffer && audioBuffer.length > 500) {
+					const { transcribeAudio } = await import('./lib/stt.js');
+					voiceTranscript = await transcribeAudio(audioBuffer, 'ar-MA');
+					if (voiceTranscript) {
+						isFromVoiceAudio = true;
+						m.text = voiceTranscript;
+						console.log(`🎤 [Voice Auto-AI] Transcribed voice from ${m.sender}: "${voiceTranscript}"`);
+					}
+				}
+			} catch (vErr) {
+				console.log('[Voice Auto-AI] Transcription failed:', vErr.message);
+			}
+		}
+
 		const isSocialUrl = /(https?:\/\/(www\.)?(facebook\.com|fb\.watch|instagram\.com|instagr\.am|tiktok\.com|douyin\.com|youtube\.com|youtu\.be|pin\.it|pinterest\.com|twitter\.com|x\.com)[^\s]*)/i.test(m.text || '');
 		const shouldProcessAi = isAutoAiOn && !m.isCommand && m.text && !m.isBaileys && !usedPrefix && !m.text.startsWith('.') && !isSocialUrl && (!m.isGroup || isBotMentionedInGroup);
 
@@ -1268,13 +1293,19 @@ export async function handler(chatUpdate) {
 					}
 				}
 
-				const cleanReply = cleanAIResponse(aiReply || '');
+				let cleanReply = cleanAIResponse(aiReply || '');
+				if (isFromVoiceAudio && voiceTranscript) {
+					cleanReply = `🎤 *[أوديو مسموع]*: _"${voiceTranscript}"_\n\n${cleanReply}`;
+				}
 				console.log(`🤖 [Auto AI Reply to ${m.sender}]: "${cleanReply}"`);
 				history.push({ role: 'user', content: m.text });
 				history.push({ role: 'assistant', content: cleanReply });
 				saveAiMemoryToSupabase(m.sender, history).catch(() => {});
 
 				await this.reply(m.chat, cleanReply, m).catch(() => {});
+				if (isFromVoiceAudio) {
+					await m.react('✅').catch(() => {});
+				}
 			} catch (e) {
 				console.error('Auto AI Chatbot Error:', e);
 			}
