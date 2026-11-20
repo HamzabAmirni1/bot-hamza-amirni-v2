@@ -1,7 +1,10 @@
 // ============================================================
 // Bot Mode Checker — runs BEFORE every command
-// Modes: public | private | admin | group
+// Modes: public | private | admin | group | vu
 // Contract: Return TRUE to BLOCK command, Return FALSE to ALLOW
+//
+// GROUP RULE: groups are ALWAYS blocked unless mode is 'group', 'gc', or 'vu'
+// In 'vu' mode: only bot admins/owners can use in groups
 // ============================================================
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
@@ -63,10 +66,16 @@ export async function before(m) {
 	const isPrivate  = !isGroup;
 	const isBotAdmin = admins.some(a => String(a).replace(/[^0-9]/g, '') === senderNum);
 
+	// ── GLOBAL GROUP BLOCK ──────────────────────────────────────────────────
+	// Groups are forbidden in ALL modes EXCEPT 'group', 'gc', and 'vu'.
+	// In 'vu' mode, only bot admins/owners can use the bot in groups.
+	const groupAllowedModes = ['group', 'gc', 'vu'];
+	if (isGroup && !groupAllowedModes.includes(mode)) return true;
+
 	switch (mode) {
 		case 'private':
 		case 'pm':
-			if (isGroup) return true;
+			// Groups already blocked above; allow DMs
 			break;
 
 		case 'group':
@@ -77,13 +86,18 @@ export async function before(m) {
 		case 'admin':
 		case 'self':
 		case 'owner':
+			// admin mode = bot admins only, DMs only (groups already blocked)
+			if (!isBotAdmin) return true;
+			break;
+
 		case 'vu':
-			// VU mode: bot admins (+ owners) can use the bot anywhere, everyone else is blocked
+			// VU mode: bot admins can use the bot in BOTH groups AND DMs; everyone else blocked
 			if (!isBotAdmin) return true;
 			break;
 
 		case 'public':
 		default:
+			// public = DMs only (groups already blocked by global rule above)
 			break;
 	}
 
