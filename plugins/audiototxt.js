@@ -1,60 +1,54 @@
 // plugins/audiototxt.js — تحويل البصمات الصوتية إلى نص + رد AI عليها
-// الاستعمال:
-//   .audiototxt            → تفريغ الصوت بالدارجة المغربية فقط
-//   .audiototxt ai         → تفريغ + رد AI على النص المفرغ
-//   .audiototxt fr         → تفريغ بالفرنسية
-//   .audiototxt ai fr      → تفريغ بالفرنسية + رد AI
+// بوت حمزة اعمرني | Hamza Amirni
 //
-// التقنية: الصوت كيتحول بـ ffmpeg إلى FLAC 16kHz وكيتصيفط لـ Google Speech.
-// حد الطول: دقيقتان للبصمة الواحدة.
+// الاستعمال:
+//   .audiototxt       → تفريغ الصوت بالدارجة المغربية
+//   .audiototxt ai    → تفريغ + رد AI على المحتوى 🆕
+//   .audiai           → alias سريع لـ AI mode 🆕
+//   .voiceai          → alias آخر 🆕
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { transcribeAudio } from '../lib/stt.js';
 import { getSmartAIReply, cleanAIResponse } from '../lib/ai.js';
 
-const LANGS = {
-    ma: 'ar-MA', ar: 'ar-MA', fr: 'fr-FR', en: 'en-US',
-    es: 'es-ES', de: 'de-DE', it: 'it-IT', pt: 'pt-PT', tr: 'tr-TR'
-};
 const MAX_SECONDS = 120;
 
-// system prompt لـ AI باش يفهم إنو الكلام جا من صوت
-const buildAIPrompt = (transcript, lang) => `You are *Bot Amirni Hamza* (بوت حمزة اعمرني), a smart WhatsApp assistant created by Moroccan developer *Hamza Amirni*.
+const buildAIPrompt = (transcript) => `You are *Bot Amirni Hamza* (بوت حمزة اعمرني), a smart WhatsApp assistant created by Moroccan developer *Hamza Amirni* (حمزة اعمرني).
 
-A user sent a voice message. The voice was transcribed and the text is below. Your job is to UNDERSTAND what they said and give a helpful, conversational reply.
+A user sent a voice message. The voice was transcribed to text. Your job is to understand what they said and give a helpful, friendly reply.
 
 LANGUAGE RULES (STRICT):
-• If the transcribed text is in Moroccan Darija or Arabizi → reply in Moroccan Darija using ARABIC script (بالحروف العربية).
+• If the text is Moroccan Darija or Arabizi → reply ONLY in Moroccan Darija using ARABIC script (بالحروف العربية).
 • If in French → reply in French.
 • If in English → reply in English.
 • If in Standard Arabic → reply in Standard Arabic.
-• NEVER mix languages unexpectedly. Match the user's language.
+• NEVER switch language unexpectedly.
 
 WHATSAPP FORMATTING:
 • Use *bold* for key points.
 • Use emojis naturally.
-• Keep reply concise and conversational (this is a voice message reply, not an essay).
-• NO Markdown links like [text](url) — write URLs as plain text.
+• Keep reply concise and conversational.
+• NO Markdown links [text](url) — write URLs as plain text.
 • NEVER mention ChatGPT or OpenAI.
 
 TRANSCRIBED VOICE MESSAGE:
 "${transcript}"
 
-Now reply to what the user said in their voice message:`;
+Reply to what the user said in their voice message:`;
 
 let handler = async (m, { conn, text, isOwner, usedPrefix, command }) => {
     const q = m.quoted;
+
     if (!q) {
         return m.reply(
-            `🎙️ *تحويل الصوت إلى نص*\n\n` +
-            `رد على بصمة صوتية (quote) واكتب:\n` +
-            `➤ *${usedPrefix + command}* — تفريغ الصوت بالدارجة\n` +
-            `➤ *${usedPrefix + command} ai* — تفريغ + رد AI على المحتوى\n` +
-            `➤ *${usedPrefix + command} fr* — تفريغ بالفرنسية\n` +
-            `➤ *${usedPrefix + command} ai fr* — تفريغ فرنسي + رد AI\n\n` +
-            `🌍 لغات: ma | ar | fr | en | es | de | it | pt | tr\n` +
-            `⏱️ الحد الأقصى: دقيقتان`
+            `🎙️ *تحويل الصوت إلى نص*\n` +
+            `━━━━━━━━━━━━━━━━\n` +
+            `رد على بصمة صوتية (quote) واكتب:\n\n` +
+            `➤ *${usedPrefix}audiototxt* — تفريغ الصوت بالدارجة\n` +
+            `➤ *${usedPrefix}audiototxt ai* — تفريغ + رد AI على المحتوى 🤖\n` +
+            `➤ *${usedPrefix}audiai* — رد AI مباشر على الصوت\n\n` +
+            `⏱️ الحد الأقصى للبصمة: دقيقتان\n` +
+            `━━━━━━━━━━━━━━━━\n` +
+            `_⚡ بوت حمزة اعمرني_`
         );
     }
 
@@ -65,44 +59,48 @@ let handler = async (m, { conn, text, isOwner, usedPrefix, command }) => {
 
     const seconds = Number(q.seconds || q.duration || 0);
     if (seconds > MAX_SECONDS) {
-        return m.reply(`⚠️ البصمة طويلة بزاف (${seconds} ثانية). الحد الأقصى هو ${MAX_SECONDS} ثانية — قسمها وجرب.`);
+        return m.reply(`⚠️ البصمة طويلة بزاف (${seconds} ثانية). الحد الأقصى هو ${MAX_SECONDS} ثانية.`);
     }
 
-    // parse arguments: check for "ai" flag and language
-    const args = (text || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const wantsAI = args.includes('ai');
-    const langArgs = args.filter(a => a !== 'ai');
-    const langArg = langArgs[0] || '';
-    const lang = LANGS[langArg] || (/^[a-z]{2}(-[A-Z]{2})?$/i.test(langArg) ? langArg : 'ar-MA');
+    // .audiai / .voiceai → force AI mode
+    const forceAI = /^(audiai|voiceai)$/i.test(command);
+    const wantsAI = forceAI || (text || '').trim().toLowerCase().split(/\s+/).includes('ai');
 
     await m.react?.('🎧').catch(() => {});
 
     try {
-        // ── Step 1: Download audio ──────────────────────────────────────────
         let buffer = null;
         try { buffer = await q.download(); } catch { buffer = null; }
         if (!buffer?.length) throw new Error('تعذر تحميل الصوت من الرسالة');
 
-        // ── Step 2: Transcribe ─────────────────────────────────────────────
-        const transcript = await transcribeAudio(buffer, lang);
+        // ── Transcribe (always Darija) ─────────────────────────────────────
+        const transcript = await transcribeAudio(buffer);
         if (!transcript) {
-            return m.reply('🤔 ما قدرت نفهم حتى كلمة من هاد البصمة. جرب بصمة أوضح، أقصر، وبعيدة على الضجيج.');
+            await m.react?.('❓').catch(() => {});
+            return m.reply('🤔 ما قدرت نفهم حتى كلمة من هاد البصمة.\nجرب بصمة أوضح، أقصر، وبعيدة على الضجيج.');
         }
 
         await m.react?.('✅').catch(() => {});
 
-        const langLabel = lang === 'ar-MA' ? 'دارجة مغربية 🇲🇦' : lang;
-
-        // ── Step 3: If only transcribe (no AI flag) ─────────────────────────
+        // ── Transcribe only ────────────────────────────────────────────────
         if (!wantsAI) {
-            return m.reply(`🎙️ *النص المفرغ* (${langLabel}):\n\n${transcript}`);
+            return m.reply(
+                `🎙️ *النص المفرغ* (دارجة مغربية 🇲🇦):\n` +
+                `━━━━━━━━━━━━━━━━\n\n` +
+                `${transcript}\n\n` +
+                `━━━━━━━━━━━━━━━━\n` +
+                `_💡 لرد AI على البصمة: ${usedPrefix}audiototxt ai_\n` +
+                `_⚡ بوت حمزة اعمرني_`
+            );
         }
 
-        // ── Step 4: AI mode — transcribe + reply ───────────────────────────
-        await m.reply(`🎙️ *النص المفرغ* (${langLabel}):\n\n_${transcript}_\n\n🧠 *البوت كيفكر فـ الجواب...*`);
+        // ── AI Mode: transcribe + answer ───────────────────────────────────
+        await m.reply(
+            `🎙️ *النص المفرغ:*\n_${transcript}_\n\n` +
+            `🧠 *البوت كيفكر فـ الجواب...*`
+        );
 
-        const aiPrompt = buildAIPrompt(transcript, lang);
-        let aiResponse = await getSmartAIReply(transcript, { systemPrompt: aiPrompt });
+        let aiResponse = await getSmartAIReply(transcript, { systemPrompt: buildAIPrompt(transcript) });
         if (aiResponse) aiResponse = cleanAIResponse(aiResponse);
 
         if (!aiResponse) {
@@ -110,7 +108,7 @@ let handler = async (m, { conn, text, isOwner, usedPrefix, command }) => {
         }
 
         const header = '🤖 *بوت حمزة اعمرني — رد على البصمة*\n━━━━━━━━━━━━━━━━';
-        const footer = '━━━━━━━━━━━━━━━━\n_🎙️ Powered by Voice AI • bot amirni hamza_';
+        const footer = '━━━━━━━━━━━━━━━━\n_🎙️ Voice AI • بوت حمزة اعمرني_';
 
         try {
             await conn.sendButton(m.chat, {
@@ -142,12 +140,12 @@ let handler = async (m, { conn, text, isOwner, usedPrefix, command }) => {
         await m.react?.('❌').catch(() => {});
         return m.reply(
             '❌ وقع مشكل فـ المعالجة.' +
-            (isOwner ? `\n\n🔧 تفاصيل: ${String(e?.message || e).slice(0, 200)}` : '')
+            (isOwner ? `\n\n🔧 _${String(e?.message || e).slice(0, 200)}_` : '')
         );
     }
 };
 
-handler.help = ['audiototxt [ai] [lang]'];
+handler.help = ['audiototxt', 'audiai'];
 handler.tags = ['ai'];
 handler.command = ['audiototxt', 'voicetotext', 'totext', 'audiai', 'voiceai'];
 handler.limit = false;
