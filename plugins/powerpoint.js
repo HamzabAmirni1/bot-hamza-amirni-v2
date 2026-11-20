@@ -21,6 +21,8 @@ async function getPptxGen() {
 }
 
 const isRtl = (str) => /[\u0600-\u06FF]/.test(String(str || ''));
+const isFrenchTopic = (str) => /[àâäéèêëîïôöùûüçœ]/i.test(String(str || '')) ||
+	/(présentation|sujet|projet|cours|gestion|management|analyse|rapport|travail|devoir|exposé|société|santé|technologie|avenir|monde)/i.test(String(str || ''));
 
 /**
  * Intelligent parser that extracts or constructs slides from any AI response (JSON or plain text)
@@ -37,7 +39,7 @@ function parseSlidesFromAnyText(raw, topic) {
 			if (parsed.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
 				return {
 					title: parsed.title || topic,
-					subtitle: parsed.subtitle || (isRtl(topic) ? 'عرض تقديمي شامل ومفصل' : 'Comprehensive Presentation'),
+					subtitle: parsed.subtitle || (isRtl(topic) ? 'عرض تقديمي شامل ومفصل' : isFrenchTopic(topic) ? 'Présentation Complète et Professionnelle' : 'Comprehensive Presentation'),
 					slides: parsed.slides.slice(0, 10)
 				};
 			}
@@ -50,7 +52,7 @@ function parseSlidesFromAnyText(raw, topic) {
 	let currentSlide = null;
 
 	for (const line of lines) {
-		if (/^(أهلاً|مرحباً|أهلا|بالتأكيد|إليك|السلام|hello|sure|here is|welcome)/i.test(line) && line.length < 80) {
+		if (/^(أهلاً|مرحباً|أهلا|بالتأكيد|إليك|السلام|hello|sure|here is|welcome|bonjour|voici)/i.test(line) && line.length < 80) {
 			continue;
 		}
 
@@ -73,60 +75,133 @@ function parseSlidesFromAnyText(raw, topic) {
 	}
 	if (currentSlide && currentSlide.points.length > 0) slides.push(currentSlide);
 
-	// 3. Fallback: Generate comprehensive professional slides if AI output is sparse
+	// 3. Fallback: High-Standard Professional Structure (Academic & Executive Standard)
 	if (slides.length < 3) {
 		const rtl = isRtl(topic);
+		const fr = isFrenchTopic(topic);
+
 		if (rtl) {
 			return {
 				title: topic,
-				subtitle: 'عرض تقديمي شامل ومفصل • Bot Amirni Hamza',
+				subtitle: 'عرض تقديمي شامل واحترافي • Bot Amirni Hamza',
 				slides: [
 					{
-						title: 'المقدمة والأهداف الرئيسية',
+						title: 'المقدمة العامة وسياق الموضوع',
 						points: [
-							`نظرة عامة وشاملة حول مفهوم ${topic} في حياة الإنسان`,
-							'أهمية الموضوع وأهدافه المحورية في بناء المجتمع وترسيخ القيم الإيجابية',
-							'المحاور والمفاهيم الأساسية التي سنتناولها بالتفصيل في هذا العرض'
+							`نظرة عامة وشاملة تمهد لأبعاد ومفاهيم ${topic}`,
+							'أهمية الموضوع وحيويته في الواقع المعاصر والمستقبل',
+							'الإشكالية المحورية ومحاور العرض الأساسية'
+						]
+					},
+					{
+						title: 'أهداف العرض التقديمي',
+						points: [
+							'تحديد المفاهيم الأساسية والأبعاد الجوهرية للموضوع',
+							'تحليل آليات التطبيق وأحدث الممارسات المتبعة علمياً',
+							'تقديم حلول عملية وتوصيات استراتيجية قابلة للتنفيذ'
 						]
 					},
 					{
 						title: 'المفاهيم والأسس الجوهرية',
 						points: [
 							`التعريف العلمي والدقيق لمفهوم ${topic}`,
-							'المبادئ الأساسية والقيم المرتبطة بالموضوع',
-							'التأثير المباشر والعميق على استقرار الفرد والمجتمع'
+							'المبادئ الأساسية والقيم الحاكمة المرتبطة بالموضوع',
+							'التأثير المباشر والأبعاد الهيكلية على الفرد والمجتمع'
 						]
 					},
 					{
-						title: 'التحليل والتطبيق العملي',
+						title: 'التحليل المعمق والأمثلة العملية',
 						points: [
-							'تحليل معمق للجوانب الإيجابية والتطبيقات الواقعية في حياتنا',
-							'نماذج ملهمة وتجارب عملية أثبتت نجاحها وأثرها الطيب',
-							'خطوات عملية لتطبيق هذه المبادئ في التعاملات اليومية'
+							'دراسة تحليلية ونماذج واقعية ناجحة أثبتت فعاليتها',
+							'تجارب ملهمة وأفضل الممارسات التطبيقية في المجال',
+							'خطوات إجرائية لتطبيق هذه المبادئ في بيئة العمل والحياة'
 						]
 					},
 					{
-						title: 'الفوائد والنتائج المستدامة',
+						title: 'المزايا والتحديات وسبل التجاوز',
 						points: [
-							'تحقيق التوازن النفسي والارتقاء بجودة الحياة والسلام الداخلي',
-							'تعزيز العلاقات الإنسانية وبناء بيئة إيجابية ومحفزة للجميع',
-							'الأثر طويل الأمد على النجاح الشخصي والمهني والمجتمعي'
+							'المنافع الاستراتيجية والقيمة المضافة المستدامة',
+							'أبرز الصعوبات والمعوقات المحتملة وكيفية احتوائها',
+							'حلول مبتكرة واستراتيجيات ذكية للتغلب على التحديات'
 						]
 					},
 					{
-						title: 'التحديات وسبل التغلب عليها',
+						title: 'التركيب وحصيلة الأفكار الرئيسية',
 						points: [
-							'أبرز الصعوبات والمعوقات المحتملة التي قد تواجهنا في الواقع',
-							'الحلول المبتكرة والاستراتيجيات الفعالة لتجاوزها بنجاح',
-							'أهمية الاستمرارية والتطوير الذاتي المستمر للتغلب على التحديات'
+							'ملخص مكثف لأهم الدروس المستفادة والركائز الجوهرية',
+							'حصيلة نهائية متكاملة تربط بين النظرية والتطبيق',
+							'خارطة طريق واضحة للتطوير المستمر والارتقاء'
 						]
 					},
 					{
-						title: 'الخاتمة والتوصيات العملية',
+						title: 'الخاتمة والتوصيات والختام',
 						points: [
-							'ملخص شامل لأهم النقاط والدروس المستفادة من هذا العرض',
-							'خارطة طريق وتوصيات ختامية قابلة للتنفيذ الفوري في الواقع',
-							'شكر وتقدير لمتابعتكم الكريمة لهذا العرض التقديمي'
+							'خلاصة جامعة ورسالة ختامية ترسم آفاق النجاح المستمر',
+							'توصيات ختامية للتنفيذ المباشر والتقييم الدوري',
+							'شكراً جزيلاً لحسن متابعتكم وانتباهكم الكريم'
+						]
+					}
+				]
+			};
+		} else if (fr) {
+			return {
+				title: topic,
+				subtitle: 'Présentation Complète & Professionnelle • Bot Amirni Hamza',
+				slides: [
+					{
+						title: 'Introduction Générale & Contexte',
+						points: [
+							`Vue d'ensemble et mise en contexte globale de : ${topic}`,
+							'Importance majeure et pertinence du sujet dans le monde contemporain',
+							'Problématique centrale et cadre général de réflexion'
+						]
+					},
+					{
+						title: 'Objectifs de la Présentation',
+						points: [
+							'Comprendre les notions fondamentales et les enjeux stratégiques',
+							'Analyser les mécanismes opérationnels et les facteurs clés de succès',
+							'Identifier des solutions pratiques et des perspectives d\'avenir durables'
+						]
+					},
+					{
+						title: 'Fondements & Concepts Clés',
+						points: [
+							`Définition rigoureuse et éléments constitutifs de : ${topic}`,
+							'Les piliers méthodologiques et le cadre théorique de référence',
+							'Règles d\'or, principes directeurs et normes d\'excellence'
+						]
+					},
+					{
+						title: 'Développement & Exemples Concrets',
+						points: [
+							'Étude approfondie des cas d\'usage réels et applications pratiques',
+							'Retours d\'expérience, illustrations chiffrées et modèles inspirants',
+							'Méthodes concrètes de mise en œuvre et d\'exécution sur le terrain'
+						]
+					},
+					{
+						title: 'Avantages, Défis & Solutions',
+						points: [
+							'Bénéfices tangibles, opportunités stratégiques et valeur ajoutée',
+							'Obstacles fréquents et risques potentiels à anticiper avec rigueur',
+							'Solutions innovantes et stratégies de dépassement éprouvées'
+						]
+					},
+					{
+						title: 'Synthèse des Idées & Bilan',
+						points: [
+							'Récapitulatif des enseignements majeurs et points d\'ancrage',
+							'Bilan stratégique global et feuille de route opérationnelle',
+							'Recommandations pragmatiques pour une mise en action immédiate'
+						]
+					},
+					{
+						title: 'Conclusion & Remerciements',
+						points: [
+							'Conclusion générale et ouverture vers de nouvelles perspectives',
+							'Message clé final inspirant et vision prospective',
+							'Merci chaleureusement pour votre attention et vos échanges'
 						]
 					}
 				]
@@ -134,54 +209,62 @@ function parseSlidesFromAnyText(raw, topic) {
 		} else {
 			return {
 				title: topic,
-				subtitle: 'Comprehensive Presentation • Bot Amirni Hamza',
+				subtitle: 'Comprehensive & Executive Presentation • Bot Amirni Hamza',
 				slides: [
 					{
-						title: 'Introduction & Objectives',
+						title: 'General Introduction & Background',
 						points: [
-							`Comprehensive overview of ${topic} and its core impact`,
-							'Core significance and practical value in modern context',
-							'Key milestones and agenda of this presentation'
+							`Comprehensive overview and strategic context of ${topic}`,
+							'Core relevance, market impact, and significance today',
+							'Fundamental problem statement and central roadmap'
 						]
 					},
 					{
-						title: 'Key Concepts & Framework',
+						title: 'Presentation Objectives',
 						points: [
-							`Fundamental definitions and principles of ${topic}`,
-							'Key theoretical and practical pillars',
-							'Industry standards and best practices'
+							'Understand essential definitions, pillars, and overarching goals',
+							'Analyze key operational mechanisms and proven benchmarks',
+							'Deliver actionable recommendations and future-ready strategies'
 						]
 					},
 					{
-						title: 'Deep-Dive & Practical Analysis',
+						title: 'Core Principles & Framework',
 						points: [
-							'In-depth examination of core operational mechanisms',
-							'Real-world case studies and notable examples',
-							'Actionable insights for direct implementation'
+							`Formal definitions and theoretical foundation of ${topic}`,
+							'Key methodologies, architecture, and regulatory considerations',
+							'Best-in-class standards and foundational prerequisites'
 						]
 					},
 					{
-						title: 'Benefits & Strategic Value',
+						title: 'Deep-Dive & Practical Case Studies',
 						points: [
-							'Measurable improvements in efficiency and quality of life',
-							'Strategic advantages and sustainable long-term value',
-							'Positive impact on key performance indicators'
+							'Detailed examination of real-world implementation models',
+							'Proven success stories, benchmarks, and tactical takeaways',
+							'Step-by-step roadmap for immediate execution'
 						]
 					},
 					{
-						title: 'Challenges & Solutions',
+						title: 'Strategic Benefits & Risk Mitigation',
 						points: [
-							'Common pitfalls and potential barriers to success',
-							'Proven risk mitigation techniques and strategies',
-							'Continuous improvement and adaptation framework'
+							'Measurable performance improvements and sustainable ROI',
+							'Critical bottlenecks, pitfalls, and risk management',
+							'Innovative countermeasures and continuous improvement'
 						]
 					},
 					{
-						title: 'Conclusion & Key Takeaways',
+						title: 'Key Synthesis & Strategic Review',
 						points: [
-							'Summary of essential lessons and core takeaways',
-							'Recommended next steps and future roadmap',
-							'Thank you for viewing this presentation'
+							'Consolidated review of core insights and essential lessons',
+							'Integrated assessment bridging theory with execution',
+							'Actionable next steps and performance milestones'
+						]
+					},
+					{
+						title: 'Conclusion & Thank You',
+						points: [
+							'Final concluding remarks and visionary outlook',
+							'Strategic call to action for stakeholders and teams',
+							'Thank you very much for your attention and time'
 						]
 					}
 				]
@@ -191,32 +274,51 @@ function parseSlidesFromAnyText(raw, topic) {
 
 	return {
 		title: topic,
-		subtitle: isRtl(topic) ? 'عرض تقديمي بواسطة Bot Amirni Hamza' : 'Presented by Bot Amirni Hamza',
+		subtitle: isRtl(topic) ? 'عرض تقديمي بواسطة Bot Amirni Hamza' : 'Présentation par Bot Amirni Hamza',
 		slides: slides.slice(0, 8)
 	};
 }
 
 /**
- * Generate structured slide data using AI
+ * Generate structured slide data using AI following professional expert standards
  */
 async function generatePresentationData(topic, userLang = 'darija') {
-	const systemPrompt = `You are a professional presentation designer for "Bot Amirni Hamza".
-Create a complete, high-quality PowerPoint presentation outline about: "${topic}".
-Format your response ONLY as valid raw JSON (no greetings, no code block backticks):
+	const systemPrompt = `Tu es un expert mondial en conception de présentations PowerPoint professionnelles, en communication visuelle et en design moderne pour "Bot Amirni Hamza".
+Ton rôle est de créer une présentation complète, moderne, élégante et professionnelle sur le sujet demandé par l'utilisateur.
+
+RÈGLES IMPÉRATIVES DE STRUCTURE ET DE CONTENU:
+1. LANGUE : Le contenu doit être OBLIGATOIREMENT dans la langue du sujet (Arabe si le sujet est en arabe/darija, Français si le sujet est en français, Anglais si le sujet est en anglais).
+2. STRUCTURE DE LA PRÉSENTATION (6 à 8 diapositives complètes) :
+   - Diapositive 1 : Page de couverture (Titre accrocheur et sous-titre élégant).
+   - Diapositive 2 : Introduction générale et présentation du contexte du sujet.
+   - Diapositive 3 : Objectifs clés de la présentation.
+   - Diapositives 4 à 6 : Développement organisé en plusieurs parties avec des explications claires, des exemples concrets et des informations pertinentes.
+   - Avant-dernière diapositive : Synthèse des idées principales et bilan stratégique.
+   - Dernière diapositive : Conclusion professionnelle et remerciements ("Merci pour votre attention" / "شكراً لحسن متابعتكم").
+3. QUALITÉ DU CONTENU :
+   - Utiliser un langage soigné, professionnel et accessible.
+   - 3 à 4 points essentiels par diapositive, concis, bien rédigés et percutants.
+   - Titres de diapositives courts et explicites (moins de 7 mots).
+   - Des exemples concrets et des explications pertinentes pour chaque concept.
+4. FORMAT DE SORTIE STRICT :
+Retourne UNIQUEMENT un objet JSON brut valide (SANS backticks markdown, SANS \`\`\`json, SANS texte introductif) avec la structure exacte suivante :
 {
-  "title": "Presentation Title",
-  "subtitle": "Subtitle",
+  "title": "Titre principal accrocheur",
+  "subtitle": "Sous-titre élégant et informatif",
   "slides": [
     {
-      "title": "Slide Title",
-      "points": ["Point 1", "Point 2", "Point 3", "Point 4"]
+      "title": "Titre explicite de la diapositive",
+      "points": [
+        "Premier point clé essentiel et bien formulé",
+        "Deuxième point avec analyse ou exemple concret",
+        "Troisième point d'impact ou recommandation"
+      ]
     }
   ]
-}
-Include 6 to 8 slides in the language of the topic (Arabic for Arabic topics, English for English).`;
+}`;
 
-	const userPrompt = `Topic: "${topic}".
-Output ONLY the raw JSON object for the slides.`;
+	const userPrompt = `Sujet de la présentation : "${topic}".
+Retourne UNIQUEMENT l'objet JSON contenant les diapositives.`;
 
 	let rawResponse = '';
 	try {
@@ -229,7 +331,7 @@ Output ONLY the raw JSON object for the slides.`;
 }
 
 /**
- * Build professional .pptx presentation using PptxGenJS
+ * Build professional .pptx presentation using PptxGenJS (True 16:9 LAYOUT_WIDE)
  */
 async function buildPptxBuffer(data) {
 	const PptxClass = await getPptxGen();
@@ -252,34 +354,45 @@ async function buildPptxBuffer(data) {
 		borderCyan: '1E293B'
 	};
 
-	// ─── SLIDE 1: COVER SLIDE ──────────────────────────────
+	const rtl = isRtl(data.title);
+	const fr = isFrenchTopic(data.title);
+
+	// Date formatting
+	const now = new Date();
+	const dateStr = now.toLocaleDateString(rtl ? 'ar-MA' : fr ? 'fr-FR' : 'en-US', {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric'
+	});
+
+	// ─── DIAPOSITIVE 1: PAGE DE COUVERTURE ──────────────────────────────
 	const slideCover = pres.addSlide();
 	slideCover.background = { color: THEME.bgDark };
 
-	// Decorative Top Accent Bar (full width)
+	// Decorative Top Accent Bar
 	slideCover.addShape(pres.ShapeType.rect, {
 		x: 0, y: 0, w: '100%', h: 0.15,
 		fill: { color: THEME.primaryGold }
 	});
 
-	// Embed Bot Logo Avatar on Cover (centered at x = 5.76)
+	// Embed Bot Logo Avatar (centered at x = 5.76)
 	let hasLogo = false;
 	try {
 		if (fs.existsSync('media/thumbnail.jpg')) {
 			slideCover.addImage({
 				path: 'media/thumbnail.jpg',
-				x: 5.76, y: 0.6, w: 1.8, h: 1.8,
+				x: 5.76, y: 0.55, w: 1.8, h: 1.8,
 				rounding: true
 			});
 			hasLogo = true;
 		}
 	} catch (_) {}
 
-	const titleY = hasLogo ? 2.6 : 2.2;
-	const subtitleY = hasLogo ? 4.2 : 3.8;
+	const titleY = hasLogo ? 2.5 : 2.1;
+	const subtitleY = hasLogo ? 4.0 : 3.6;
 
-	// Presentation Title - Centered with equal 0.9 in margins on both sides
-	slideCover.addText(data.title || 'عرض تقديمي', {
+	// Presentation Title - Centered with balanced margins
+	slideCover.addText(data.title || 'Présentation', {
 		x: 0.9, y: titleY, w: 11.5, h: 1.4,
 		fontSize: 36,
 		fontFace: 'Arial',
@@ -301,31 +414,47 @@ async function buildPptxBuffer(data) {
 		});
 	}
 
+	// Presenter & Date Info Badge
+	const presenterLine = rtl
+		? `👤 إعداد وتقديم: حمزة اعمرني (Hamza Amirni)   •   📅 ${dateStr}`
+		: fr
+		? `👤 Présenté par : Hamza Amirni   •   📅 ${dateStr}`
+		: `👤 Presented by: Hamza Amirni   •   📅 ${dateStr}`;
+
+	slideCover.addText(presenterLine, {
+		x: 1.0, y: 5.4, w: 11.3, h: 0.5,
+		fontSize: 14,
+		fontFace: 'Arial',
+		bold: true,
+		color: THEME.primaryGold,
+		align: 'center'
+	});
+
 	// Footer Badge
-	slideCover.addText('⚡ صُمم بواسطة: Bot Amirni Hamza • حمزة اعمرني', {
+	slideCover.addText('⚡ Bot Amirni Hamza • Professional Presentation Engine', {
 		x: 1.0, y: 6.4, w: 11.3, h: 0.5,
-		fontSize: 13,
+		fontSize: 12,
 		fontFace: 'Arial',
 		color: THEME.textMuted,
 		align: 'center'
 	});
 
-	// ─── SLIDES 2+: CONTENT SLIDES ─────────────────────────
+	// ─── DIAPOSITIVES 2+: CONTENU STRUCTURÉ ─────────────────────────
 	const slides = Array.isArray(data.slides) ? data.slides : [];
 	slides.forEach((s, idx) => {
 		const slide = pres.addSlide();
 		slide.background = { color: THEME.bgDark };
 
-		// Top Header Banner (Centered: x = 0.9, w = 11.5, right margin = 0.93 in)
+		// Top Header Banner (Centered with balanced 0.9 in margins)
 		slide.addShape(pres.ShapeType.rect, {
 			x: 0.9, y: 0.5, w: 11.5, h: 0.95,
 			fill: { color: THEME.cardDark },
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Title & Number - Centered with safe margins
-		const rawTitle = String(s.title || `الشريحة ${idx + 1}`).trim();
-		const displayTitle = /^(\d+|شريحة|slide)/i.test(rawTitle)
+		// Slide Title & Number - Centered and explicit
+		const rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : fr ? `Diapositive ${idx + 1}` : `Slide ${idx + 1}`)).trim();
+		const displayTitle = /^(\d+|شريحة|slide|diapositive)/i.test(rawTitle)
 			? rawTitle
 			: `${idx + 1}. ${rawTitle}`;
 
@@ -339,7 +468,7 @@ async function buildPptxBuffer(data) {
 			valign: 'middle'
 		});
 
-		// Render Content Points as Modern Elegant Card Rows
+		// Render Content Points as Modern Glass Card Rows
 		const points = (Array.isArray(s.points) ? s.points : []).slice(0, 6);
 		const count = Math.min(Math.max(points.length, 1), 6);
 		const startY = 1.65;
@@ -350,7 +479,7 @@ async function buildPptxBuffer(data) {
 		points.forEach((p, i) => {
 			const y = startY + i * (cardH + gap);
 
-			// Card Row Background Box (Centered: x = 0.9, w = 11.5, right edge = 12.4 in inside 13.33 in slide)
+			// Card Row Background Box (Balanced x = 0.9, w = 11.5 inside 13.33 in canvas)
 			slide.addShape(pres.ShapeType.roundRect, {
 				x: 0.9, y: y, w: 11.5, h: cardH,
 				fill: { color: THEME.cardDark },
@@ -358,7 +487,7 @@ async function buildPptxBuffer(data) {
 				rectRadius: 0.12
 			});
 
-			// Number Pill Badge (Left of the card)
+			// Number Pill Badge (Left-side golden pill)
 			const badgeSize = Math.min(cardH * 0.65, 0.65);
 			const badgeY = y + (cardH - badgeSize) / 2;
 			slide.addShape(pres.ShapeType.roundRect, {
@@ -376,7 +505,7 @@ async function buildPptxBuffer(data) {
 				valign: 'middle'
 			});
 
-			// Clean Text - Centered inside the card row with 10.2 in width
+			// Point Text - Centered with safe margins (never clips on left or right)
 			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			slide.addText(cleanText, {
 				x: 1.95, y: y, w: 10.2, h: cardH,
@@ -388,7 +517,7 @@ async function buildPptxBuffer(data) {
 			});
 		});
 
-		// Footer branding - Centered
+		// Footer branding
 		slide.addText(`Bot Amirni Hamza  |  ${idx + 1} / ${slides.length}`, {
 			x: 0.9, y: 6.85, w: 11.5, h: 0.4,
 			fontSize: 10,
@@ -408,9 +537,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
 	if (!text || text.trim().length < 2) {
 		return m.reply(t(
-			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly using AI!\n\n*Usage:*\n← ${usedPrefix + command} <topic>\n\n*Examples:*\n← ${usedPrefix + command} Artificial Intelligence in Medicine\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} الطاقة المتجددة في المغرب`,
+			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly using AI!\n\n*Usage:*\n← ${usedPrefix + command} <topic>\n\n*Examples:*\n← ${usedPrefix + command} Intelligence Artificielle en Médecine\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} Cybersecurity & Cloud Computing`,
 			`📊 *صانع عروض البوربوينت بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━\nأنشئ عروض تقديمية احترافية بصيغة PowerPoint (.pptx) فورياً وبأعلى جودة!\n\n*الاستخدام:*\n← ${usedPrefix + command} <الموضوع>\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} الطاقة المتجددة وتحديات المستقبل\n← ${usedPrefix + command} أهمية الأمن السيبراني للشركات`,
-			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) فـ ثواني بالذكاء الاصطناعي!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع>\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته\n← ${usedPrefix + command} التجارة الإلكترونية فالمغرب\n← ${usedPrefix + command} Cybersecurity & Cloud Computing`
+			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) فـ ثواني بالذكاء الاصطناعي!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع>\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته\n← ${usedPrefix + command} Intelligence Artificielle & Big Data\n← ${usedPrefix + command} التجارة الإلكترونية فالمغرب`
 		));
 	}
 
