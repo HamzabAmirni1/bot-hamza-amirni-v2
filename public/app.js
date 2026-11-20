@@ -1694,9 +1694,46 @@ async function loadBotSettings() {
   await loadOwners();
   // Load admins list
   await loadAdmins();
+  // Populate bot avatar selector
+  await populateAvatarBotSelector();
 }
 
 let _avatarSelectedBase64 = null;
+
+async function populateAvatarBotSelector() {
+  const sel = document.getElementById('bot-avatar-target-select');
+  if (!sel) return;
+  try {
+    const res = await fetch('/api/bots-list');
+    const bots = await res.json() || [];
+    if (!Array.isArray(bots) || bots.length === 0) {
+      sel.innerHTML = '<option value="">لا توجد بوتات نشطة حالياً</option>';
+      return;
+    }
+    sel.innerHTML = bots.map(b => {
+      const p = String(b.phone_number || '').replace(/[^0-9]/g, '');
+      const statusIcon = b.connected ? '🟢 متصل' : '⚪ غير متصل';
+      return `<option value="${p}">🤖 +${p} (${statusIcon})</option>`;
+    }).join('');
+
+    // Trigger initial preview for the first bot
+    if (bots[0]) {
+      const firstP = String(bots[0].phone_number).replace(/[^0-9]/g, '');
+      onTargetBotSelectChange(firstP);
+    }
+  } catch (err) {
+    console.error('Failed to load bots for avatar selector:', err);
+    sel.innerHTML = '<option value="">تعذر جلب البوتات</option>';
+  }
+}
+
+function onTargetBotSelectChange(phone) {
+  const cleanP = String(phone || '').replace(/[^0-9]/g, '');
+  const img = document.getElementById('bot-avatar-preview');
+  if (img && cleanP) {
+    img.src = `/api/bot-profile-picture?phone=${cleanP}&t=${Date.now()}`;
+  }
+}
 
 function handleAvatarFileSelect(e) {
   const file = e.target.files?.[0];
@@ -1725,8 +1762,15 @@ function handleAvatarUrlInput(url) {
 async function uploadBotProfilePicture() {
   const btn = document.getElementById('btn-save-avatar');
   const status = document.getElementById('avatar-status-msg');
+  const sel = document.getElementById('bot-avatar-target-select');
+  const selectedPhone = (sel?.value || '').trim();
   const imgUrlVal = (document.getElementById('bot-avatar-url')?.value || '').trim();
   const imageToSend = _avatarSelectedBase64 || imgUrlVal;
+
+  if (!selectedPhone) {
+    toast('⚠️ يرجى تحديد البوت المراد تغيير صورته أولاً!', 'warn');
+    return;
+  }
 
   if (!imageToSend) {
     toast('⚠️ يرجى اختيار صورة من جهازك أولاً أو وضع رابط صورة مباشر!', 'warn');
@@ -1735,28 +1779,29 @@ async function uploadBotProfilePicture() {
 
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحديث صورة البروفايل في واتساب...';
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري تحديث صورة بروفايل البوت +${selectedPhone}...`;
   }
   if (status) {
     status.style.display = 'block';
     status.style.color = 'var(--accent)';
-    status.innerHTML = '⏳ جاري إرسال الصورة إلى خوادم واتساب وتحديث جميع البوتات...';
+    status.innerHTML = `⏳ جاري إرسال الصورة وتحديث بروفايل البوت +${selectedPhone} في واتساب...`;
   }
 
   try {
     const res = await fetch('/api/bot-profile-picture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: imageToSend })
+      body: JSON.stringify({ phone: selectedPhone, image: imageToSend })
     });
 
     const data = await res.json();
     if (res.ok && data.success) {
-      toast('✅ تم تحديث صورة بروفايل البوت بنجاح في واتساب والموقع!', 'ok');
+      toast(`✅ تم تحديث صورة بروفايل البوت +${selectedPhone} بنجاح!`, 'ok');
       if (status) {
         status.style.color = '#22c55e';
-        status.innerHTML = '✅ تم تطبيق صورة البروفايل بنجاح على واتساب وحفظها في قاعدة البيانات!';
+        status.innerHTML = `✅ تم تطبيق صورة البروفايل بنجاح على البوت +${selectedPhone} فقط وحفظها!`;
       }
+      onTargetBotSelectChange(selectedPhone);
     } else {
       throw new Error(data.error || 'تعذر تحديث الصورة');
     }
@@ -1770,7 +1815,7 @@ async function uploadBotProfilePicture() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-upload"></i> 🚀 تغيير صورة البروفايل في واتساب والموقع (Appliquer)';
+      btn.innerHTML = '<i class="fas fa-upload"></i> 🚀 تغيير صورة بروفايل هذا البوت فقط (Appliquer)';
     }
   }
 }

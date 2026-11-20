@@ -918,19 +918,28 @@
           <button class="btn btn-g full lg" onclick="saveBotSettings()"><i class="fas fa-save"></i> 💾 حفظ هوية البوت في قاعدة البيانات (Enregistrer)</button>
         </div>
 
-        <!-- 🖼️ Bot Profile Picture Changer -->
+        <!-- 🖼️ Per-Bot Profile Picture Changer -->
         <div class="card mb-20" style="border-top:3px solid var(--accent)">
           <div class="ch">
             <div class="ci blue"><i class="fas fa-camera"></i></div>
             <div>
               <div class="ct">🖼️ تغيير صورة بروفايل البوت (Changer la Photo de Profil)</div>
-              <div style="font-size:11px;color:var(--text2)">تغيير صورة بروفايل البوت في واتساب والموقع مباشرة من هنا وحفظها دائماً في قاعدة البيانات</div>
+              <div style="font-size:11px;color:var(--text2)">تغيير صورة بروفايل كل بوت على حدة بشكل مستقل في واتساب (صورة البروفايل فقط دون المساس بصورة الموني)</div>
             </div>
           </div>
+          
+          <!-- Bot Selector -->
+          <div class="fg mb-16">
+            <label class="fl">🤖 حدد البوت المراد تغيير صورته (Sélectionner le Bot):</label>
+            <select id="bot-avatar-target-select" class="fi" onchange="onTargetBotSelectChange(this.value)">
+              <option value="">جاري تحميل قائمة البوتات...</option>
+            </select>
+          </div>
+
           <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
             <div style="text-align:center;">
               <img id="bot-avatar-preview" src="/api/bot-profile-picture" alt="Avatar" style="width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 15px rgba(56,189,248,0.3);" onerror="this.src='https://ui-avatars.com/api/?name=Bot+Hamza&background=0b132b&color=f59e0b&size=200'" />
-              <div style="font-size:11px;color:var(--text2);margin-top:6px;">معاينة الصورة الحالية</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:6px;">صورة البروفايل الحالية</div>
             </div>
             <div style="flex:1;min-width:240px;">
               <div class="fg">
@@ -943,7 +952,7 @@
               </div>
             </div>
           </div>
-          <button class="btn btn-primary full lg" id="btn-save-avatar" onclick="uploadBotProfilePicture()"><i class="fas fa-upload"></i> 🚀 تغيير صورة البروفايل في واتساب والموقع (Appliquer)</button>
+          <button class="btn btn-primary full lg" id="btn-save-avatar" onclick="uploadBotProfilePicture()"><i class="fas fa-upload"></i> 🚀 تغيير صورة بروفايل هذا البوت فقط (Appliquer)</button>
           <div id="avatar-status-msg" style="margin-top:10px;font-size:13px;text-align:center;display:none;"></div>
         </div>
 

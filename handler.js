@@ -118,20 +118,24 @@ if (parentPort && !global.__parentPortListenerAdded) {
 				} else if (msg.type === 'update_profile_picture') {
 					const sock = global.conn;
 					if (sock && msg.imageBase64) {
+						const currentPhone = (sock.user?.id || sock.user?.jid || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+						if (msg.phone && msg.phone !== 'all') {
+							const cleanTarget = String(msg.phone).replace(/[^0-9]/g, '');
+							if (cleanTarget && cleanTarget !== currentPhone) return;
+						}
 						try {
 							const buf = Buffer.from(msg.imageBase64, 'base64');
 							const targetJid = sock.user?.id || sock.user?.jid;
 							if (targetJid) {
 								await sock.updateProfilePicture(targetJid, buf);
-								console.log(`📸 [Worker] Bot profile picture updated successfully for ${targetJid}`);
+								console.log(`📸 [Worker +${currentPhone}] Profile picture updated successfully for ${targetJid}`);
 								try {
-									if (!fs.existsSync('media')) fs.mkdirSync('media', { recursive: true });
-									fs.writeFileSync('media/bot_avatar.jpg', buf);
-									fs.writeFileSync('media/thumbnail.jpg', buf);
+									if (!fs.existsSync('media/profiles')) fs.mkdirSync('media/profiles', { recursive: true });
+									fs.writeFileSync(`media/profiles/pp_${currentPhone}.jpg`, buf);
 								} catch (_) {}
 							}
 						} catch (err) {
-							console.error('❌ [Worker] Failed to update profile picture:', err.message);
+							console.error(`❌ [Worker +${currentPhone}] Failed to update profile picture:`, err.message);
 						}
 					}
 				} else if (msg.type === 'ping') {

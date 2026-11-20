@@ -1187,17 +1187,19 @@ ${reply_text}
         return;
       }
 
-      // ── GET /api/bot-profile-picture — return current avatar image ──
+      // ── GET /api/bot-profile-picture — return current avatar image per bot ──
       if (endpoint === 'bot-profile-picture' && req.method === 'GET') {
         try {
-          if (existsSync('media/bot_avatar.jpg')) {
-            const buf = readFileSync('media/bot_avatar.jpg');
+          const urlObj = new URL(req.url, 'http://localhost');
+          const phone = urlObj.searchParams.get('phone')?.replace(/[^0-9]/g, '');
+          if (phone && existsSync(`media/profiles/pp_${phone}.jpg`)) {
+            const buf = readFileSync(`media/profiles/pp_${phone}.jpg`);
             res.writeHead(200, { 'Content-Type': 'image/jpeg' });
             res.end(buf);
             return;
           }
-          if (existsSync('media/thumbnail.jpg')) {
-            const buf = readFileSync('media/thumbnail.jpg');
+          if (existsSync('media/bot_avatar.jpg')) {
+            const buf = readFileSync('media/bot_avatar.jpg');
             res.writeHead(200, { 'Content-Type': 'image/jpeg' });
             res.end(buf);
             return;
@@ -1211,15 +1213,19 @@ ${reply_text}
         return;
       }
 
-      // ── POST /api/bot-profile-picture — update avatar from web dashboard ──
+      // ── POST /api/bot-profile-picture — update avatar for a specific bot from web dashboard ──
       if (endpoint === 'bot-profile-picture' && req.method === 'POST') {
         let body = '';
         req.on('data', c => { body += c; });
         req.on('end', async () => {
           try {
             const data = JSON.parse(body || '{}');
-            let imgBuffer = null;
+            const targetPhone = String(data.phone || '').replace(/[^0-9]/g, '');
+            if (!targetPhone) {
+              throw new Error('يرجى تحديد البوت المراد تغيير صورته (Please select a bot)');
+            }
 
+            let imgBuffer = null;
             if (data.image) {
               const rawStr = String(data.image).trim();
               const matches = rawStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -1239,29 +1245,25 @@ ${reply_text}
               throw new Error('Invalid image provided. Please upload an image or provide an image URL.');
             }
 
-            // Save to disk
-            if (!existsSync('media')) mkdirSync('media', { recursive: true });
-            writeFileSync('media/bot_avatar.jpg', imgBuffer);
-            writeFileSync('media/thumbnail.jpg', imgBuffer);
+            // Save to disk ONLY for this specific bot (never touch menu.jpg or bot_avatar.jpg)
+            if (!existsSync('media/profiles')) mkdirSync('media/profiles', { recursive: true });
+            writeFileSync(`media/profiles/pp_${targetPhone}.jpg`, imgBuffer);
 
-            // Save to Supabase for persistence across redeploys
+            // Save to Supabase for this specific bot
             const b64 = imgBuffer.toString('base64');
-            await saveConfigToSupabase('bot_avatar_base64', b64);
+            await saveConfigToSupabase(`bot_avatar_${targetPhone}`, b64);
 
-            // Broadcast to all active workers
-            const targetPhone = data.phone ? String(data.phone).replace(/[^0-9]/g, '') : null;
-            let updatedCount = 0;
-            for (const [phone, info] of workersMap.entries()) {
-              if (targetPhone && targetPhone !== 'all' && phone !== targetPhone) continue;
-              if (info.worker) {
-                info.worker.postMessage({ type: 'update_profile_picture', imageBase64: b64 });
-                updatedCount++;
-              }
+            // Send message ONLY to this specific bot's worker
+            const targetInfo = workersMap.get(targetPhone);
+            if (targetInfo && targetInfo.worker) {
+              targetInfo.worker.postMessage({ type: 'update_profile_picture', imageBase64: b64, phone: targetPhone });
+              console.log(`🖼️ [Avatar] Dispatched profile picture update to worker +${targetPhone}`);
+            } else {
+              console.warn(`⚠️ [Avatar] Bot +${targetPhone} worker not running right now, saved for next start.`);
             }
 
-            console.log(`🖼️ [Avatar] Profile picture updated for ${updatedCount} bot(s) from Web Dashboard`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, message: `Updated profile picture for ${updatedCount} bot(s)` }));
+            res.end(JSON.stringify({ success: true, message: `Updated profile picture for bot +${targetPhone}` }));
           } catch (err) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
@@ -2079,20 +2081,21 @@ async function restoreAllSessions() {
       console.log(`🚀 Multi-Bot Engine: ${count} connected bot(s) running simultaneously!`);
     }
 
-    // Restore custom bot avatar from Supabase if previously saved
+    // Restore per-bot profile pictures from Supabase if previously saved
     try {
-      const avRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_bot_avatar_base64&select=history', {
+      const avRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=like.config_bot_avatar_*&select=jid,history', {
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
       });
       if (avRes.ok) {
         const rows = await avRes.json();
-        if (rows?.[0]?.history) {
-          const avBuf = Buffer.from(rows[0].history, 'base64');
-          if (avBuf.length > 500) {
-            if (!existsSync('media')) mkdirSync('media', { recursive: true });
-            writeFileSync('media/bot_avatar.jpg', avBuf);
-            writeFileSync('media/thumbnail.jpg', avBuf);
-            console.log('🖼️ [Avatar] Successfully restored custom bot profile avatar from Supabase');
+        if (Array.isArray(rows)) {
+          for (const r of rows) {
+            const p = r.jid.replace('config_bot_avatar_', '').replace(/[^0-9]/g, '');
+            if (p && r.history && r.history.length > 500) {
+              const avBuf = Buffer.from(r.history, 'base64');
+              if (!existsSync('media/profiles')) mkdirSync('media/profiles', { recursive: true });
+              writeFileSync(`media/profiles/pp_${p}.jpg`, avBuf);
+            }
           }
         }
       }
