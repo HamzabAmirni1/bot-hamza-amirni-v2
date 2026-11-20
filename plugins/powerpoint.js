@@ -1,6 +1,6 @@
 // ============================================================
 // PowerPoint (.pptx) Presentation Generator Plugin
-// Developed for Bot Amirni Hamza by Hamza Amirni
+// Developed for Bot Hamza Amirni by Hamza Amirni
 // Commands: .ppt | .pptx | .pp | .powerpoint | .presentation | .عرض | .بوربوينت
 // ============================================================
 
@@ -22,13 +22,36 @@ async function getPptxGen() {
 
 const isRtl = (str) => /[\u0600-\u06FF]/.test(String(str || ''));
 const isFrenchTopic = (str) => /[àâäéèêëîïôöùûüçœ]/i.test(String(str || '')) ||
-	/(présentation|sujet|projet|cours|gestion|management|analyse|rapport|travail|devoir|exposé|société|santé|technologie|avenir|monde)/i.test(String(str || ''));
+	/(présentation|sujet|projet|cours|gestion|management|analyse|rapport|travail|devoir|exposé|société|santé|technologie|avenir|monde|expert)/i.test(String(str || ''));
+
+/**
+ * Clean & extract a concise presentation title (max 50 chars) from any input or prompt
+ */
+function sanitizeTitle(str) {
+	let t = String(str || '').trim();
+	if (t.length > 55 || t.includes('\n')) {
+		// Look for patterns like "sur le sujet suivant : X" or "حول موضوع : X"
+		const matchFr = t.match(/sujet\s*(?:suivant)?\s*[:]\s*([^\n\.\,\!\?]+)/i);
+		const matchAr = t.match(/موضوع\s*(?:التالي)?\s*[:]\s*([^\n\.\,\!\?]+)/i);
+		if (matchFr && matchFr[1]) {
+			t = matchFr[1].trim();
+		} else if (matchAr && matchAr[1]) {
+			t = matchAr[1].trim();
+		} else {
+			// Take the first line or first clean phrase
+			t = t.split('\n')[0].split(/[.:!?]/)[0].trim();
+			if (t.length > 50) t = t.substring(0, 47) + '...';
+		}
+	}
+	return t || 'Présentation';
+}
 
 /**
  * Intelligent parser that extracts or constructs slides from any AI response (JSON or plain text)
  */
 function parseSlidesFromAnyText(raw, topic) {
 	if (!raw) raw = '';
+	const cleanSafeTitle = sanitizeTitle(topic);
 
 	// 1. Try pure JSON extraction
 	const firstBrace = raw.indexOf('{');
@@ -38,8 +61,8 @@ function parseSlidesFromAnyText(raw, topic) {
 			const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1));
 			if (parsed.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
 				return {
-					title: parsed.title || topic,
-					subtitle: parsed.subtitle || (isRtl(topic) ? 'عرض تقديمي شامل ومفصل' : isFrenchTopic(topic) ? 'Présentation Complète et Professionnelle' : 'Comprehensive Presentation'),
+					title: sanitizeTitle(parsed.title || cleanSafeTitle),
+					subtitle: parsed.subtitle || (isRtl(cleanSafeTitle) ? 'عرض تقديمي شامل ومفصل' : isFrenchTopic(cleanSafeTitle) ? 'Présentation Complète et Professionnelle' : 'Comprehensive Presentation'),
 					slides: parsed.slides.slice(0, 10)
 				};
 			}
@@ -52,7 +75,7 @@ function parseSlidesFromAnyText(raw, topic) {
 	let currentSlide = null;
 
 	for (const line of lines) {
-		if (/^(أهلاً|مرحباً|أهلا|بالتأكيد|إليك|السلام|hello|sure|here is|welcome|bonjour|voici)/i.test(line) && line.length < 80) {
+		if (/^(أهلاً|مرحباً|أهلا|بالتأكيد|إليك|السلام|hello|sure|here is|welcome|bonjour|voici|agis comme)/i.test(line) && line.length < 80) {
 			continue;
 		}
 
@@ -69,7 +92,7 @@ function parseSlidesFromAnyText(raw, topic) {
 		} else {
 			const clean = line.replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			if (clean.length > 10) {
-				currentSlide = { title: topic || 'المقدمة', points: [clean] };
+				currentSlide = { title: cleanSafeTitle || 'المقدمة', points: [clean] };
 			}
 		}
 	}
@@ -77,18 +100,18 @@ function parseSlidesFromAnyText(raw, topic) {
 
 	// 3. Fallback: High-Standard Professional Structure (Academic & Executive Standard)
 	if (slides.length < 3) {
-		const rtl = isRtl(topic);
-		const fr = isFrenchTopic(topic);
+		const rtl = isRtl(cleanSafeTitle);
+		const fr = isFrenchTopic(cleanSafeTitle);
 
 		if (rtl) {
 			return {
-				title: topic,
-				subtitle: 'عرض تقديمي شامل واحترافي • Bot Amirni Hamza',
+				title: cleanSafeTitle,
+				subtitle: 'عرض تقديمي شامل واحترافي • Bot Hamza Amirni',
 				slides: [
 					{
 						title: 'المقدمة العامة وسياق الموضوع',
 						points: [
-							`نظرة عامة وشاملة تمهد لأبعاد ومفاهيم ${topic}`,
+							`نظرة عامة وشاملة تمهد لأبعاد ومفاهيم ${cleanSafeTitle}`,
 							'أهمية الموضوع وحيويته في الواقع المعاصر والمستقبل',
 							'الإشكالية المحورية ومحاور العرض الأساسية'
 						]
@@ -104,7 +127,7 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'المفاهيم والأسس الجوهرية',
 						points: [
-							`التعريف العلمي والدقيق لمفهوم ${topic}`,
+							`التعريف العلمي والدقيق لمفهوم ${cleanSafeTitle}`,
 							'المبادئ الأساسية والقيم الحاكمة المرتبطة بالموضوع',
 							'التأثير المباشر والأبعاد الهيكلية على الفرد والمجتمع'
 						]
@@ -145,13 +168,13 @@ function parseSlidesFromAnyText(raw, topic) {
 			};
 		} else if (fr) {
 			return {
-				title: topic,
-				subtitle: 'Présentation Complète & Professionnelle • Bot Amirni Hamza',
+				title: cleanSafeTitle,
+				subtitle: 'Présentation Complète & Professionnelle • Bot Hamza Amirni',
 				slides: [
 					{
 						title: 'Introduction Générale & Contexte',
 						points: [
-							`Vue d'ensemble et mise en contexte globale de : ${topic}`,
+							`Vue d'ensemble et mise en contexte globale de : ${cleanSafeTitle}`,
 							'Importance majeure et pertinence du sujet dans le monde contemporain',
 							'Problématique centrale et cadre général de réflexion'
 						]
@@ -167,7 +190,7 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'Fondements & Concepts Clés',
 						points: [
-							`Définition rigoureuse et éléments constitutifs de : ${topic}`,
+							`Définition rigoureuse et éléments constitutifs de : ${cleanSafeTitle}`,
 							'Les piliers méthodologiques et le cadre théorique de référence',
 							'Règles d\'or, principes directeurs et normes d\'excellence'
 						]
@@ -176,7 +199,7 @@ function parseSlidesFromAnyText(raw, topic) {
 						title: 'Développement & Exemples Concrets',
 						points: [
 							'Étude approfondie des cas d\'usage réels et applications pratiques',
-							'Retours d\'expérience, illustrations chiffrées et modèles inspirants',
+							'Retours d\'expérience, illustrations et modèles inspirants',
 							'Méthodes concrètes de mise en œuvre et d\'exécution sur le terrain'
 						]
 					},
@@ -208,13 +231,13 @@ function parseSlidesFromAnyText(raw, topic) {
 			};
 		} else {
 			return {
-				title: topic,
-				subtitle: 'Comprehensive & Executive Presentation • Bot Amirni Hamza',
+				title: cleanSafeTitle,
+				subtitle: 'Comprehensive & Executive Presentation • Bot Hamza Amirni',
 				slides: [
 					{
 						title: 'General Introduction & Background',
 						points: [
-							`Comprehensive overview and strategic context of ${topic}`,
+							`Comprehensive overview and strategic context of ${cleanSafeTitle}`,
 							'Core relevance, market impact, and significance today',
 							'Fundamental problem statement and central roadmap'
 						]
@@ -230,7 +253,7 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'Core Principles & Framework',
 						points: [
-							`Formal definitions and theoretical foundation of ${topic}`,
+							`Formal definitions and theoretical foundation of ${cleanSafeTitle}`,
 							'Key methodologies, architecture, and regulatory considerations',
 							'Best-in-class standards and foundational prerequisites'
 						]
@@ -273,38 +296,48 @@ function parseSlidesFromAnyText(raw, topic) {
 	}
 
 	return {
-		title: topic,
-		subtitle: isRtl(topic) ? 'عرض تقديمي بواسطة Bot Amirni Hamza' : 'Présentation par Bot Amirni Hamza',
+		title: cleanSafeTitle,
+		subtitle: isRtl(cleanSafeTitle) ? 'عرض تقديمي بواسطة Bot Hamza Amirni' : 'Présentation par Bot Hamza Amirni',
 		slides: slides.slice(0, 8)
 	};
 }
 
 /**
  * Generate structured slide data using AI following professional expert standards
+ * Handles both:
+ * 1. Short Topics (e.g. "Intelligence Artificielle")
+ * 2. Full texts / long documents / pasted articles to be converted into presentations
  */
-async function generatePresentationData(topic, userLang = 'darija') {
-	const systemPrompt = `Tu es un expert mondial en conception de présentations PowerPoint professionnelles, en communication visuelle et en design moderne pour "Bot Amirni Hamza".
-Ton rôle est de créer une présentation complète, moderne, élégante et professionnelle sur le sujet demandé par l'utilisateur.
+async function generatePresentationData(inputContent, userLang = 'darija') {
+	const isLongDocument = inputContent.length > 70 || inputContent.includes('\n');
+
+	const systemPrompt = `Tu es un expert mondial en conception de présentations PowerPoint professionnelles, en communication visuelle et en design moderne pour "Bot Hamza Amirni".
+${isLongDocument 
+	? 'L\'utilisateur te fournit un TEXTE COMPLET, un article, des notes de cours ou un document à transformer et synthétiser en une présentation PowerPoint magistrale.'
+	: 'L\'utilisateur te fournit un SUJET. Développe une présentation PowerPoint complète, moderne, élégante et professionnelle sur ce sujet.'}
 
 RÈGLES IMPÉRATIVES DE STRUCTURE ET DE CONTENU:
-1. LANGUE : Le contenu doit être OBLIGATOIREMENT dans la langue du sujet (Arabe si le sujet est en arabe/darija, Français si le sujet est en français, Anglais si le sujet est en anglais).
-2. STRUCTURE DE LA PRÉSENTATION (6 à 8 diapositives complètes) :
+1. TITRE ET SOUS-TITRE (OBLIGATOIREMENT CONCIS) :
+   - Dégage un TITRE COURT ET PERCUTANT (maximum 4 à 6 mots) représentant le cœur du sujet.
+   - Ne jamais mettre une phrase longue ou un paragraphe entier comme titre !
+   - Dégage un SOUS-TITRE ÉLÉGANT (maximum 10 mots).
+2. LANGUE : Le contenu doit être OBLIGATOIREMENT dans la langue du texte/sujet (Arabe si en arabe/darija, Français si en français, Anglais si en anglais).
+3. STRUCTURE DE LA PRÉSENTATION (6 à 8 diapositives complètes) :
    - Diapositive 1 : Page de couverture (Titre accrocheur et sous-titre élégant).
-   - Diapositive 2 : Introduction générale et présentation du contexte du sujet.
+   - Diapositive 2 : Introduction générale et présentation du contexte.
    - Diapositive 3 : Objectifs clés de la présentation.
-   - Diapositives 4 à 6 : Développement organisé en plusieurs parties avec des explications claires, des exemples concrets et des informations pertinentes.
+   - Diapositives 4 à 6 : Développement organisé en plusieurs parties avec des explications claires, des exemples concrets et des informations pertinentes extraites ou développées.
    - Avant-dernière diapositive : Synthèse des idées principales et bilan stratégique.
    - Dernière diapositive : Conclusion professionnelle et remerciements ("Merci pour votre attention" / "شكراً لحسن متابعتكم").
-3. QUALITÉ DU CONTENU :
+4. QUALITÉ DU CONTENU :
    - Utiliser un langage soigné, professionnel et accessible.
-   - 3 à 4 points essentiels par diapositive, concis, bien rédigés et percutants.
-   - Titres de diapositives courts et explicites (moins de 7 mots).
-   - Des exemples concrets et des explications pertinentes pour chaque concept.
-4. FORMAT DE SORTIE STRICT :
+   - 3 à 4 points essentiels par diapositive, concis, bien formulés et percutants.
+   - Titres de diapositives courts et explicites (moins de 6 mots).
+5. FORMAT DE SORTIE STRICT :
 Retourne UNIQUEMENT un objet JSON brut valide (SANS backticks markdown, SANS \`\`\`json, SANS texte introductif) avec la structure exacte suivante :
 {
-  "title": "Titre principal accrocheur",
-  "subtitle": "Sous-titre élégant et informatif",
+  "title": "Titre Court (max 6 mots)",
+  "subtitle": "Sous-titre élégant et informatif (max 10 mots)",
   "slides": [
     {
       "title": "Titre explicite de la diapositive",
@@ -317,8 +350,9 @@ Retourne UNIQUEMENT un objet JSON brut valide (SANS backticks markdown, SANS \`\
   ]
 }`;
 
-	const userPrompt = `Sujet de la présentation : "${topic}".
-Retourne UNIQUEMENT l'objet JSON contenant les diapositives.`;
+	const userPrompt = isLongDocument 
+		? `Texte complet à analyser et convertir en présentation PowerPoint :\n\n"""\n${inputContent}\n"""\n\nRetourne UNIQUEMENT l'objet JSON contenant les diapositives.`
+		: `Sujet de la présentation : "${inputContent}".\nRetourne UNIQUEMENT l'objet JSON contenant les diapositives.`;
 
 	let rawResponse = '';
 	try {
@@ -327,13 +361,13 @@ Retourne UNIQUEMENT l'objet JSON contenant les diapositives.`;
 		console.warn('[PPT] AI fetch failed, using smart slide builder:', e.message);
 	}
 
-	return parseSlidesFromAnyText(rawResponse, topic);
+	return parseSlidesFromAnyText(rawResponse, inputContent);
 }
 
 /**
  * Build professional .pptx presentation using PptxGenJS (True 16:9 LAYOUT_WIDE)
  */
-async function buildPptxBuffer(data) {
+async function buildPptxBuffer(data, presenterName = '') {
 	const PptxClass = await getPptxGen();
 	if (!PptxClass) throw new Error('pptxgenjs library is not available.');
 
@@ -341,8 +375,8 @@ async function buildPptxBuffer(data) {
 	// LAYOUT_WIDE is 13.33 x 7.5 inches (the true standard 16:9 widescreen)
 	pres.layout = 'LAYOUT_WIDE';
 	pres.author = 'Hamza Amirni';
-	pres.company = 'Bot Amirni Hamza';
-	pres.title = data.title || 'Presentation';
+	pres.company = 'Bot Hamza Amirni';
+	pres.title = sanitizeTitle(data.title) || 'Presentation';
 
 	const THEME = {
 		bgDark: '0B132B',       // Deep tech navy
@@ -354,8 +388,9 @@ async function buildPptxBuffer(data) {
 		borderCyan: '1E293B'
 	};
 
-	const rtl = isRtl(data.title);
-	const fr = isFrenchTopic(data.title);
+	const safeTitle = sanitizeTitle(data.title);
+	const rtl = isRtl(safeTitle);
+	const fr = isFrenchTopic(safeTitle);
 
 	// Date formatting
 	const now = new Date();
@@ -391,10 +426,10 @@ async function buildPptxBuffer(data) {
 	const titleY = hasLogo ? 2.5 : 2.1;
 	const subtitleY = hasLogo ? 4.0 : 3.6;
 
-	// Presentation Title - Centered with balanced margins
-	slideCover.addText(data.title || 'Présentation', {
+	// Presentation Title - Clean, centered, and sanitized
+	slideCover.addText(safeTitle, {
 		x: 0.9, y: titleY, w: 11.5, h: 1.4,
-		fontSize: 36,
+		fontSize: safeTitle.length > 35 ? 30 : 36,
 		fontFace: 'Arial',
 		bold: true,
 		color: THEME.primaryGold,
@@ -403,8 +438,10 @@ async function buildPptxBuffer(data) {
 	});
 
 	// Subtitle - Centered
-	if (data.subtitle) {
-		slideCover.addText(data.subtitle, {
+	let safeSubtitle = String(data.subtitle || '').trim();
+	if (safeSubtitle.length > 90) safeSubtitle = safeSubtitle.substring(0, 87) + '...';
+	if (safeSubtitle) {
+		slideCover.addText(safeSubtitle, {
 			x: 1.0, y: subtitleY, w: 11.3, h: 0.9,
 			fontSize: 20,
 			fontFace: 'Arial',
@@ -414,24 +451,27 @@ async function buildPptxBuffer(data) {
 		});
 	}
 
-	// Presenter & Date Info Badge
+	// Presenter & Date Info Line (Uses the user's name, or default if empty)
+	const cleanPresenter = (presenterName || '').trim();
 	const presenterLine = rtl
-		? `👤 إعداد وتقديم: حمزة اعمرني (Hamza Amirni)   •   📅 ${dateStr}`
-		: fr
-		? `👤 Présenté par : Hamza Amirni   •   📅 ${dateStr}`
-		: `👤 Presented by: Hamza Amirni   •   📅 ${dateStr}`;
+		? (cleanPresenter ? `👤 إعداد وتقديم: ${cleanPresenter}   •   📅 ${dateStr}` : `📅 ${dateStr}`)
+		: (cleanPresenter ? `👤 Présenté par : ${cleanPresenter}   •   📅 ${dateStr}` : `📅 ${dateStr}`);
 
 	slideCover.addText(presenterLine, {
 		x: 1.0, y: 5.4, w: 11.3, h: 0.5,
-		fontSize: 14,
+		fontSize: 15,
 		fontFace: 'Arial',
 		bold: true,
 		color: THEME.primaryGold,
 		align: 'center'
 	});
 
-	// Footer Badge
-	slideCover.addText('⚡ Bot Amirni Hamza • Professional Presentation Engine', {
+	// Permanent Official Bot & Developer Copyright Watermark on Cover
+	const coverFooterText = rtl
+		? '⚡ صُمم بواسطة: Bot Hamza Amirni   •   📸 إنستغرام: @hamza_amirni_01'
+		: '⚡ Créé par : Bot Hamza Amirni   •   📸 Instagram : @hamza_amirni_01';
+
+	slideCover.addText(coverFooterText, {
 		x: 1.0, y: 6.4, w: 11.3, h: 0.5,
 		fontSize: 12,
 		fontFace: 'Arial',
@@ -453,7 +493,9 @@ async function buildPptxBuffer(data) {
 		});
 
 		// Slide Title & Number - Centered and explicit
-		const rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : fr ? `Diapositive ${idx + 1}` : `Slide ${idx + 1}`)).trim();
+		let rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : fr ? `Diapositive ${idx + 1}` : `Slide ${idx + 1}`)).trim();
+		if (rawTitle.length > 50) rawTitle = rawTitle.substring(0, 47) + '...';
+
 		const displayTitle = /^(\d+|شريحة|slide|diapositive)/i.test(rawTitle)
 			? rawTitle
 			: `${idx + 1}. ${rawTitle}`;
@@ -506,7 +548,9 @@ async function buildPptxBuffer(data) {
 			});
 
 			// Point Text - Centered with safe margins (never clips on left or right)
-			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
+			let cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
+			if (cleanText.length > 150) cleanText = cleanText.substring(0, 147) + '...';
+
 			slide.addText(cleanText, {
 				x: 1.95, y: y, w: 10.2, h: cardH,
 				fontSize: count > 4 ? 14 : 16,
@@ -517,8 +561,9 @@ async function buildPptxBuffer(data) {
 			});
 		});
 
-		// Footer branding
-		slide.addText(`Bot Amirni Hamza  |  ${idx + 1} / ${slides.length}`, {
+		// Permanent Developer Branding & Instagram on every slide footer
+		const slideFooterText = `Bot Hamza Amirni  •  Instagram: @hamza_amirni_01  |  ${idx + 1} / ${slides.length}`;
+		slide.addText(slideFooterText, {
 			x: 0.9, y: 6.85, w: 11.5, h: 0.4,
 			fontSize: 10,
 			fontFace: 'Arial',
@@ -535,33 +580,42 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	const userLang = global.db?.data?.users?.[m.sender]?.language || 'darija';
 	const t = (en, ar, da) => userLang === 'english' ? en : userLang === 'arabic' ? ar : da;
 
-	if (!text || text.trim().length < 2) {
+	// Support both direct text AND quoted message text!
+	let rawInput = (text || '').trim();
+	if (!rawInput && m.quoted && m.quoted.text) {
+		rawInput = m.quoted.text.trim();
+	}
+
+	if (!rawInput || rawInput.length < 2) {
 		return m.reply(t(
-			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly using AI!\n\n*Usage:*\n← ${usedPrefix + command} <topic>\n\n*Examples:*\n← ${usedPrefix + command} Intelligence Artificielle en Médecine\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} Cybersecurity & Cloud Computing`,
-			`📊 *صانع عروض البوربوينت بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━\nأنشئ عروض تقديمية احترافية بصيغة PowerPoint (.pptx) فورياً وبأعلى جودة!\n\n*الاستخدام:*\n← ${usedPrefix + command} <الموضوع>\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} الطاقة المتجددة وتحديات المستقبل\n← ${usedPrefix + command} أهمية الأمن السيبراني للشركات`,
-			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) فـ ثواني بالذكاء الاصطناعي!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع>\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته\n← ${usedPrefix + command} Intelligence Artificielle & Big Data\n← ${usedPrefix + command} التجارة الإلكترونية فالمغرب`
+			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly from any topic or document!\n\n*Usage:*\n← ${usedPrefix + command} <topic or full text>\n_Or reply to any text message with ${usedPrefix + command}_\n\n*Examples:*\n← ${usedPrefix + command} Intelligence Artificielle en Médecine\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم`,
+			`📊 *صانع عروض البوربوينت بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━\nأنشئ عروض تقديمية احترافية بصيغة PowerPoint (.pptx) فورياً من أي موضوع أو نص مقال!\n\n*الاستخدام:*\n← ${usedPrefix + command} <الموضوع أو النص الكامل>\n_أو قم بالرد على أي رسالة نصية بالأمر ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} الطاقة المتجددة وتحديات المستقبل`,
+			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) من أي موضوع أو نص كامل صيفطتيه!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع ولا النص>\n_تقدر تصيفط الموضوع ولا ترد (Quote) على أي ميساج فيه نص بـ ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته\n← ${usedPrefix + command} Intelligence Artificielle & Big Data`
 		));
 	}
+
+	// Resolve presenter name: use the user's real WhatsApp name or pushName (not hardcoded)
+	const presenterName = m.pushName || m.name || '';
 
 	await m.react('⏳');
 	await conn.sendMessage(m.chat, {
 		text: t(
-			`⏳ *Creating your PowerPoint presentation...*\nStructuring content and designing professional slides about: *${text.trim()}*`,
-			`⏳ *جاري تصميم عرض البوربوينت الخاص بك...*\nنقوم الآن بإنشاء المحتوى وتنسيق الشرائح باحترافية حول: *${text.trim()}*`,
-			`⏳ *كنقاد ليك بريزونطاسيون دابا...*\nجاري توليد الأفكار وتصميم شرائح احترافية حول: *${text.trim()}*`
+			`⏳ *Creating your PowerPoint presentation...*\nStructuring content and designing professional slides...`,
+			`⏳ *جاري تصميم عرض البوربوينت الخاص بك...*\nنقوم الآن بتحليل النص وإنشاء المحتوى وتنسيق الشرائح باحترافية...`,
+			`⏳ *كنقاد ليك بريزونطاسيون دابا...*\nجاري تلخيص وتوليد الأفكار وتصميم شرائح احترافية...`
 		)
 	}, { quoted: m });
 
 	try {
 		// 1. Generate content outline via AI
-		const presentationData = await generatePresentationData(text.trim(), userLang);
+		const presentationData = await generatePresentationData(rawInput, userLang);
 
 		// 2. Build .pptx presentation file
-		const pptxBuffer = await buildPptxBuffer(presentationData);
+		const pptxBuffer = await buildPptxBuffer(presentationData, presenterName);
 
-		const safeTitle = (presentationData.title || text.trim())
+		const safeTitle = sanitizeTitle(presentationData.title || rawInput)
 			.replace(/[/\\?%*:|"<>]/g, '_')
-			.substring(0, 50);
+			.substring(0, 45);
 		const fileName = `${safeTitle}.pptx`;
 		const slideCount = (presentationData.slides || []).length;
 
@@ -571,9 +625,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 			mimetype: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 			fileName,
 			caption: t(
-				`📊 *Your PowerPoint Presentation is Ready!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Topic:* ${presentationData.title}\n📑 *Slides:* ${slideCount + 1} slides\n⚡ *Created by:* Bot Amirni Hamza\n━━━━━━━━━━━━━━━━━━━━\n_Open directly in Microsoft PowerPoint, Google Slides, or WPS Office._`,
-				`📊 *عرض البوربوينت الخاص بك جاهز!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *الموضوع:* ${presentationData.title}\n📑 *عدد الشرائح:* ${slideCount + 1} شريحة\n⚡ *تم التصميم بواسطة:* بوت حمزة اعمرني (Bot Amirni Hamza)\n━━━━━━━━━━━━━━━━━━━━\n_يمكنك فتح الملف مباشرة في Microsoft PowerPoint أو Google Slides أو WPS Office._`,
-				`📊 *البريزونطاسيون ديالك واجدة!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *الموضوع:* ${presentationData.title}\n📑 *عدد الشرائح:* ${slideCount + 1} سلايدات\n⚡ *صممها:* Bot Amirni Hamza • حمزة اعمرني\n━━━━━━━━━━━━━━━━━━━━\n_تقدر تحلها ديريكت فـ PowerPoint أو Google Slides أو التيليفون._`
+				`📊 *Your PowerPoint Presentation is Ready!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *Topic:* ${safeTitle}\n📑 *Slides:* ${slideCount + 1} slides\n⚡ *Engine:* Bot Hamza Amirni\n📸 *Instagram:* @hamza_amirni_01\n━━━━━━━━━━━━━━━━━━━━\n_Open directly in Microsoft PowerPoint, Google Slides, or WPS Office._`,
+				`📊 *عرض البوربوينت الخاص بك جاهز!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *الموضوع:* ${safeTitle}\n📑 *عدد الشرائح:* ${slideCount + 1} شريحة\n⚡ *المحرك:* بوت حمزة اعمرني (Bot Hamza Amirni)\n📸 *إنستغرام:* @hamza_amirni_01\n━━━━━━━━━━━━━━━━━━━━\n_يمكنك فتح الملف مباشرة في Microsoft PowerPoint أو Google Slides أو WPS Office._`,
+				`📊 *البريزونطاسيون ديالك واجدة!*\n━━━━━━━━━━━━━━━━━━━━\n📌 *الموضوع:* ${safeTitle}\n📑 *عدد الشرائح:* ${slideCount + 1} سلايدات\n⚡ *صممها:* Bot Hamza Amirni\n📸 *Instagram:* @hamza_amirni_01\n━━━━━━━━━━━━━━━━━━━━\n_تقدر تحلها ديريكت فـ PowerPoint أو Google Slides أو التيليفون._`
 			)
 		}, { quoted: m });
 
@@ -588,7 +642,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	}
 };
 
-handler.help = ['ppt <topic>', 'pptx <topic>', 'pp <topic>', 'powerpoint <topic>', 'presentation <topic>'];
+handler.help = ['ppt <topic|text>', 'pptx <topic|text>', 'pp <topic|text>', 'powerpoint <topic|text>', 'presentation <topic|text>'];
 handler.tags = ['ai', 'tools'];
 handler.command = /^(ppt|pptx|pp|powerpoint|presentation|عرض|بوربوينت)$/i;
 
