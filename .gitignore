@@ -8,3 +8,4 @@ database.json
 tmp/*
 !tmp/.gitkeep
 scratch/
+data/
