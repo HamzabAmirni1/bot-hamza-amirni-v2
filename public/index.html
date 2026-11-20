@@ -813,11 +813,21 @@
             </div>
             <div class="toggle-row">
               <div>
-                <div class="tg-label">📵 Anti-Call (رفض المكالمات)</div>
-                <div class="tg-sub">يرفض ويحظر أي شخص يتصل بالبوت تلقائياً</div>
+                <div class="tg-label">📵 Anti-Call (رفض المكالمات التلقائي)</div>
+                <div class="tg-sub">يرفض المكالمات الواردة تلقائياً أو يرد عليها بالصوت (بدون حظر)</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="toggle-anticall" checked onchange="saveToggle('anti_call', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row" style="background:rgba(239,68,68,0.06);padding:10px 14px;border-radius:10px;border:1px solid rgba(239,68,68,0.2);">
+              <div>
+                <div class="tg-label" style="color:#ef4444;font-weight:700;">🚫 Auto-Block Callers (حظر المتصل تلقائياً)</div>
+                <div class="tg-sub">إذا اتصل أي شخص بالبوت، يتم رفض المكالمة وحظره فوراً في واتساب (مفعل بالافتراضي)</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-anticallblock" checked onchange="saveToggle('anticall_block', this.checked)">
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -863,6 +873,20 @@
                 <button type="button" class="btn btn-ghost sm" onclick="loadPerBotAiList()"><i class="fas fa-sync-alt"></i> تحديث</button>
               </div>
               <div id="per-bot-ai-list">
+                <div class="sw"><div class="sp"></div></div>
+              </div>
+            </div>
+
+            <!-- Per-Bot Call Block Selector Box with Checkboxes -->
+            <div id="per-bot-block-card" style="margin-top:14px;background:rgba(0,0,0,0.25);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:#ef4444;"><i class="fas fa-phone-slash"></i> 🚫 حظر المتصلين تلقائياً لكل بوت على حدة (Auto-Block Callers Per-Bot):</div>
+                  <div style="font-size:11px;color:var(--text2)">حدد البوتات التي تريد تفعيل خاصية الحظر التلقائي (Block) لكل من يتصل بها في واتساب</div>
+                </div>
+                <button type="button" class="btn btn-ghost sm" onclick="loadPerBotBlockList()"><i class="fas fa-sync-alt"></i> تحديث</button>
+              </div>
+              <div id="per-bot-block-list">
                 <div class="sw"><div class="sp"></div></div>
               </div>
             </div>

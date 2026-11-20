@@ -877,6 +877,82 @@ async function loadPerBotAiList() {
   }
 }
 
+async function onToggleBotSpecificBlock(phone, el) {
+  const isChecked = el.checked;
+  localStorage.setItem('toggle_anticall_block_' + phone, isChecked ? 'true' : 'false');
+  const badge = document.getElementById(`block-status-badge-${phone}`);
+  if (badge) {
+    badge.className = `badge ${isChecked ? 'b-r' : 'b-g'}`;
+    badge.textContent = isChecked ? '🚫 بلوك مفعّل' : '🟢 بلوك موقف';
+  }
+  const key = 'anticall_block_' + phone;
+  await saveToggle(key, isChecked);
+}
+
+async function loadPerBotBlockList() {
+  const wrap = document.getElementById('per-bot-block-list');
+  if (!wrap) return;
+  wrap.innerHTML = spin();
+  try {
+    const [statusRes, settingsRes] = await Promise.all([
+      fetch('/api/bot-status').then(r => r.json()).catch(() => ({ bots: [] })),
+      fetch('/api/settings').then(r => r.json()).catch(() => ({}))
+    ]);
+
+    const bots = statusRes.bots || [];
+    const globalBlockOn = settingsRes.anticall_block !== undefined 
+      ? (settingsRes.anticall_block === 'true' || settingsRes.anticall_block === true)
+      : (localStorage.getItem('toggle_anticall_block') !== 'false');
+
+    if (bots.length === 0) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:10px;">لا توجد بوتات متصلة حالياً.</div>';
+      return;
+    }
+
+    const html = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px;margin-top:8px;">` +
+      bots.map(bot => {
+        const phone = (bot.phone || '').replace(/\\D/g, '');
+        if (!phone) return '';
+
+        const localVal = localStorage.getItem('toggle_anticall_block_' + phone);
+        let isBlockOn = true;
+        if (localVal !== null) {
+          isBlockOn = (localVal === 'true');
+        } else if (settingsRes['anticall_block_' + phone] !== undefined) {
+          isBlockOn = (settingsRes['anticall_block_' + phone] === 'true' || settingsRes['anticall_block_' + phone] === true);
+        } else {
+          isBlockOn = globalBlockOn;
+        }
+
+        const isConn = !!bot.connected;
+
+        return `
+          <div style="background:rgba(255,255,255,0.04);border:1px solid ${isBlockOn ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'};border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:800;font-size:14px;color:var(--txt);">+${phone}</div>
+              <div style="font-size:11px;margin-top:3px;">
+                ${isConn ? '<span class="badge b-g" style="font-size:10px;">🟢 متصل ونشط</span>' : '<span class="badge b-r" style="font-size:10px;">🔴 غير متصل</span>'}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="block-status-badge-${phone}" class="badge ${isBlockOn ? 'b-r' : 'b-g'}" style="font-size:11px;font-weight:700;">
+                ${isBlockOn ? '🚫 بلوك مفعّل' : '🟢 بلوك موقف'}
+              </span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="perbot-block-toggle-${phone}" ${isBlockOn ? 'checked' : ''} onchange="onToggleBotSpecificBlock('${phone}', this)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        `;
+      }).join('') + `</div>`;
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--red);padding:10px;">خطأ فـ تحميل البوتات: ' + e.message + '</div>';
+  }
+}
+
 async function loadAuth() {
   const wrap = document.getElementById('auth-wrap');
   if (!wrap) return;
@@ -1578,6 +1654,7 @@ async function loadBotSettings() {
         auto_status_read: 'toggle-autostatus',
         auto_read: 'toggle-autoread', 
         anti_call: 'toggle-anticall', 
+        anticall_block: 'toggle-anticallblock',
         silent_mode: 'toggle-silent', 
         auto_online: 'toggle-autoonline',
         auto_ai: 'toggle-autoai'
@@ -1586,6 +1663,7 @@ async function loadBotSettings() {
         auto_status_read: true,
         auto_read: true,
         anti_call: true,
+        anticall_block: true,
         silent_mode: false,
         auto_online: true,
         auto_ai: true
@@ -1608,6 +1686,8 @@ async function loadBotSettings() {
   } catch(e) {}
   // Load per-bot AI selector checkboxes list
   await loadPerBotAiList();
+  // Load per-bot Call Block selector checkboxes list
+  await loadPerBotBlockList();
   // Load bot mode from API
   await loadBotMode();
   // Load admins list
@@ -1818,11 +1898,15 @@ async function saveToggle(key, value) {
     const labels = { 
       auto_status_read: 'Vu Status (مشاهدة الستوري)', 
       auto_read: 'Auto Read (قراءة الرسائل)', 
-      anti_call: 'Anti-Call (رفض المكالمات)', 
+      anti_call: 'Anti-Call (رفض المكالمات التلقائي)', 
+      anticall_block: 'Auto-Block Callers (حظر المتصل تلقائياً)',
       silent_mode: 'Silent Mode (وضع الصمت)', 
       auto_online: 'Auto Online (متصل دائماً)',
       auto_ai: 'AI Chatbot (الرد التلقائي بالذكاء الاصطناعي)'
     };
+    if (key.startsWith('anticall_block_')) {
+      labels[key] = `حظر المتصلين للبوت +${key.replace('anticall_block_', '')}`;
+    }
     if (data.success) {
       toast(`${value ? '✅ تم تفعيل' : '⛔ تم إيقاف'} ${labels[key] || key} وحفظه فـ الداتابيز!`, 'ok');
     } else {

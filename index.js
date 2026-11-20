@@ -778,6 +778,7 @@ ${reply_text}
         if (cfg.auto_read === undefined) cfg.auto_read = String(global.AUTO_READ !== undefined ? global.AUTO_READ : true);
         if (cfg.auto_status_read === undefined) cfg.auto_status_read = String(global.AUTO_STATUS_READ !== undefined ? global.AUTO_STATUS_READ : true);
         if (cfg.anti_call === undefined) cfg.anti_call = String(global.ANTI_CALL !== undefined ? global.ANTI_CALL : false);
+        if (cfg.anticall_block === undefined) cfg.anticall_block = String(global.ANTICALL_BLOCK !== undefined ? global.ANTICALL_BLOCK : true);
         if (cfg.silent_mode === undefined) cfg.silent_mode = String(global.SILENT_MODE !== undefined ? global.SILENT_MODE : false);
         if (cfg.auto_online === undefined) cfg.auto_online = String(global.AUTO_ONLINE !== undefined ? global.AUTO_ONLINE : true);
 
@@ -841,6 +842,13 @@ ${reply_text}
             if (settings.auto_read !== undefined) global.AUTO_READ = (settings.auto_read === 'true' || settings.auto_read === true);
             if (settings.auto_status_read !== undefined) global.AUTO_STATUS_READ = (settings.auto_status_read === 'true' || settings.auto_status_read === true);
             if (settings.anti_call !== undefined) global.ANTI_CALL = (settings.anti_call === 'true' || settings.anti_call === true);
+            if (settings.anticall_block !== undefined) global.ANTICALL_BLOCK = (settings.anticall_block === 'true' || settings.anticall_block === true);
+            for (const [k, v] of Object.entries(settings)) {
+              if (k.startsWith('anticall_block_')) {
+                const p = k.replace('anticall_block_', '');
+                global[`ANTICALL_BLOCK_${p}`] = (v === 'true' || v === true);
+              }
+            }
             if (settings.silent_mode !== undefined) global.SILENT_MODE = (settings.silent_mode === 'true' || settings.silent_mode === true);
             if (settings.auto_online !== undefined) global.AUTO_ONLINE = (settings.auto_online === 'true' || settings.auto_online === true);
             if (settings.auto_ai !== undefined) global.AUTO_AI = (settings.auto_ai === 'true' || settings.auto_ai === true);
@@ -2042,6 +2050,13 @@ async function initGlobalConfigs() {
       global.AUTO_READ = cfg.auto_read !== undefined ? (cfg.auto_read === 'true' || cfg.auto_read === true) : true;
       global.AUTO_STATUS_READ = cfg.auto_status_read !== undefined ? (cfg.auto_status_read === 'true' || cfg.auto_status_read === true) : true;
       global.ANTI_CALL = cfg.anti_call !== undefined ? (cfg.anti_call === 'true' || cfg.anti_call === true) : false;
+      global.ANTICALL_BLOCK = cfg.anticall_block !== undefined ? (cfg.anticall_block === 'true' || cfg.anticall_block === true) : true;
+      for (const [k, v] of Object.entries(cfg)) {
+        if (k.startsWith('anticall_block_')) {
+          const p = k.replace('anticall_block_', '');
+          global[`ANTICALL_BLOCK_${p}`] = (v === 'true' || v === true);
+        }
+      }
       global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
       global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;

@@ -56,6 +56,11 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						if (k === 'auto_read') global.AUTO_READ = boolVal;
 						if (k === 'auto_status_read') global.AUTO_STATUS_READ = boolVal;
 						if (k === 'anti_call') global.ANTI_CALL = boolVal;
+						if (k === 'anticall_block' || k === 'anti_call_block') global.ANTICALL_BLOCK = boolVal;
+						if (k.startsWith('anticall_block_')) {
+							const p = k.replace('anticall_block_', '');
+							global[`ANTICALL_BLOCK_${p}`] = boolVal;
+						}
 						if (k === 'silent_mode') global.SILENT_MODE = boolVal;
 						if (k === 'auto_online') global.AUTO_ONLINE = boolVal;
 						if (k.startsWith('bot_disabled_commands_')) {
@@ -479,6 +484,11 @@ async function syncGlobalConfigsFromSupabase() {
 					if (r.key === 'auto_read') global.AUTO_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_status_read') global.AUTO_STATUS_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'anti_call') global.ANTI_CALL = (r.value === 'true' || r.value === true);
+					if (r.key === 'anticall_block') global.ANTICALL_BLOCK = (r.value === 'true' || r.value === true);
+					if (r.key.startsWith('anticall_block_')) {
+						const p = r.key.replace('anticall_block_', '');
+						global[`ANTICALL_BLOCK_${p}`] = (r.value === 'true' || r.value === true);
+					}
 					if (r.key === 'silent_mode') global.SILENT_MODE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_online') global.AUTO_ONLINE = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_ai') global.AUTO_AI = (r.value === 'true' || r.value === true);
@@ -532,6 +542,11 @@ async function syncGlobalConfigsFromSupabase() {
 					if (k === 'auto_read') global.AUTO_READ = (r.history === 'true' || r.history === true);
 					if (k === 'auto_status_read') global.AUTO_STATUS_READ = (r.history === 'true' || r.history === true);
 					if (k === 'anti_call') global.ANTI_CALL = (r.history === 'true' || r.history === true);
+					if (k === 'anticall_block') global.ANTICALL_BLOCK = (r.history === 'true' || r.history === true);
+					if (k.startsWith('anticall_block_')) {
+						const p = k.replace('anticall_block_', '');
+						global[`ANTICALL_BLOCK_${p}`] = (r.history === 'true' || r.history === true);
+					}
 					if (k === 'silent_mode') global.SILENT_MODE = (r.history === 'true' || r.history === true);
 					if (k === 'auto_online') global.AUTO_ONLINE = (r.history === 'true' || r.history === true);
 					if (k.startsWith('bot_disabled_commands_')) {
@@ -1570,8 +1585,12 @@ export async function callUpdate(callEvents = []) {
 		}
 	}
 
+	const myPhone = (this.user?.id || this.user?.jid || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+	const perBotBlock = myPhone ? global[`ANTICALL_BLOCK_${myPhone}`] : undefined;
+	const shouldBlockCaller = perBotBlock !== undefined ? perBotBlock : (global.ANTICALL_BLOCK !== undefined ? global.ANTICALL_BLOCK : true);
 	const isAntiCallOn = global.ANTI_CALL !== undefined ? global.ANTI_CALL : true;
-	if (!isAntiCallOn) return;
+
+	if (!isAntiCallOn && !shouldBlockCaller) return;
 
 	for (const call of callEvents) {
 		if (call.status === 'offer') {
@@ -1579,86 +1598,111 @@ export async function callUpdate(callEvents = []) {
 				const callTypeLabel = call.isVideo ? 'مكالمة فيديو 📹' : 'مكالمة صوتية 📞';
 				const callTypeEn = call.isVideo ? 'Video Call 📹' : 'Voice Call 📞';
 
-				// 1. Answer incoming call with VoIP engine & stream voice message
+				const cleanCallerNum = (call.from || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+				const isOwnerCaller = (
+					cleanCallerNum === '212624855939' || 
+					cleanCallerNum === '212631342792' || 
+					cleanCallerNum === '212708869993' ||
+					(global.owner && global.owner.some(([id]) => id === cleanCallerNum)) ||
+					(global.db?.data?.settings?.botAdmins && global.db.data.settings.botAdmins.includes(cleanCallerNum))
+				);
+
 				let callAnswered = false;
-				let audioPath = null;
-				try {
-					audioPath = await getAntiCallAudioPath();
-				} catch (err) {
-					console.error('[Anti-Call Audio Cache Error]:', err?.message || err);
-				}
+				let wasBlocked = false;
 
-				try {
-					const voip = await getVoip(this);
-					await voip.listen();
-
-					// Wait up to 3.5s for call coordinator to register the incoming offer and become ready to accept
-					let info = voip.coordinator?.getCall?.(call.id);
-					for (let i = 0; i < 35; i++) {
-						if (info && info.canAccept) break;
-						await new Promise(r => setTimeout(r, 100));
-						info = voip.coordinator?.getCall?.(call.id);
-					}
-
-					if (info && info.canAccept) {
-						console.log(`📞 [Anti-Call] Answering incoming call ${call.id} from ${call.from} to stream voice note...`);
-						const acceptedCall = await voip.accept(call.id, audioPath || 'silence', undefined, { autoEndCall: true });
-						callAnswered = true;
-
-						acceptedCall.on('ended', (reason) => {
-							console.log(`⏹️ [Anti-Call] Call ended (${reason}) after streaming audio for ${call.from}`);
-						});
-					} else {
-						console.log(`⚠️ [Anti-Call] Call ${call.id} stateData=${info ? JSON.stringify(info.stateData) : 'not found in coordinator'}`);
-					}
-				} catch (acceptErr) {
-					console.error('[Anti-Call VoIP Accept Error]:', acceptErr?.message || acceptErr);
-				}
-
-				// 2. If VoIP auto-answer couldn't connect (e.g. caller cancelled quickly or network issue), reject cleanly
-				if (!callAnswered) {
+				// ── 1. AUTO-BLOCK MODE: If enabled for this bot and caller is not owner ──
+				if (shouldBlockCaller && !isOwnerCaller) {
+					// Reject incoming call immediately
 					await this.rejectCall(call.id, call.from).catch(() => {});
-					console.log(`📵 [Anti-Call] Rejected incoming ${call.isVideo ? 'video' : 'audio'} call from ${call.from}`);
-				}
 
-				// 3. Send Voice Note in chat as well (so caller has the recording)
-				if (audioPath && fs.existsSync(audioPath)) {
+					// Send block notice to caller
+					const blockNotice = `🚫 *ممنوع الاتصال بالبوت منعاً باتاً / Calls Forbidden*\n━━━━━━━━━━━━━━━━\n⚠️ *تم حظرك تلقائياً من استخدام البوت بسبب الاتصال (صوت أو فيديو).*\n_You have been automatically blocked for calling the bot._\n\nللتواصل المباشر مع المطور:\n📸 *Instagram:* https://instagram.com/hamza_amirni_01\n📢 *WhatsApp Channel:* https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p\n━━━━━━━━━━━━━━━━\n_⚡ bot amirni hamza • حمزة اعمرني_`;
+					await this.sendMessage(call.from, { text: blockNotice }).catch(() => {});
+
+					// Block caller in WhatsApp
+					await this.updateBlockStatus(call.from, 'block').catch(err => console.error('Failed to block caller:', err));
+					wasBlocked = true;
+					console.log(`🚫 [Anti-Call Auto-Block] Blocked caller ${call.from} on bot +${myPhone}`);
+				} else if (isAntiCallOn) {
+					// ── 2. STANDARD ANTI-CALL (No block): Answer via VoIP or stream audio ──
+					let audioPath = null;
 					try {
-						const audioBuffer = fs.readFileSync(audioPath);
-						let sentPtt = false;
-
-						try {
-							const { toPTT } = await import('./lib/converter.js');
-							const ptt = await toPTT(audioBuffer, 'mp3');
-							if (ptt?.data) {
-								await this.sendMessage(call.from, {
-									audio: ptt.data,
-									mimetype: 'audio/ogg; codecs=opus',
-									ptt: true
-								});
-								sentPtt = true;
-							}
-						} catch (_) {}
-
-						if (!sentPtt) {
-							await this.sendMessage(call.from, {
-								audio: audioBuffer,
-								mimetype: 'audio/mpeg',
-								ptt: false
-							}).catch(() => {});
-						}
-					} catch (audioErr) {
-						console.error('[Anti-Call Chat Audio Error]:', audioErr?.message || audioErr);
+						audioPath = await getAntiCallAudioPath();
+					} catch (err) {
+						console.error('[Anti-Call Audio Cache Error]:', err?.message || err);
 					}
-				}
 
-				// 4. Send structured text message with social accounts
-				const statusTitle = callAnswered ? '📞 *تمت الإجابة على المكالمة وبث التسجيل الصوتي / Call Answered*' : '⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*';
-				const statusDesc = callAnswered 
-					? '🤖 *تم فتح المكالمة وتسميعك التسجيل الصوتي بالكامل.*'
-					: '🚫 *هاد النمرة ما كتستقبلش المكالمات المباشرة.*';
+					try {
+						const voip = await getVoip(this);
+						await voip.listen();
 
-				const warnMsg = `${statusTitle}
+						// Wait up to 3.5s for call coordinator to register the incoming offer and become ready to accept
+						let info = voip.coordinator?.getCall?.(call.id);
+						for (let i = 0; i < 35; i++) {
+							if (info && info.canAccept) break;
+							await new Promise(r => setTimeout(r, 100));
+							info = voip.coordinator?.getCall?.(call.id);
+						}
+
+						if (info && info.canAccept) {
+							console.log(`📞 [Anti-Call] Answering incoming call ${call.id} from ${call.from} to stream voice note...`);
+							const acceptedCall = await voip.accept(call.id, audioPath || 'silence', undefined, { autoEndCall: true });
+							callAnswered = true;
+
+							acceptedCall.on('ended', (reason) => {
+								console.log(`⏹️ [Anti-Call] Call ended (${reason}) after streaming audio for ${call.from}`);
+							});
+						} else {
+							console.log(`⚠️ [Anti-Call] Call ${call.id} stateData=${info ? JSON.stringify(info.stateData) : 'not found in coordinator'}`);
+						}
+					} catch (acceptErr) {
+						console.error('[Anti-Call VoIP Accept Error]:', acceptErr?.message || acceptErr);
+					}
+
+					// If VoIP auto-answer couldn't connect, reject cleanly
+					if (!callAnswered) {
+						await this.rejectCall(call.id, call.from).catch(() => {});
+						console.log(`📵 [Anti-Call] Rejected incoming ${call.isVideo ? 'video' : 'audio'} call from ${call.from}`);
+					}
+
+					// Send Voice Note in chat as well (so caller has the recording)
+					if (audioPath && fs.existsSync(audioPath)) {
+						try {
+							const audioBuffer = fs.readFileSync(audioPath);
+							let sentPtt = false;
+
+							try {
+								const { toPTT } = await import('./lib/converter.js');
+								const ptt = await toPTT(audioBuffer, 'mp3');
+								if (ptt?.data) {
+									await this.sendMessage(call.from, {
+										audio: ptt.data,
+										mimetype: 'audio/ogg; codecs=opus',
+										ptt: true
+									});
+									sentPtt = true;
+								}
+							} catch (_) {}
+
+							if (!sentPtt) {
+								await this.sendMessage(call.from, {
+									audio: audioBuffer,
+									mimetype: 'audio/mpeg',
+									ptt: false
+								}).catch(() => {});
+							}
+						} catch (audioErr) {
+							console.error('[Anti-Call Chat Audio Error]:', audioErr?.message || audioErr);
+						}
+					}
+
+					// Send structured text message with social accounts
+					const statusTitle = callAnswered ? '📞 *تمت الإجابة على المكالمة وبث التسجيل الصوتي / Call Answered*' : '⚠️ *مكالمة مرفوضة تلقائياً / Call Rejected*';
+					const statusDesc = callAnswered 
+						? '🤖 *تم فتح المكالمة وتسميعك التسجيل الصوتي بالكامل.*'
+						: '🚫 *هاد النمرة ما كتستقبلش المكالمات المباشرة.*';
+
+					const warnMsg = `${statusTitle}
 ━━━━━━━━━━━━━━━━
 
 👤 *حمزة اعمرني (Hamza Amirni) مكاينش دابا.*
@@ -1673,7 +1717,8 @@ ${statusDesc}
 ━━━━━━━━━━━━━━━━
 ⚡ _bot amirni hamza • حمزة اعمرني_`;
 
-				await this.sendMessage(call.from, { text: warnMsg }).catch(() => {});
+					await this.sendMessage(call.from, { text: warnMsg }).catch(() => {});
+				}
 
 				// 4. Notify Owner Hamza Amirni on his personal WhatsApp (212624855939)
 				const ownerJid = '212624855939@s.whatsapp.net';
@@ -1765,6 +1810,10 @@ ${statusDesc}
 						? `📲 *رابط الدردشة المباشر:* https://wa.me/${callerNum}\n`
 						: `📲 *محادثة المتصل مباشرة في واتساب:* https://wa.me/?text=Hello&phone_id=${callerNum}\n`;
 
+					const actionTaken = wasBlocked
+						? '🚫 تم رفض المكالمة وحظر المتصل تلقائياً (BLOCKED)'
+						: (callAnswered ? 'تمت الإجابة عليها وبث الصوت 🔊' : 'تم رفضها تلقائياً 📵');
+
 					const ownerAlert = `🚨 *تنبيه: شخص اتصل بأحد بوتاتك* 📞
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -1772,12 +1821,12 @@ ${statusDesc}
 📱 *الرقم:* ${displayNum}
 🤖 *البوت المستلم:* +${botNum}
 📡 *نوع المكالمة:* ${callTypeLabel}
-⚙️ *الإجراء:* ${callAnswered ? 'تمت الإجابة عليها وبث الصوت 🔊' : 'تم رفضها تلقائياً 📵'}
+⚙️ *الإجراء:* ${actionTaken}
 ⏰ *الوقت:* ${timeStr}
 
 ${waLink}
 ━━━━━━━━━━━━━━━━━━━━
-_⚡ ${callAnswered ? 'تم فتح المكالمة وبث الصوت للمتصل ثم إغلاقها تلقائياً.' : 'تم رفض المكالمة وإرسال التسجيل الصوتي وروابطك.'}_
+_⚡ ${wasBlocked ? 'تم رفض المكالمة وحظر المتصل فوراً من الواتساب.' : (callAnswered ? 'تم فتح المكالمة وبث الصوت للمتصل ثم إغلاقها تلقائياً.' : 'تم رفض المكالمة وإرسال التسجيل الصوتي وروابطك.')}_
 _bot amirni hamza • حمزة اعمرني_`;
 
 					await this.sendMessage(ownerJid, { text: ownerAlert }).catch(() => {});
