@@ -30,7 +30,6 @@ const isFrenchTopic = (str) => /[àâäéèêëîïôöùûüçœ]/i.test(String
 function sanitizeTitle(str) {
 	let t = String(str || '').trim();
 	if (t.length > 55 || t.includes('\n')) {
-		// Look for patterns like "sur le sujet suivant : X" or "حول موضوع : X"
 		const matchFr = t.match(/sujet\s*(?:suivant)?\s*[:]\s*([^\n\.\,\!\?]+)/i);
 		const matchAr = t.match(/موضوع\s*(?:التالي)?\s*[:]\s*([^\n\.\,\!\?]+)/i);
 		if (matchFr && matchFr[1]) {
@@ -38,7 +37,6 @@ function sanitizeTitle(str) {
 		} else if (matchAr && matchAr[1]) {
 			t = matchAr[1].trim();
 		} else {
-			// Take the first line or first clean phrase
 			t = t.split('\n')[0].split(/[.:!?]/)[0].trim();
 			if (t.length > 50) t = t.substring(0, 47) + '...';
 		}
@@ -98,196 +96,290 @@ function parseSlidesFromAnyText(raw, topic) {
 	}
 	if (currentSlide && currentSlide.points.length > 0) slides.push(currentSlide);
 
-	// 3. Fallback: High-Standard Professional Structure (Academic & Executive Standard)
+	// 3. Fallback: Detailed, Topic-Tailored Real Knowledge (Never generic filler)
 	if (slides.length < 3) {
 		const rtl = isRtl(cleanSafeTitle);
 		const fr = isFrenchTopic(cleanSafeTitle);
+		const isAiTopic = /(ذكاء|اصطناعي|ai|intelligence|artificielle|tech|robot)/i.test(cleanSafeTitle);
 
 		if (rtl) {
+			if (isAiTopic) {
+				return {
+					title: cleanSafeTitle,
+					subtitle: 'المفاهيم والتطبيقات العملية والآفاق المستقبلية',
+					slides: [
+						{
+							title: 'مفهوم الذكاء الاصطناعي وتطوره',
+							points: [
+								'محاكاة القدرات الذهنية البشرية كالتعلم والاستنتاج والتحليل الذاتي عبر الخوارزميات',
+								'الانتقال التاريخي من البرمجة التقليدية القائمة على القواعد إلى التعلم الآلي والعميق',
+								'معالجة البيانات الضخمة (Big Data) لتمكين الأنظمة من اتخاذ قرارات دقيقة ومستقلة'
+							]
+						},
+						{
+							title: 'الركائز التقنية الأساسية',
+							points: [
+								'التعلم الآلي (Machine Learning): تمكين البرمجيات من تحسين أدائها تلقائياً مع زيادة البيانات',
+								'الشبكات العصبية العميقة (Deep Learning): محاكاة طريقة عمل الخلايا العصبية في الدماغ البشري',
+								'معالجة اللغات الطبيعية (NLP): تمكين الآلات من فهم وتوليد لغة الإنسان بدقة فائقة'
+							]
+						},
+						{
+							title: 'التطبيقات في الحياة اليومية',
+							points: [
+								'الهواتف الذكية: التعرف على الوجه، المساعدات الصوتية الذكية (Siri, Google)، والتصوير الحسابي',
+								'محركات التوصية: ترشيح المحتوى بدقة في منصات مثل YouTube و Netflix ووسائل التواصل',
+								'الملاحة والنقل: حساب أسرع المسارات وتجنب الازدحام عبر الخرائط والسيارات ذاتية القيادة'
+							]
+						},
+						{
+							title: 'الثورة في قطاع الرعاية الصحية والتعليم',
+							points: [
+								'الرعاية الطبية: التشخيص المبكر للأمراض وقراءة الأشعة بدقة تفوق أحياناً التشخيص البشري',
+								'تطوير الأدوية: تسريع اكتشاف وتصميم المركبات العلاجية في أسابيع معدودة بدل عقود',
+								'التعليم المخصص: تخصيص المناهج وتوفير معلمين افتراضيين يتكيفون مع مستوى كل طالب'
+							]
+						},
+						{
+							title: 'التحديات والمخاطر الراهنة',
+							points: [
+								'أمن وخصوصية البيانات: مخاطر استغلال البيانات الشخصية والتسريبات الرقمية',
+								'التزييف العميق (Deepfake): التحديات الأمنية والاجتماعية الناتجة عن تزييف الصوت والصورة',
+								'سوق العمل: أتمتة الوظائف والحاجة الملحة لتطوير مهارات القوى العاملة للمستقبل'
+							]
+						},
+						{
+							title: 'الخاتمة والآفاق المستقبلية',
+							points: [
+								'الذكاء الاصطناعي أداة مساعدة لتمكين الإنسان وتطوير الإنتاجية وليس بديلاً عن الإبداع البشري',
+								'ضرورة وضع أطر قانونية وأخلاقية واضحة لحوكمة استخدامات التكنولوجيا الناشئة',
+								'شكراً جزيلاً لحسن استماعكم ومتابعتكم الكريمة لهذا العرض'
+							]
+						}
+					]
+				};
+			}
+
+			// General Arabic High-Value Knowledge
 			return {
 				title: cleanSafeTitle,
-				subtitle: 'عرض تقديمي شامل واحترافي • Bot Hamza Amirni',
+				subtitle: 'دراسة تحليلية شاملة • المفاهيم والأبعاد العملية',
 				slides: [
 					{
-						title: 'المقدمة العامة وسياق الموضوع',
+						title: 'المقدمة والتعريف الأساسي',
 						points: [
-							`نظرة عامة وشاملة تمهد لأبعاد ومفاهيم ${cleanSafeTitle}`,
-							'أهمية الموضوع وحيويته في الواقع المعاصر والمستقبل',
-							'الإشكالية المحورية ومحاور العرض الأساسية'
+							`التعريف العلمي والدقيق لمفهوم ${cleanSafeTitle} وسياقه التاريخي`,
+							'العوامل الرئيسية التي تجعل من هذا الموضوع ركيزة أساسية في عصرنا الحالي',
+							'الترابط الوثيق بين الفهم النظري السليم والتطبيق العملي الناجح'
 						]
 					},
 					{
-						title: 'أهداف العرض التقديمي',
+						title: 'الأهداف والأبعاد المحورية',
 						points: [
-							'تحديد المفاهيم الأساسية والأبعاد الجوهرية للموضوع',
-							'تحليل آليات التطبيق وأحدث الممارسات المتبعة علمياً',
-							'تقديم حلول عملية وتوصيات استراتيجية قابلة للتنفيذ'
+							'تحديد الأهداف الاستراتيجية ومؤشرات الأداء الرئيسية المرتبطة بالموضوع',
+							'استيعاب التحديات المحيطة واستثمار الفرص المتاحة لتطوير الأداء',
+							'بناء رؤية واضحة ومستدامة للتطوير والتحديث المستمر'
 						]
 					},
 					{
-						title: 'المفاهيم والأسس الجوهرية',
+						title: 'التحليل والتطبيقات الواقعية',
 						points: [
-							`التعريف العلمي والدقيق لمفهوم ${cleanSafeTitle}`,
-							'المبادئ الأساسية والقيم الحاكمة المرتبطة بالموضوع',
-							'التأثير المباشر والأبعاد الهيكلية على الفرد والمجتمع'
+							'دراسة نماذج واقعية وتجارب ميدانية أثبتت نجاحها وكفاءتها العالية',
+							'الآليات العملية لتطبيق هذه المبادئ في بيئة العمل والحياة اليومية',
+							'أفضل الممارسات المتبعة عالمياً لتحقيق أعلى معدلات الجودة والإتقان'
 						]
 					},
 					{
-						title: 'التحليل المعمق والأمثلة العملية',
+						title: 'المزايا الاستراتيجية والقيمة المضافة',
 						points: [
-							'دراسة تحليلية ونماذج واقعية ناجحة أثبتت فعاليتها',
-							'تجارب ملهمة وأفضل الممارسات التطبيقية في المجال',
-							'خطوات إجرائية لتطبيق هذه المبادئ في بيئة العمل والحياة'
+							'تحقيق نتائج ملموسة تسهم في رفع الكفاءة وتحسين استغلال الموارد',
+							'تعزيز الميزة التنافسية وبناء أثر إيجابي مستدام على المدى البعيد',
+							'توفير حلول مبتكرة ومرنة تلبي متطلبات الواقع المتسارع'
 						]
 					},
 					{
-						title: 'المزايا والتحديات وسبل التجاوز',
+						title: 'التحديات وسبل التغلب عليها',
 						points: [
-							'المنافع الاستراتيجية والقيمة المضافة المستدامة',
-							'أبرز الصعوبات والمعوقات المحتملة وكيفية احتوائها',
-							'حلول مبتكرة واستراتيجيات ذكية للتغلب على التحديات'
+							'تشخيص دقيق لأبرز المعوقات التشغيلية والمخاطر المحتملة',
+							'استراتيجيات وقائية وخطوات علاجية حاسمة لتجاوز العقبات',
+							'أهمية المرونة والتقييم الدوري لضمان الاستمرارية والنجاح'
 						]
 					},
 					{
-						title: 'التركيب وحصيلة الأفكار الرئيسية',
+						title: 'الخلاصة والتوصيات والختام',
 						points: [
-							'ملخص مكثف لأهم الدروس المستفادة والركائز الجوهرية',
-							'حصيلة نهائية متكاملة تربط بين النظرية والتطبيق',
-							'خارطة طريق واضحة للتطوير المستمر والارتقاء'
-						]
-					},
-					{
-						title: 'الخاتمة والتوصيات والختام',
-						points: [
-							'خلاصة جامعة ورسالة ختامية ترسم آفاق النجاح المستمر',
-							'توصيات ختامية للتنفيذ المباشر والتقييم الدوري',
+							'إيجاز لأهم الدروس المستفادة والركائز الجوهرية للنجاح',
+							'توصيات ختامية قابلة للتنفيذ الفوري مع وضع خارطة طريق للمستقبل',
 							'شكراً جزيلاً لحسن متابعتكم وانتباهكم الكريم'
 						]
 					}
 				]
 			};
 		} else if (fr) {
+			if (isAiTopic) {
+				return {
+					title: cleanSafeTitle,
+					subtitle: 'Fondements, Cas d\'Usage & Perspectives d\'Avenir',
+					slides: [
+						{
+							title: 'Qu\'est-ce que l\'IA ? Définition & Origines',
+							points: [
+								'Simulation de l\'intelligence humaine par des machines : apprentissage, raisonnement et auto-correction',
+								'Évolution majeure depuis les systèmes experts jusqu\'à l\'apprentissage automatique et profond',
+								'Exploitation massive des données (Big Data) et puissance de calcul pour des analyses prédictives'
+							]
+						},
+						{
+							title: 'Piliers Technologiques Clés',
+							points: [
+								'Machine Learning : capacité des algorithmes à apprendre des données sans être explicitement programmés',
+								'Deep Learning : réseaux de neurones profonds reproduisant le fonctionnement cognitif humain',
+								'Traitement du Langage Naturel (NLP) : compréhension et génération de texte à l\'instar de ChatGPT'
+							]
+						},
+						{
+							title: 'Applications dans la Vie Quotidienne',
+							points: [
+								'Smartphones : reconnaissance faciale, assistants vocaux intelligents et optimisation photo en temps réel',
+								'Divertissement : recommandations ultra-personnalisées sur Netflix, Spotify et réseaux sociaux',
+								'Transports intelligents : calcul d\'itinéraires en temps réel, sécurité active et véhicules autonomes'
+							]
+						},
+						{
+							title: 'Transformation de la Santé & de l\'Industrie',
+							points: [
+								'Santé : détection précoce des pathologies par analyse d\'images médicales avec une précision inédite',
+								'Recherche pharmaceutique : accélération spectaculaire de la découverte de nouveaux traitements',
+								'Industrie 4.0 : maintenance prédictive, robotique collaborative et optimisation énergétique des usines'
+							]
+						},
+						{
+							title: 'Défis Éthiques & Risques Majeurs',
+							points: [
+								'Protection de la vie privée et conformité réglementaire (RGPD et AI Act européen)',
+								'Biais algorithmiques et risques liés aux fausses informations générées (Deepfakes)',
+								'Impact sur l\'emploi : mutation des métiers et nécessité impérative de requalification des équipes'
+							]
+						},
+						{
+							title: 'Synthèse & Conclusion Finale',
+							points: [
+								'L\'IA est un puissant multiplicateur d\'efficacité humaine et non un substitut à la créativité',
+								'Nécessité d\'un cadre éthique et responsable pour garantir une technologie au service de tous',
+								'Merci chaleureusement pour votre attention et vos échanges'
+							]
+						}
+					]
+				};
+			}
+
+			// General French High-Value Knowledge
 			return {
 				title: cleanSafeTitle,
-				subtitle: 'Présentation Complète & Professionnelle • Bot Hamza Amirni',
+				subtitle: 'Analyse Stratégique Complète & Recommandations Pratiques',
 				slides: [
 					{
-						title: 'Introduction Générale & Contexte',
+						title: 'Introduction & Définition Fondamentale',
 						points: [
-							`Vue d'ensemble et mise en contexte globale de : ${cleanSafeTitle}`,
-							'Importance majeure et pertinence du sujet dans le monde contemporain',
-							'Problématique centrale et cadre général de réflexion'
+							`Définition rigoureuse et mise en contexte de : ${cleanSafeTitle}`,
+							'Les facteurs clés expliquant l\'importance grandissante du sujet aujourd\'hui',
+							'Problématique centrale et articulation des grands axes d\'analyse'
 						]
 					},
 					{
-						title: 'Objectifs de la Présentation',
+						title: 'Objectifs & Enjeux Stratégiques',
 						points: [
-							'Comprendre les notions fondamentales et les enjeux stratégiques',
-							'Analyser les mécanismes opérationnels et les facteurs clés de succès',
-							'Identifier des solutions pratiques et des perspectives d\'avenir durables'
+							'Identifier les leviers de performance et les indicateurs clés de succès',
+							'Comprendre les dynamiques d\'évolution et anticiper les transformations du secteur',
+							'Construire une vision globale combinant rigueur méthodologique et flexibilité'
 						]
 					},
 					{
-						title: 'Fondements & Concepts Clés',
+						title: 'Développement & Études de Cas Réels',
 						points: [
-							`Définition rigoureuse et éléments constitutifs de : ${cleanSafeTitle}`,
-							'Les piliers méthodologiques et le cadre théorique de référence',
-							'Règles d\'or, principes directeurs et normes d\'excellence'
+							'Analyse approfondie de cas concrets et modèles opérationnels éprouvés',
+							'Retours d\'expérience sur les meilleures pratiques déployées à l\'échelle internationale',
+							'Méthodologie étape par étape pour une mise en œuvre efficace sur le terrain'
 						]
 					},
 					{
-						title: 'Développement & Exemples Concrets',
+						title: 'Avantages Compétitifs & Valeur Ajoutée',
 						points: [
-							'Étude approfondie des cas d\'usage réels et applications pratiques',
-							'Retours d\'expérience, illustrations et modèles inspirants',
-							'Méthodes concrètes de mise en œuvre et d\'exécution sur le terrain'
+							'Gains substantiels en efficacité, productivité et qualité globale',
+							'Création de valeur pérenne et renforcement durable de la compétitivité',
+							'Capacité d\'innovation accrue et alignement sur les standards d\'excellence'
 						]
 					},
 					{
-						title: 'Avantages, Défis & Solutions',
+						title: 'Défis Opérationnels & Solutions Éprouvées',
 						points: [
-							'Bénéfices tangibles, opportunités stratégiques et valeur ajoutée',
-							'Obstacles fréquents et risques potentiels à anticiper avec rigueur',
-							'Solutions innovantes et stratégies de dépassement éprouvées'
+							'Cartographie précise des risques potentiels et points de blocage critiques',
+							'Stratégies d\'atténuation et plans d\'action pour surmonter les obstacles',
+							'Importance d\'un pilotage agile et d\'une gouvernance participative'
 						]
 					},
 					{
-						title: 'Synthèse des Idées & Bilan',
+						title: 'Bilan Stratégique & Conclusion',
 						points: [
-							'Récapitulatif des enseignements majeurs et points d\'ancrage',
-							'Bilan stratégique global et feuille de route opérationnelle',
-							'Recommandations pragmatiques pour une mise en action immédiate'
-						]
-					},
-					{
-						title: 'Conclusion & Remerciements',
-						points: [
-							'Conclusion générale et ouverture vers de nouvelles perspectives',
-							'Message clé final inspirant et vision prospective',
-							'Merci chaleureusement pour votre attention et vos échanges'
+							'Synthèse des enseignements fondamentaux et vision prospective d\'avenir',
+							'Recommandations opérationnelles immédiates pour réussir la transition',
+							'Merci chaleureusement pour votre attention et votre écoute'
 						]
 					}
 				]
 			};
 		} else {
+			// English Fallback
 			return {
 				title: cleanSafeTitle,
-				subtitle: 'Comprehensive & Executive Presentation • Bot Hamza Amirni',
+				subtitle: 'Comprehensive Executive Overview & Strategic Roadmap',
 				slides: [
 					{
-						title: 'General Introduction & Background',
+						title: 'Introduction & Strategic Context',
 						points: [
-							`Comprehensive overview and strategic context of ${cleanSafeTitle}`,
-							'Core relevance, market impact, and significance today',
-							'Fundamental problem statement and central roadmap'
+							`Formal definition and modern landscape of ${cleanSafeTitle}`,
+							'Key drivers establishing this domain as an essential pillar of progress',
+							'Core problem statement and overarching roadmap'
 						]
 					},
 					{
-						title: 'Presentation Objectives',
+						title: 'Core Architecture & Key Concepts',
 						points: [
-							'Understand essential definitions, pillars, and overarching goals',
-							'Analyze key operational mechanisms and proven benchmarks',
-							'Deliver actionable recommendations and future-ready strategies'
+							'Fundamental building blocks, methodologies, and technical pillars',
+							'Industry-standard frameworks and operational prerequisites',
+							'Alignment between foundational theory and tactical execution'
 						]
 					},
 					{
-						title: 'Core Principles & Framework',
+						title: 'Real-World Case Studies & Applications',
 						points: [
-							`Formal definitions and theoretical foundation of ${cleanSafeTitle}`,
-							'Key methodologies, architecture, and regulatory considerations',
-							'Best-in-class standards and foundational prerequisites'
+							'Detailed examination of high-impact real-world deployments and benchmarks',
+							'Best practices from leading global organizations and thought leaders',
+							'Step-by-step framework for successful execution and scaling'
 						]
 					},
 					{
-						title: 'Deep-Dive & Practical Case Studies',
+						title: 'Strategic Value & Measurable Impact',
 						points: [
-							'Detailed examination of real-world implementation models',
-							'Proven success stories, benchmarks, and tactical takeaways',
-							'Step-by-step roadmap for immediate execution'
+							'Significant enhancements in efficiency, agility, and performance metrics',
+							'Sustainable competitive advantage and long-term return on investment',
+							'Future-proofing operations against market shifts and disruption'
 						]
 					},
 					{
-						title: 'Strategic Benefits & Risk Mitigation',
+						title: 'Key Challenges & Actionable Solutions',
 						points: [
-							'Measurable performance improvements and sustainable ROI',
-							'Critical bottlenecks, pitfalls, and risk management',
-							'Innovative countermeasures and continuous improvement'
+							'Critical barriers, compliance constraints, and operational bottlenecks',
+							'Proven risk mitigation strategies and governance protocols',
+							'Continuous learning and organizational adaptability as key enablers'
 						]
 					},
 					{
-						title: 'Key Synthesis & Strategic Review',
+						title: 'Conclusion & Strategic Takeaways',
 						points: [
-							'Consolidated review of core insights and essential lessons',
-							'Integrated assessment bridging theory with execution',
-							'Actionable next steps and performance milestones'
-						]
-					},
-					{
-						title: 'Conclusion & Thank You',
-						points: [
-							'Final concluding remarks and visionary outlook',
-							'Strategic call to action for stakeholders and teams',
-							'Thank you very much for your attention and time'
+							'Summary of pivotal takeaways and strategic milestones',
+							'Immediate recommendations for stakeholders and practitioners',
+							'Thank you very much for your time and attention'
 						]
 					}
 				]
@@ -305,58 +397,123 @@ function parseSlidesFromAnyText(raw, topic) {
 /**
  * Generate structured slide data using AI following professional expert standards
  * Handles both:
- * 1. Short Topics (e.g. "Intelligence Artificielle")
+ * 1. Short Topics (e.g. "دور الذكاء الاصطناعي في حياتنا اليومية")
  * 2. Full texts / long documents / pasted articles to be converted into presentations
  */
 async function generatePresentationData(inputContent, userLang = 'darija') {
 	const isLongDocument = inputContent.length > 70 || inputContent.includes('\n');
+	const rtl = isRtl(inputContent);
+	const fr = isFrenchTopic(inputContent);
 
-	const systemPrompt = `Tu es un expert mondial en conception de présentations PowerPoint professionnelles, en communication visuelle et en design moderne pour "Bot Hamza Amirni".
-${isLongDocument 
-	? 'L\'utilisateur te fournit un TEXTE COMPLET, un article, des notes de cours ou un document à transformer et synthétiser en une présentation PowerPoint magistrale.'
-	: 'L\'utilisateur te fournit un SUJET. Développe une présentation PowerPoint complète, moderne, élégante et professionnelle sur ce sujet.'}
+	let systemPrompt = '';
 
-RÈGLES IMPÉRATIVES DE STRUCTURE ET DE CONTENU:
-1. TITRE ET SOUS-TITRE (OBLIGATOIREMENT CONCIS) :
-   - Dégage un TITRE COURT ET PERCUTANT (maximum 4 à 6 mots) représentant le cœur du sujet.
-   - Ne jamais mettre une phrase longue ou un paragraphe entier comme titre !
-   - Dégage un SOUS-TITRE ÉLÉGANT (maximum 10 mots).
-2. LANGUE : Le contenu doit être OBLIGATOIREMENT dans la langue du texte/sujet (Arabe si en arabe/darija, Français si en français, Anglais si en anglais).
-3. STRUCTURE DE LA PRÉSENTATION (6 à 8 diapositives complètes) :
-   - Diapositive 1 : Page de couverture (Titre accrocheur et sous-titre élégant).
-   - Diapositive 2 : Introduction générale et présentation du contexte.
-   - Diapositive 3 : Objectifs clés de la présentation.
-   - Diapositives 4 à 6 : Développement organisé en plusieurs parties avec des explications claires, des exemples concrets et des informations pertinentes extraites ou développées.
-   - Avant-dernière diapositive : Synthèse des idées principales et bilan stratégique.
-   - Dernière diapositive : Conclusion professionnelle et remerciements ("Merci pour votre attention" / "شكراً لحسن متابعتكم").
-4. QUALITÉ DU CONTENU :
-   - Utiliser un langage soigné, professionnel et accessible.
-   - 3 à 4 points essentiels par diapositive, concis, bien formulés et percutants.
-   - Titres de diapositives courts et explicites (moins de 6 mots).
-5. FORMAT DE SORTIE STRICT :
-Retourne UNIQUEMENT un objet JSON brut valide (SANS backticks markdown, SANS \`\`\`json, SANS texte introductif) avec la structure exacte suivante :
+	if (rtl) {
+		systemPrompt = `أنت خبير عالمي في تصميم العروض التقديمية الاحترافية لبوت 'Bot Hamza Amirni'.
+مهمتك تصميم عرض تقديمي كامل، عميق، وغني بالمعلومات الحقيقية والشروحات والتعريفات الوافية حول الموضوع.
+
+🚨 تعليمات صارمة للمحتوى (ممنوع العبارات العامة الفارغة):
+- ممنوع منعاً باتاً كتابة عبارات عامة مثل "نظرة عامة تمهد للموضوع" أو "التعريف العلمي والدقيق" أو "المبادئ الأساسية".
+- يجب كتابة المحتوى الحقيقي والمفصل:
+  * التعريف العلمي الدقيق للمفهوم بالكلمات والشرح الوافي.
+  * ركائز وآليات العمل التقنية أو المفاهيمية.
+  * أمثلة وتطبيقات واقعية ملموسة (ذكر تقنيات وأسماء وتطبيقات حقيقية: الهواتف، الطب، النقل، الصناعة...).
+  * إحصائيات وأرقام وتأثيرات ملموسة في حياة الناس.
+  * تحديات حقيقية (أمن البيانات، الوظائف، الأخلاقيات) وحلول عملية قابلة للتنفيذ.
+
+هيكلة العرض (6 إلى 8 شرائح غنية):
+1. شريحة 1: الغلاف (عنوان جذاب ومختصر أقل من 6 كلمات، وسطر وصفي أنيق).
+2. شريحة 2: المفهوم والتعريف الشامل (ما هو بالضبط؟ نشأته وأهميته الحقيقية).
+3. شريحة 3: آليات وركائز العمل (كيف يعمل وما هي الأسس والمحاور التقنية).
+4. شريحة 4: التطبيقات في الحياة اليومية والواقع (أمثلة ملموسة وتطبيقات حية).
+5. شريحة 5: التأثيرات الإيجابية والقيمة المضافة (الأرقام والفوائد الواقعية).
+6. شريحة 6: التحديات والمخاطر والحلول الممكنة (المشاكل الحقيقية وكيفية تجاوزها).
+7. شريحة 7: الآفاق المستقبلية والرؤية القادمة.
+8. شريحة 8: الخاتمة والرسالة الختامية والشكر.
+
+أخرج النتيجة كـ JSON خام فقط دون أي نص إضافي:
 {
-  "title": "Titre Court (max 6 mots)",
-  "subtitle": "Sous-titre élégant et informatif (max 10 mots)",
+  "title": "عنوان موجز وقوي (أقل من 6 كلمات)",
+  "subtitle": "سطر وصفي أنيق وموضح",
   "slides": [
     {
-      "title": "Titre explicite de la diapositive",
+      "title": "عنوان واضح للشريحة",
       "points": [
-        "Premier point clé essentiel et bien formulé",
-        "Deuxième point avec analyse ou exemple concret",
-        "Troisième point d'impact ou recommandation"
+        "شرح وتعريف تفصيلي كامل ومباشر",
+        "أمثلة واقعية ملموسة وبيانات دقيقة",
+        "تحليل عملي وتأثير ملموس"
       ]
     }
   ]
 }`;
+	} else if (fr) {
+		systemPrompt = `Tu es un expert mondial en conception de présentations PowerPoint professionnelles pour "Bot Hamza Amirni".
+Ton rôle est de créer une présentation complète, ULTRA-DÉTAILLÉE, RICHE EN CONTENU RÉEL, moderne et professionnelle.
+
+🚨 RÈGLE STRICTE SUR LE CONTENU (ZÉRO PHRASES GÉNÉRIQUES) :
+- INTERDICTION FORMELLE d'écrire des formules vagues ou des titres creux comme "Vue d'ensemble et mise en contexte" ou "Définition rigoureuse".
+- Tu DOIS ÉCRIRE LE CONTENU RÉEL ET CONCRET :
+  * Définitions complètes, claires et exhaustives avec les termes techniques exacts.
+  * Piliers et mécanismes réels de fonctionnement.
+  * Exemples et cas d'usage réels du quotidien (santé, smartphones, transports, industrie, IA...).
+  * Véritables défis éthiques ou opérationnels et solutions stratégiques concrètes.
+
+STRUCTURE (6 à 8 diapositives d'excellence) :
+1. Diapositive 1 : Couverture (Titre accrocheur max 6 mots, sous-titre élégant).
+2. Diapositive 2 : Définition fondamentale & Contexte réel.
+3. Diapositive 3 : Mécanismes & Piliers clés de fonctionnement.
+4. Diapositive 4 : Cas d'usage réels & Applications du quotidien.
+5. Diapositive 5 : Bénéfices majeurs & Chiffres d'impact.
+6. Diapositive 6 : Défis majeurs, Risques éthiques & Solutions.
+7. Diapositive 7 : Perspectives d'Avenir.
+8. Diapositive 8 : Synthèse & Conclusion finale (avec mot de remerciement).
+
+Retourne UNIQUEMENT du JSON brut valide :
+{
+  "title": "Titre Court (max 5 mots)",
+  "subtitle": "Sous-titre élégant et informatif",
+  "slides": [
+    {
+      "title": "Titre explicite de la diapositive",
+      "points": [
+        "Définition concrète et détaillée avec termes exacts",
+        "Exemple réel d'application ou données factuelles",
+        "Analyse approfondie et impact concret"
+      ]
+    }
+  ]
+}`;
+	} else {
+		systemPrompt = `You are a world-class executive PowerPoint presentation designer for "Bot Hamza Amirni".
+Create an in-depth, rich, factual, and visually structured presentation.
+
+🚨 STRICT RULE: ZERO GENERIC FILLER.
+Provide concrete definitions, real technologies, actual daily applications, data, real challenges, and actionable solutions.
+
+Return ONLY raw JSON:
+{
+  "title": "Concise Catchy Title (max 5 words)",
+  "subtitle": "Elegant informative subtitle",
+  "slides": [
+    {
+      "title": "Explicit Slide Title",
+      "points": [
+        "Specific in-depth definition and explanation",
+        "Concrete real-world case study or data point",
+        "Actionable takeaway or impact"
+      ]
+    }
+  ]
+}`;
+	}
 
 	const userPrompt = isLongDocument 
-		? `Texte complet à analyser et convertir en présentation PowerPoint :\n\n"""\n${inputContent}\n"""\n\nRetourne UNIQUEMENT l'objet JSON contenant les diapositives.`
-		: `Sujet de la présentation : "${inputContent}".\nRetourne UNIQUEMENT l'objet JSON contenant les diapositives.`;
+		? `Texte complet / محتوى :\n"""\n${inputContent}\n"""\n\nJSON output:`
+		: `Subject / الموضوع : "${inputContent}"\n\nJSON output:`;
 
 	let rawResponse = '';
 	try {
-		rawResponse = await getSmartAIReply(userPrompt, { systemPrompt });
+		// Provide 25 seconds timeout so AI generates complete, in-depth slide content
+		rawResponse = await getSmartAIReply(userPrompt, { systemPrompt, timeoutMs: 25000 });
 	} catch (e) {
 		console.warn('[PPT] AI fetch failed, using smart slide builder:', e.message);
 	}
@@ -451,7 +608,7 @@ async function buildPptxBuffer(data, presenterName = '') {
 		});
 	}
 
-	// Presenter & Date Info Line (Uses the user's name, or default if empty)
+	// Presenter & Date Info Line (Uses user's name if available)
 	const cleanPresenter = (presenterName || '').trim();
 	const presenterLine = rtl
 		? (cleanPresenter ? `👤 إعداد وتقديم: ${cleanPresenter}   •   📅 ${dateStr}` : `📅 ${dateStr}`)
@@ -588,9 +745,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
 	if (!rawInput || rawInput.length < 2) {
 		return m.reply(t(
-			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly from any topic or document!\n\n*Usage:*\n← ${usedPrefix + command} <topic or full text>\n_Or reply to any text message with ${usedPrefix + command}_\n\n*Examples:*\n← ${usedPrefix + command} Intelligence Artificielle en Médecine\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم`,
-			`📊 *صانع عروض البوربوينت بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━\nأنشئ عروض تقديمية احترافية بصيغة PowerPoint (.pptx) فورياً من أي موضوع أو نص مقال!\n\n*الاستخدام:*\n← ${usedPrefix + command} <الموضوع أو النص الكامل>\n_أو قم بالرد على أي رسالة نصية بالأمر ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته في التعليم\n← ${usedPrefix + command} الطاقة المتجددة وتحديات المستقبل`,
-			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) من أي موضوع أو نص كامل صيفطتيه!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع ولا النص>\n_تقدر تصيفط الموضوع ولا ترد (Quote) على أي ميساج فيه نص بـ ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} الذكاء الاصطناعي وتطبيقاته\n← ${usedPrefix + command} Intelligence Artificielle & Big Data`
+			`📊 *AI PowerPoint Presentation Generator*\n━━━━━━━━━━━━━━━━━━━━\nCreate complete, professional PowerPoint (.pptx) presentations instantly from any topic or document!\n\n*Usage:*\n← ${usedPrefix + command} <topic or full text>\n_Or reply to any text message with ${usedPrefix + command}_\n\n*Examples:*\n← ${usedPrefix + command} Intelligence Artificielle en Médecine\n← ${usedPrefix + command} دور الذكاء الاصطناعي في حياتنا اليومية`,
+			`📊 *صانع عروض البوربوينت بالذكاء الاصطناعي*\n━━━━━━━━━━━━━━━━━━━━\nأنشئ عروض تقديمية احترافية بصيغة PowerPoint (.pptx) فورياً من أي موضوع أو نص مقال!\n\n*الاستخدام:*\n← ${usedPrefix + command} <الموضوع أو النص الكامل>\n_أو قم بالرد على أي رسالة نصية بالأمر ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} دور الذكاء الاصطناعي في حياتنا اليومية\n← ${usedPrefix + command} الطاقة المتجددة وتحديات المستقبل`,
+			`📊 *صانع عروض البوربوينت (PowerPoint)*\n━━━━━━━━━━━━━━━━━━━━\nقاد بريزونطاسيون كاملة واحترافية بصيغة (.pptx) من أي موضوع أو نص كامل صيفطتيه!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <الموضوع ولا النص>\n_تقدر تصيفط الموضوع ولا ترد (Quote) على أي ميساج فيه نص بـ ${usedPrefix + command}_\n\n*أمثلة:*\n← ${usedPrefix + command} دور الذكاء الاصطناعي في حياتنا اليومية\n← ${usedPrefix + command} Intelligence Artificielle & Big Data`
 		));
 	}
 
@@ -600,9 +757,9 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	await m.react('⏳');
 	await conn.sendMessage(m.chat, {
 		text: t(
-			`⏳ *Creating your PowerPoint presentation...*\nStructuring content and designing professional slides...`,
-			`⏳ *جاري تصميم عرض البوربوينت الخاص بك...*\nنقوم الآن بتحليل النص وإنشاء المحتوى وتنسيق الشرائح باحترافية...`,
-			`⏳ *كنقاد ليك بريزونطاسيون دابا...*\nجاري تلخيص وتوليد الأفكار وتصميم شرائح احترافية...`
+			`⏳ *Creating your PowerPoint presentation...*\nStructuring in-depth content and designing professional slides...`,
+			`⏳ *جاري تصميم عرض البوربوينت الخاص بك...*\nنقوم الآن بكتابة المحتوى التفصيلي والشروحات وتنسيق الشرائح باحترافية...`,
+			`⏳ *كنقاد ليك بريزونطاسيون دابا...*\nجاري كتابة المحتوى وتلخيص الأفكار وتصميم شرائح احترافية...`
 		)
 	}, { quoted: m });
 
