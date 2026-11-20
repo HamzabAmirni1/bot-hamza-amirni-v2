@@ -1264,6 +1264,100 @@ ${reply_text}
         return;
       }
 
+      // ── GET /api/bot-owners — list bot owners from Supabase ──
+      if (endpoint === 'bot-owners' && req.method === 'GET') {
+        try {
+          const cfg = await getConfigsFromSupabase();
+          let owners = [];
+          try { owners = JSON.parse(cfg.bot_owners || '[]'); } catch (_) {}
+          owners = Array.isArray(owners) ? owners.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
+          const rootOwner = '212624855939';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ owners, rootOwner }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── POST /api/bot-owners — add bot owner & save to Supabase ──
+      if (endpoint === 'bot-owners' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', async () => {
+          try {
+            const { phone } = JSON.parse(body);
+            if (!phone) throw new Error('phone required');
+            const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+            if (!cleanPhone || cleanPhone.length < 8) throw new Error('invalid phone number');
+
+            const cfg = await getConfigsFromSupabase();
+            let owners = [];
+            try { owners = JSON.parse(cfg.bot_owners || '[]'); } catch (_) {}
+            owners = Array.isArray(owners) ? owners.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
+
+            if (!owners.includes(cleanPhone)) {
+              owners.push(cleanPhone);
+              await saveConfigToSupabase('bot_owners', owners);
+            }
+            if (!Array.isArray(global.botOwners)) global.botOwners = [];
+            if (!global.botOwners.includes(cleanPhone)) global.botOwners.push(cleanPhone);
+
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) info.worker.postMessage({ type: 'add_bot_owner', phone: cleanPhone, jid: cleanPhone + '@s.whatsapp.net' });
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, phone: cleanPhone }));
+          } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      // ── DELETE /api/bot-owners — remove bot owner & save to Supabase ──
+      if (endpoint === 'bot-owners' && req.method === 'DELETE') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', async () => {
+          try {
+            const { phone } = JSON.parse(body);
+            if (!phone) throw new Error('phone required');
+            const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+
+            if (cleanPhone === '212624855939') {
+              throw new Error('لا يمكن حذف المالك الأصلي للبوت');
+            }
+
+            const cfg = await getConfigsFromSupabase();
+            let owners = [];
+            try { owners = JSON.parse(cfg.bot_owners || '[]'); } catch (_) {}
+            owners = Array.isArray(owners) ? owners.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
+
+            const idx = owners.indexOf(cleanPhone);
+            if (idx !== -1) {
+              owners.splice(idx, 1);
+              await saveConfigToSupabase('bot_owners', owners);
+            }
+            if (Array.isArray(global.botOwners)) {
+              global.botOwners = global.botOwners.filter(o => String(o).replace(/[^0-9]/g, '') !== cleanPhone);
+            }
+
+            for (const [_, info] of workersMap.entries()) {
+              if (info.worker) info.worker.postMessage({ type: 'remove_bot_owner', phone: cleanPhone, jid: cleanPhone + '@s.whatsapp.net' });
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, phone: cleanPhone }));
+          } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
       // ── GET /api/bots-list — List all connected/registered bots ──
       if (endpoint === 'bots-list' && req.method === 'GET') {
         try {
@@ -2078,6 +2172,12 @@ async function initGlobalConfigs() {
       if (cfg.source) {
         global.source = String(cfg.source).trim();
         global.channel = String(cfg.source).trim();
+      }
+      try {
+        const parsedOwners = JSON.parse(cfg.bot_owners || '[]');
+        global.botOwners = Array.isArray(parsedOwners) ? parsedOwners.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
+      } catch (_) {
+        global.botOwners = [];
       }
       
       console.log('⚙️ Initialized global configs from Supabase:', {

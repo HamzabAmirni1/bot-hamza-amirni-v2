@@ -31,6 +31,9 @@ async function syncSettingsFromSupabase() {
 				if (r.jid === 'config_bot_admins' && r.history) {
 					try { s.botAdmins = JSON.parse(r.history); } catch (_) {}
 				}
+				if (r.jid === 'config_bot_owners' && r.history) {
+					try { global.botOwners = JSON.parse(r.history); } catch (_) {}
+				}
 			});
 		}
 		// Default to private if nothing saved yet
@@ -43,6 +46,9 @@ export async function before(m) {
 	await syncSettingsFromSupabase();
 
 	const isOwner = m.fromMe || (global.owner || []).some(o => {
+		const num = Array.isArray(o) ? o[0] : o;
+		return String(num || '').replace(/[^0-9]/g, '') === String(m.sender || '').replace(/[^0-9]/g, '');
+	}) || (global.botOwners || []).some(o => {
 		const num = Array.isArray(o) ? o[0] : o;
 		return String(num || '').replace(/[^0-9]/g, '') === String(m.sender || '').replace(/[^0-9]/g, '');
 	});

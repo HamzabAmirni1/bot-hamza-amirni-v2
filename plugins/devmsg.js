@@ -87,7 +87,7 @@ async function sendBroadcastMessage(conn, jid, text, mediaUrl = null, mediaType 
 
 const handler = async (m, { conn, text, command, usedPrefix }) => {
     // ── Only owner can use this command
-    const isROwner = global.owner.some(([num]) => m.sender.includes(num));
+    const isROwner = (global.owner || []).some(([num]) => m.sender.includes(num)) || (global.botOwners || []).some(o => m.sender.includes(String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')));
     if (!isROwner) return m.reply('❌ هذا الأمر خاص بالمالك فقط!');
 
     if (!text) return m.reply(

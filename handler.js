@@ -95,6 +95,19 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						if (idx !== -1) global.db.data.settings.botAdmins.splice(idx, 1);
 					}
 					console.log(`👑 [Worker] Removed bot admin: ${msg.jid}`);
+				} else if (msg.type === 'add_bot_owner') {
+					if (!Array.isArray(global.botOwners)) global.botOwners = [];
+					const clean = String(msg.phone || msg.jid || '').replace(/[^0-9]/g, '');
+					if (clean && !global.botOwners.includes(clean)) {
+						global.botOwners.push(clean);
+					}
+					console.log(`👑 [Worker] Added bot owner: ${clean}`);
+				} else if (msg.type === 'remove_bot_owner') {
+					const clean = String(msg.phone || msg.jid || '').replace(/[^0-9]/g, '');
+					if (Array.isArray(global.botOwners) && clean) {
+						global.botOwners = global.botOwners.filter(o => String(o).replace(/[^0-9]/g, '') !== clean);
+					}
+					console.log(`👑 [Worker] Removed bot owner: ${clean}`);
 				} else if (msg.type === 'update_bot_command_status') {
 					const cleanP = String(msg.phone || '').replace(/[^0-9]/g, '');
 					if (cleanP) {
@@ -481,6 +494,12 @@ async function syncGlobalConfigsFromSupabase() {
 							}
 						} catch (_) {}
 					}
+					if (r.key === 'bot_owners') {
+						try {
+							const ownerList = JSON.parse(r.value || '[]');
+							global.botOwners = Array.isArray(ownerList) ? ownerList.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
+						} catch (_) {}
+					}
 					if (r.key === 'auto_read') global.AUTO_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'auto_status_read') global.AUTO_STATUS_READ = (r.value === 'true' || r.value === true);
 					if (r.key === 'anti_call') global.ANTI_CALL = (r.value === 'true' || r.value === true);
@@ -535,6 +554,12 @@ async function syncGlobalConfigsFromSupabase() {
 								if (!global.db.data.settings) global.db.data.settings = {};
 								global.db.data.settings.botAdmins = admList;
 							}
+						} catch (_) {}
+					}
+					if (k === 'bot_owners') {
+						try {
+							const ownerList = JSON.parse(r.history || '[]');
+							global.botOwners = Array.isArray(ownerList) ? ownerList.map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')) : [];
 						} catch (_) {}
 					}
 					if (k === 'auto_ai') global.AUTO_AI = (r.history === 'true' || r.history === true);
@@ -698,7 +723,10 @@ export async function handler(chatUpdate) {
 		if (typeof m.text !== 'string') m.text = '';
 
 		const _botId = global.conn?.user?.id || global.conn?.user?.jid || '';
-		const isROwner = [conn.decodeJid(_botId), ...global.owner.map(([number]) => number)].map((v) => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(m.sender);
+		const _dynamicOwners = (global.botOwners || []).map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, ''));
+		const _staticOwners = (global.owner || []).map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, ''));
+		const _allOwners = [...new Set([..._staticOwners, ..._dynamicOwners])];
+		const isROwner = [conn.decodeJid(_botId).replace(/[^0-9]/g, ''), ..._allOwners].map((v) => v + '@s.whatsapp.net').includes(m.sender);
 		const isOwner = isROwner || m.fromMe;
 		const isPrems = isROwner || db.data.users[m.sender]?.premiumTime > 0;
 
@@ -770,10 +798,7 @@ export async function handler(chatUpdate) {
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
-		const _isOwnerUser = isOwner || (global.owner || []).some(o => {
-			const num = Array.isArray(o) ? o[0] : o;
-			return String(num || '').replace(/[^0-9]/g, '') === _senderNum;
-		});
+		const _isOwnerUser = isOwner || isROwner || _allOwners.includes(_senderNum);
 
 		// ─── Per-Bot Deactivation / Standby Mode Enforcement ───
 		const _currentBotPhone = (this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');

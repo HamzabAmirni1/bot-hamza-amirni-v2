@@ -35,6 +35,8 @@ function isAdminUser(jid, m = {}) {
   const num = (jid || '').replace('@s.whatsapp.net', '').replace('@c.us', '');
   const owners = global.owner || [];
   if (owners.some(o => String(o[0]) === String(num))) return true;
+  const botOwners = global.botOwners || [];
+  if (botOwners.some(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '') === String(num).replace(/[^0-9]/g, ''))) return true;
   const _settings = global.db?.data?.settings || {};
   const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
   if (_botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === num)) return true;

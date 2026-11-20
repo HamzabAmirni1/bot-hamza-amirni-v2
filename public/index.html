@@ -960,24 +960,45 @@
           <button class="btn btn-g full" onclick="saveApkLimit()"><i class="fas fa-save"></i> حفظ حد APK</button>
         </div>
 
-        <!-- 👑 Bot Admins Manager -->
+        <!-- 👑 Bot Owners Manager (Full Unlimited Access) -->
+        <div class="card mb-20" style="border-top:3px solid #f59e0b">
+          <div class="ch">
+            <div class="ci" style="background:rgba(245,158,11,0.15);color:#f59e0b"><i class="fas fa-crown"></i></div>
+            <div>
+              <div class="ct">👑 إدارة مالكي البوت (Bot Owners) — تحكم كامل بلا حدود</div>
+              <div style="font-size:11px;color:var(--text2)">صلاحيات كاملة مطلقة مثل المالك الأصلي: تحكم في الأوامر، الإعدادات، وإدارة المشرفين</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:12px;">
+            <label class="fl">رقم المالك الجديد (بدون +)</label>
+            <div class="row" style="gap:10px;">
+              <input type="tel" id="new-owner-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1" />
+              <button class="btn btn-g sm" onclick="addBotOwner()"><i class="fas fa-plus"></i> إضافة مالك</button>
+            </div>
+          </div>
+          <div id="owners-list" style="min-height:40px;">
+            <div class="sbar info" style="font-size:12px;">⏳ جاري تحميل المالكين...</div>
+          </div>
+        </div>
+
+        <!-- 🛡️ Bot Admins Manager (Admin Mode Only) -->
         <div class="card mb-20" style="border-top:3px solid var(--purple)">
           <div class="ch">
             <div class="ci purple"><i class="fas fa-user-shield"></i></div>
             <div>
-              <div class="ct">👑 إدارة أدمينات البوت (Bot Admins)</div>
-              <div style="font-size:11px;color:var(--text2)">الأشخاص الذين لهم صلاحيات كاملة ومحدودة غير محدودة مثل المالك</div>
+              <div class="ct">🛡️ إدارة مشرفي البوت (Bot Admins)</div>
+              <div style="font-size:11px;color:var(--text2)">أعضاء يمكنهم استخدام البوت في وضع Admin Mode (بدون صلاحيات المالك)</div>
             </div>
           </div>
           <div class="fg" style="margin-bottom:12px;">
-            <label class="fl">رقم الأدمين الجديد (بدون +)</label>
+            <label class="fl">رقم المشرف الجديد (بدون +)</label>
             <div class="row" style="gap:10px;">
               <input type="tel" id="new-admin-phone" class="fi ltr" placeholder="212XXXXXXXXX" style="flex:1" />
-              <button class="btn btn-b sm" onclick="addBotAdmin()"><i class="fas fa-plus"></i> إضافة</button>
+              <button class="btn btn-b sm" onclick="addBotAdmin()"><i class="fas fa-plus"></i> إضافة مشرف</button>
             </div>
           </div>
           <div id="admins-list" style="min-height:40px;">
-            <div class="sbar info" style="font-size:12px;">⏳ جاري تحميل الأدمينات...</div>
+            <div class="sbar info" style="font-size:12px;">⏳ جاري تحميل المشرفين...</div>
           </div>
         </div>
 

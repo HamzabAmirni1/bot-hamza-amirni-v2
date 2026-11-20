@@ -1690,6 +1690,8 @@ async function loadBotSettings() {
   await loadPerBotBlockList();
   // Load bot mode from API
   await loadBotMode();
+  // Load owners list
+  await loadOwners();
   // Load admins list
   await loadAdmins();
 }
@@ -1918,6 +1920,103 @@ async function saveToggle(key, value) {
 }
 
 /* ─────────────────────────────────────────────
+   BOT OWNERS MANAGER (Full Unlimited Access)
+   ───────────────────────────────────────────── */
+async function loadOwners() {
+  const wrap = document.getElementById('owners-list');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/bot-owners');
+    const data = await res.json();
+    const owners = (data.owners || []).map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')).filter(Boolean);
+    const rootOwner = String(data.rootOwner || '212624855939').replace(/[^0-9]/g, '');
+
+    let html = `
+      <div class="row-between" style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">+${rootOwner}</div>
+          <div style="font-size:11px;color:#f59e0b"><i class="fas fa-crown"></i> المالك الأصلي (Root Owner) • تحكم مطلق</div>
+        </div>
+        <span class="badge b-g" style="font-size:11px;">رئيسي</span>
+      </div>
+    `;
+
+    const extraOwners = owners.filter(o => o !== rootOwner);
+    if (!extraOwners.length) {
+      html += '<div class="sbar info" style="font-size:12px;margin-top:8px;">لا يوجد مالكون إضافيون حالياً</div>';
+    } else {
+      html += extraOwners.map(o => `
+        <div class="row-between" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">+${o}</div>
+            <div style="font-size:11px;color:#f59e0b">👑 Bot Owner • صلاحيات كاملة بلا حدود</div>
+          </div>
+          <button class="btn btn-danger sm" onclick="removeBotOwner('${o}')" title="حذف">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div class="sbar warn" style="font-size:12px;">⚠️ فشل تحميل المالكين</div>';
+  }
+}
+
+async function addBotOwner() {
+  const inp = document.getElementById('new-owner-phone');
+  const phone = inp ? inp.value.trim().replace(/[^0-9]/g, '') : '';
+  if (!phone || phone.length < 8) return toast('⚠️ أدخل رقماً صحيحاً للمالك', 'warn');
+  try {
+    const res = await fetch('/api/bot-owners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`👑 تمت إضافة +${phone} كمالك للبوت (صلاحيات كاملة)`, 'ok');
+      if (inp) inp.value = '';
+      if (typeof loadOwners === 'function') await loadOwners();
+      if (typeof loadAdmins === 'function') await loadAdmins();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الإضافة'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+async function removeBotOwner(target) {
+  const num = String(target || '').replace(/[^0-9]/g, '');
+  if (num === '212624855939') return toast('❌ لا يمكن حذف المالك الأصلي', 'err');
+  const ok = await showConfirm({
+    title: 'حذف المالك',
+    text: `هل تريد إزالة +${num} من قائمة مالكي البوت؟ سيفقد كافة صلاحيات المالك.`,
+    confirmText: '🗑️ نعم، احذف',
+    icon: '⚠️',
+    isDanger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/bot-owners', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: num })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ تمت إزالة +${num} من مالكي البوت`, 'ok');
+      if (typeof loadOwners === 'function') await loadOwners();
+    } else {
+      toast('⚠️ ' + (data.error || 'فشل الحذف'), 'warn');
+    }
+  } catch(e) {
+    toast('❌ خطأ: ' + e.message, 'err');
+  }
+}
+
+/* ─────────────────────────────────────────────
    BOT ADMINS MANAGER
    ───────────────────────────────────────────── */
 async function loadAdmins() {
@@ -1928,14 +2027,14 @@ async function loadAdmins() {
     const data = await res.json();
     const admins = data.admins || [];
     if (!admins.length) {
-      wrap.innerHTML = '<div class="sbar info" style="font-size:12px;">لا يوجد أدمينات مضافون حالياً</div>';
+      wrap.innerHTML = '<div class="sbar info" style="font-size:12px;">لا يوجد مشرفون مضافون حالياً</div>';
       return;
     }
     wrap.innerHTML = admins.map(a => `
       <div class="row-between" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--text)">+${a}</div>
-          <div style="font-size:11px;color:var(--green)">👑 Bot Admin • صلاحيات كاملة</div>
+          <div style="font-size:11px;color:var(--purple)">🛡️ Bot Admin • وضع Admin Mode فقط</div>
         </div>
         <button class="btn btn-danger sm" onclick="removeBotAdmin('${a}')" title="حذف">
           <i class="fas fa-trash"></i>
@@ -1943,7 +2042,7 @@ async function loadAdmins() {
       </div>
     `).join('');
   } catch(e) {
-    wrap.innerHTML = '<div class="sbar warn" style="font-size:12px;">⚠️ فشل تحميل الأدمينات</div>';
+    wrap.innerHTML = '<div class="sbar warn" style="font-size:12px;">⚠️ فشل تحميل المشرفين</div>';
   }
 }
 
@@ -1959,7 +2058,7 @@ async function addBotAdmin() {
     });
     const data = await res.json();
     if (data.success) {
-      toast(`✅ تمت إضافة +${phone} كأدمين`, 'ok');
+      toast(`✅ تمت إضافة +${phone} كمشرف`, 'ok');
       if (inp) inp.value = '';
       if (typeof loadAdmins === 'function') await loadAdmins();
       if (typeof loadBotMode === 'function') await loadBotMode();
@@ -1975,8 +2074,8 @@ async function removeBotAdmin(target) {
   const num = String(target || '').replace(/[^0-9]/g, '');
   const jid = String(target || '').includes('@') ? target : num + '@s.whatsapp.net';
   const ok = await showConfirm({
-    title: 'حذف الأدمين',
-    text: `هل تريد إزالة +${num} من قائمة الأدمينات؟`,
+    title: 'حذف المشرف',
+    text: `هل تريد إزالة +${num} من قائمة المشرفين؟`,
     confirmText: '🗑️ نعم، احذف',
     icon: '⚠️',
     isDanger: true
@@ -1990,7 +2089,7 @@ async function removeBotAdmin(target) {
     });
     const data = await res.json();
     if (data.success) {
-      toast(`✅ تمت إزالة +${num} من الأدمينات`, 'ok');
+      toast(`✅ تمت إزالة +${num} من المشرفين`, 'ok');
       if (typeof loadAdmins === 'function') await loadAdmins();
       if (typeof loadBotMode === 'function') await loadBotMode();
     } else {

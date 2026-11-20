@@ -37,6 +37,7 @@ global.pairingNumber = process.env.PAIRING_NUMBER || '';
 global.owner = [
 	['212624855939', 'Hamza Amirni', true],
 ];
+global.botOwners = []; // Dynamic owners loaded from Supabase
 
 global.namebot = process.env.BOT_NAME || 'bot amirni hamza';
 global.author = process.env.BOT_AUTHOR || 'Hamza Amirni';
