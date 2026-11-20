@@ -1,5 +1,5 @@
 // AI Image & Video Generator (Ailabs)
-// Source: https://whatsapp.com/channel/0029Vb6gPQsEawdrP0k43635
+// Bot Amirni Hamza
 
 import axios from 'axios';
 import chalk from 'chalk';

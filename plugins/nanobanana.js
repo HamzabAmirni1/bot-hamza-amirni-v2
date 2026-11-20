@@ -1,9 +1,8 @@
 /*
 Name: imgedit.ai - Nanobanana Image Editor
 Type: Scraper -> ESM Plugin
-Saluran: https://whatsapp.com/channel/0029Vb2OwWCElagtreIoke17
+Channel: https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 Base Url: https://imgedit.ai
-Original scraper by: t.me/hazeloffc
 */
 
 import axios from 'axios'

@@ -1,6 +1,4 @@
-// PLUGINS: UNSPLASH || TYPE: ESM || NOTE: MAX 15 IMAGES || SOURCE: 𝐁𝐋𝐔𝐄 𝐒𝐊𝐘
-
-// SCRAPE: https://whatsapp.com/channel/0029Vb2WECv9xVJaXVi46y2m/328
+// Bot Amirni Hamza • https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 
 import axios from 'axios'
 import * as cheerio from 'cheerio'

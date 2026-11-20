@@ -1,9 +1,7 @@
 /*
 # Name : Pinterest Download (Support Carousel)
 # Type : ESM
-# Url : https://pintsave.net
-# Snippet : https://snippet.zellrayy.com/qF7waW22gK
-# Source : https://whatsapp.com/channel/0029Vb8SsEn4NViqwX3HaN0x
+# Channel : https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 */
 import axios from 'axios';
 

@@ -1,7 +1,7 @@
 /*
 Base : https://apkmody.mobi
-Author : phrzy
-channel : https://whatsapp.com/channel/0029VbD1zGq6mYPUbtVh6U0L/121
+Author : Hamza Amirni
+channel : https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 Converted to ESM bot plugin format
 */
 

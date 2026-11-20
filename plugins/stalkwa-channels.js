@@ -32,7 +32,7 @@ let handler = async (m, {
 }) => {
     if (!args[0]) {
         return m.reply(
-            `Please provide a WhatsApp Channel URL!\n\nExample:\n${usedPrefix + command} https://whatsapp.com/channel/0029Vaz5bJz3mFY2ccGBev1n`
+            `Please provide a WhatsApp Channel URL!\n\nExample:\n${usedPrefix + command} https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p`
         );
     }
 

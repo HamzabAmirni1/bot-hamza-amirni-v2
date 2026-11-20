@@ -1,4 +1,4 @@
-// Source Code: https://whatsapp.com/channel/0029Vb6D8o67YSd1UzflqU1d/1265
+// Bot Amirni Hamza • https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 
 let handler = async (m, { conn, args }) => {
 	let user = global.db.data.users[m.sender] || {};

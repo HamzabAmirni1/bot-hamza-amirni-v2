@@ -1,8 +1,7 @@
 /*
 # Feature : Photo to URL Uploader
 # Type : ESM
-# Url : https://phototourl.com
-# Source : https://whatsapp.com/channel/0029Vb8SsEn4NViqwX3HaN0x
+# Channel : https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 */
 import axios from "axios";
 import FormData from "form-data";

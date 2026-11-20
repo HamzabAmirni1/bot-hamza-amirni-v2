@@ -27,7 +27,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
                 title: `Message from ${username}`,
                 body: 'message to channel',
                 thumbnailUrl: `${url}`,
-                sourceUrl: 'https://whatsapp.com/channel/0029VaX4b6J7DAWqt3Hhu01A',
+                sourceUrl: global.source || global.channel || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
                 mediaType: 1,
                 renderLargerThumbnail: false,
                 showAdAttribution: true

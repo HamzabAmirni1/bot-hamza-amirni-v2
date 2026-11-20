@@ -1,8 +1,7 @@
 /*
 # Feature : HD Image Enhancer
 # Type : ESM
-# Url : https://ihancer.com
-# Source : https://whatsapp.com/channel/0029Vb7pLCF35fLqMBUCMP1D
+# Channel : https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p
 */
 import axios from "axios";
 import FormData from "form-data";

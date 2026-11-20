@@ -12,20 +12,17 @@
  * ملاحظة: الردود لي ماشي نصية (صور/ملفات...) كتبقى عادية.
  */
 
-import { existsSync } from 'fs'
+import fs, { existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { spawn } from 'child_process'
 
-// — إعدادات البطاقة —
+// — إعدادات البطاقة الرسمية لبوت حمزة اعمرني —
 const AD_TITLE = 'Bot Amirni Hamza ✦ حمزة اعمرني بوت'                 // عنوان البطاقة
 const AD_BODY = 'أقوى بوت واتساب ذكي ومتطور ⚡ سرعة • ذكاء • أمان' // الوصف تحت العنوان
-const AD_SOURCE = 'https://whatsapp.com/channel/0029VaX4b6J7DAWqt3Hhu01A' // القناة الرسمية — رابط البطاقة (كيعطي زر View channel)
-// صورة البطاقة — ملاحظة: رابط ShareBin المباشر /files/ كيرجع صفحة HTML،
-// فرابط /embed/ هو لي كيعطي الصورة نيشان (تحققنا منو)
-const AD_THUMB_URL = 'https://sharebin.eu/embed/file_000000004a9871f59bf494baa80ac527.png'
+const AD_SOURCE = 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p' // القناة الرسمية لحمزة اعمرني
 
 // تصغير صورة لـ JPEG صغير (320px) بـ ffmpeg — thumbnails ديال معاينة
-// الروابط فواتساب خاصهم يكونو صغار، والصورة الأصلية 2MB ما بانتش
+// الروابط فواتساب خاصهم يكونو صغار
 function downscaleJpeg(buffer) {
     return new Promise((resolve) => {
         try {
@@ -44,20 +41,16 @@ let thumbCache // undefined = ما تحسبش، null = ما كاينش
 async function getThumb(conn) {
     if (thumbCache !== undefined) return thumbCache
     try {
-        if (AD_THUMB_URL) {
-            // كنحملو الصورة من الرابط بـ User-Agent ديال متصفح،
-            // وكنصغروها وحدنا — بلا ما يحتاج المستخدم يحط حتى ملف
-            const res = await fetch(AD_THUMB_URL, { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Safari/537.36' } })
-            const buf = Buffer.from(await res.arrayBuffer())
-            const isImage = buf.length > 1024 && (buf[0] === 0x89 && buf[1] === 0x50 || buf[0] === 0xFF && buf[1] === 0xD8)
-            if (isImage) return (thumbCache = (await downscaleJpeg(buf)) || buf)
+        const local = fileURLToPath(new URL('../media/thumbnail.jpg', import.meta.url))
+        if (existsSync(local)) {
+            const buf = await fs.promises.readFile(local)
+            const scaled = await downscaleJpeg(buf)
+            return (thumbCache = scaled || buf)
         }
         if (conn?.user?.jid && typeof conn.profilePictureUrl === 'function') {
             const pp = await conn.profilePictureUrl(conn.user.jid, 'image', 'buffer').catch(() => null)
             if (pp) return (thumbCache = pp)
         }
-        const local = fileURLToPath(new URL('../media/thumbnail.jpg', import.meta.url))
-        if (existsSync(local)) return (thumbCache = local)
     } catch {}
     return (thumbCache = null)
 }
@@ -92,7 +85,7 @@ handler.before = async function (m, { conn }) {
             return await conn.adReply(m.chat, text, thumb, m, {
                 title: AD_TITLE || conn.user?.name || 'BOT AMIRNI HAMZA',
                 description: AD_BODY,
-                source: AD_SOURCE,
+                source: global.source || global.channel || AD_SOURCE,
             })
         } catch (e) {
             console.error('[adreply] failed, falling back:', e?.message || e)
