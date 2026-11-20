@@ -1696,6 +1696,85 @@ async function loadBotSettings() {
   await loadAdmins();
 }
 
+let _avatarSelectedBase64 = null;
+
+function handleAvatarFileSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    _avatarSelectedBase64 = event.target.result;
+    const img = document.getElementById('bot-avatar-preview');
+    if (img) img.src = _avatarSelectedBase64;
+    const urlInput = document.getElementById('bot-avatar-url');
+    if (urlInput) urlInput.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleAvatarUrlInput(url) {
+  const clean = String(url || '').trim();
+  if (!clean || !/^https?:\/\/.+/i.test(clean)) return;
+  _avatarSelectedBase64 = clean;
+  const img = document.getElementById('bot-avatar-preview');
+  if (img) img.src = clean;
+  const fileInput = document.getElementById('bot-avatar-file');
+  if (fileInput) fileInput.value = '';
+}
+
+async function uploadBotProfilePicture() {
+  const btn = document.getElementById('btn-save-avatar');
+  const status = document.getElementById('avatar-status-msg');
+  const imgUrlVal = (document.getElementById('bot-avatar-url')?.value || '').trim();
+  const imageToSend = _avatarSelectedBase64 || imgUrlVal;
+
+  if (!imageToSend) {
+    toast('⚠️ يرجى اختيار صورة من جهازك أولاً أو وضع رابط صورة مباشر!', 'warn');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحديث صورة البروفايل في واتساب...';
+  }
+  if (status) {
+    status.style.display = 'block';
+    status.style.color = 'var(--accent)';
+    status.innerHTML = '⏳ جاري إرسال الصورة إلى خوادم واتساب وتحديث جميع البوتات...';
+  }
+
+  try {
+    const res = await fetch('/api/bot-profile-picture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageToSend })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      toast('✅ تم تحديث صورة بروفايل البوت بنجاح في واتساب والموقع!', 'ok');
+      if (status) {
+        status.style.color = '#22c55e';
+        status.innerHTML = '✅ تم تطبيق صورة البروفايل بنجاح على واتساب وحفظها في قاعدة البيانات!';
+      }
+    } else {
+      throw new Error(data.error || 'تعذر تحديث الصورة');
+    }
+  } catch (err) {
+    console.error('Failed to update avatar:', err);
+    toast('❌ فشل تحديث صورة البروفايل: ' + err.message, 'err');
+    if (status) {
+      status.style.color = '#ef4444';
+      status.innerHTML = '❌ خطأ: ' + err.message;
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload"></i> 🚀 تغيير صورة البروفايل في واتساب والموقع (Appliquer)';
+    }
+  }
+}
+
 async function toggleBotAiCheckbox(phone, isChecked) {
   const key = 'auto_ai_' + phone;
   localStorage.setItem('toggle_' + key, isChecked ? 'true' : 'false');

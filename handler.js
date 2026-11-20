@@ -115,6 +115,25 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						global[`BOT_WHITELIST_${cleanP}`] = (msg.whitelist || '').split(',').map(s => s.trim().toLowerCase().replace(/^[.!#/\\]/, '')).filter(Boolean);
 						console.log(`⚙️ [Worker] Bot +${cleanP} command status updated: disabled=${msg.disabled}, whitelist=${msg.whitelist}`);
 					}
+				} else if (msg.type === 'update_profile_picture') {
+					const sock = global.conn;
+					if (sock && msg.imageBase64) {
+						try {
+							const buf = Buffer.from(msg.imageBase64, 'base64');
+							const targetJid = sock.user?.id || sock.user?.jid;
+							if (targetJid) {
+								await sock.updateProfilePicture(targetJid, buf);
+								console.log(`📸 [Worker] Bot profile picture updated successfully for ${targetJid}`);
+								try {
+									if (!fs.existsSync('media')) fs.mkdirSync('media', { recursive: true });
+									fs.writeFileSync('media/bot_avatar.jpg', buf);
+									fs.writeFileSync('media/thumbnail.jpg', buf);
+								} catch (_) {}
+							}
+						} catch (err) {
+							console.error('❌ [Worker] Failed to update profile picture:', err.message);
+						}
+					}
 				} else if (msg.type === 'ping') {
 					// Heartbeat Watchdog response: confirms worker event loop is alive & healthy
 					if (parentPort) {

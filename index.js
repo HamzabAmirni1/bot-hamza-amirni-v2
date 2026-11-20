@@ -1167,7 +1167,7 @@ ${reply_text}
         req.on('end', async () => {
           try {
             const { mode } = JSON.parse(body);
-            const VALID = ['public', 'private', 'admin', 'group'];
+            const VALID = ['public', 'private', 'admin', 'group', 'vu'];
             if (!VALID.includes(mode)) throw new Error('Invalid mode');
 
             await saveConfigToSupabase('bot_mode', mode);
@@ -1179,6 +1179,89 @@ ${reply_text}
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, mode }));
+          } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      // ── GET /api/bot-profile-picture — return current avatar image ──
+      if (endpoint === 'bot-profile-picture' && req.method === 'GET') {
+        try {
+          if (existsSync('media/bot_avatar.jpg')) {
+            const buf = readFileSync('media/bot_avatar.jpg');
+            res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+            res.end(buf);
+            return;
+          }
+          if (existsSync('media/thumbnail.jpg')) {
+            const buf = readFileSync('media/thumbnail.jpg');
+            res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+            res.end(buf);
+            return;
+          }
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No avatar set' }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
+      // ── POST /api/bot-profile-picture — update avatar from web dashboard ──
+      if (endpoint === 'bot-profile-picture' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', async () => {
+          try {
+            const data = JSON.parse(body || '{}');
+            let imgBuffer = null;
+
+            if (data.image) {
+              const rawStr = String(data.image).trim();
+              const matches = rawStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+              if (matches && matches[2]) {
+                imgBuffer = Buffer.from(matches[2], 'base64');
+              } else if (/^https?:\/\/.+/i.test(rawStr)) {
+                const imgRes = await fetch(rawStr, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                if (imgRes.ok) {
+                  imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+                }
+              } else if (rawStr.length > 100) {
+                imgBuffer = Buffer.from(rawStr, 'base64');
+              }
+            }
+
+            if (!imgBuffer || imgBuffer.length < 100) {
+              throw new Error('Invalid image provided. Please upload an image or provide an image URL.');
+            }
+
+            // Save to disk
+            if (!existsSync('media')) mkdirSync('media', { recursive: true });
+            writeFileSync('media/bot_avatar.jpg', imgBuffer);
+            writeFileSync('media/thumbnail.jpg', imgBuffer);
+
+            // Save to Supabase for persistence across redeploys
+            const b64 = imgBuffer.toString('base64');
+            await saveConfigToSupabase('bot_avatar_base64', b64);
+
+            // Broadcast to all active workers
+            const targetPhone = data.phone ? String(data.phone).replace(/[^0-9]/g, '') : null;
+            let updatedCount = 0;
+            for (const [phone, info] of workersMap.entries()) {
+              if (targetPhone && targetPhone !== 'all' && phone !== targetPhone) continue;
+              if (info.worker) {
+                info.worker.postMessage({ type: 'update_profile_picture', imageBase64: b64 });
+                updatedCount++;
+              }
+            }
+
+            console.log(`🖼️ [Avatar] Profile picture updated for ${updatedCount} bot(s) from Web Dashboard`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: `Updated profile picture for ${updatedCount} bot(s)` }));
           } catch (err) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: err.message }));
@@ -1995,6 +2078,25 @@ async function restoreAllSessions() {
     } else {
       console.log(`🚀 Multi-Bot Engine: ${count} connected bot(s) running simultaneously!`);
     }
+
+    // Restore custom bot avatar from Supabase if previously saved
+    try {
+      const avRes = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_bot_avatar_base64&select=history', {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+      if (avRes.ok) {
+        const rows = await avRes.json();
+        if (rows?.[0]?.history) {
+          const avBuf = Buffer.from(rows[0].history, 'base64');
+          if (avBuf.length > 500) {
+            if (!existsSync('media')) mkdirSync('media', { recursive: true });
+            writeFileSync('media/bot_avatar.jpg', avBuf);
+            writeFileSync('media/thumbnail.jpg', avBuf);
+            console.log('🖼️ [Avatar] Successfully restored custom bot profile avatar from Supabase');
+          }
+        }
+      }
+    } catch (_) {}
   } catch (err) {
     console.error('❌ Error restoring sessions from Supabase:', err.message);
   }
