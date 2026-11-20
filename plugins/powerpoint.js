@@ -236,7 +236,8 @@ async function buildPptxBuffer(data) {
 	if (!PptxClass) throw new Error('pptxgenjs library is not available.');
 
 	const pres = new PptxClass();
-	pres.layout = 'LAYOUT_16x9'; // 16:9 widescreen format (13.33 x 7.5 in)
+	// LAYOUT_WIDE is 13.33 x 7.5 inches (the true standard 16:9 widescreen)
+	pres.layout = 'LAYOUT_WIDE';
 	pres.author = 'Hamza Amirni';
 	pres.company = 'Bot Amirni Hamza';
 	pres.title = data.title || 'Presentation';
@@ -255,31 +256,31 @@ async function buildPptxBuffer(data) {
 	const slideCover = pres.addSlide();
 	slideCover.background = { color: THEME.bgDark };
 
-	// Decorative Top Accent Bar
+	// Decorative Top Accent Bar (full width)
 	slideCover.addShape(pres.ShapeType.rect, {
 		x: 0, y: 0, w: '100%', h: 0.15,
 		fill: { color: THEME.primaryGold }
 	});
 
-	// Embed Bot Logo Avatar on Cover
+	// Embed Bot Logo Avatar on Cover (centered at x = 5.76)
 	let hasLogo = false;
 	try {
 		if (fs.existsSync('media/thumbnail.jpg')) {
 			slideCover.addImage({
 				path: 'media/thumbnail.jpg',
-				x: 5.75, y: 0.5, w: 1.8, h: 1.8,
+				x: 5.76, y: 0.6, w: 1.8, h: 1.8,
 				rounding: true
 			});
 			hasLogo = true;
 		}
 	} catch (_) {}
 
-	const titleY = hasLogo ? 2.5 : 2.1;
-	const subtitleY = hasLogo ? 4.0 : 3.7;
+	const titleY = hasLogo ? 2.6 : 2.2;
+	const subtitleY = hasLogo ? 4.2 : 3.8;
 
-	// Presentation Title - Centered
+	// Presentation Title - Centered with equal 0.9 in margins on both sides
 	slideCover.addText(data.title || 'عرض تقديمي', {
-		x: 0.8, y: titleY, w: 11.7, h: 1.4,
+		x: 0.9, y: titleY, w: 11.5, h: 1.4,
 		fontSize: 36,
 		fontFace: 'Arial',
 		bold: true,
@@ -292,7 +293,7 @@ async function buildPptxBuffer(data) {
 	if (data.subtitle) {
 		slideCover.addText(data.subtitle, {
 			x: 1.0, y: subtitleY, w: 11.3, h: 0.9,
-			fontSize: 19,
+			fontSize: 20,
 			fontFace: 'Arial',
 			color: THEME.accentCyan,
 			align: 'center',
@@ -302,7 +303,7 @@ async function buildPptxBuffer(data) {
 
 	// Footer Badge
 	slideCover.addText('⚡ صُمم بواسطة: Bot Amirni Hamza • حمزة اعمرني', {
-		x: 1.0, y: 6.3, w: 11.3, h: 0.5,
+		x: 1.0, y: 6.4, w: 11.3, h: 0.5,
 		fontSize: 13,
 		fontFace: 'Arial',
 		color: THEME.textMuted,
@@ -315,21 +316,21 @@ async function buildPptxBuffer(data) {
 		const slide = pres.addSlide();
 		slide.background = { color: THEME.bgDark };
 
-		// Top Header Banner
+		// Top Header Banner (Centered: x = 0.9, w = 11.5, right margin = 0.93 in)
 		slide.addShape(pres.ShapeType.rect, {
-			x: 0.8, y: 0.45, w: 11.7, h: 0.95,
+			x: 0.9, y: 0.5, w: 11.5, h: 0.95,
 			fill: { color: THEME.cardDark },
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Title & Number - Centered so it NEVER clips!
+		// Slide Title & Number - Centered with safe margins
 		const rawTitle = String(s.title || `الشريحة ${idx + 1}`).trim();
 		const displayTitle = /^(\d+|شريحة|slide)/i.test(rawTitle)
 			? rawTitle
 			: `${idx + 1}. ${rawTitle}`;
 
 		slide.addText(displayTitle, {
-			x: 1.0, y: 0.48, w: 11.3, h: 0.9,
+			x: 1.0, y: 0.5, w: 11.3, h: 0.95,
 			fontSize: 21,
 			fontFace: 'Arial',
 			bold: true,
@@ -341,32 +342,32 @@ async function buildPptxBuffer(data) {
 		// Render Content Points as Modern Elegant Card Rows
 		const points = (Array.isArray(s.points) ? s.points : []).slice(0, 6);
 		const count = Math.min(Math.max(points.length, 1), 6);
-		const startY = 1.6;
-		const totalAvailH = 4.9;
+		const startY = 1.65;
+		const totalAvailH = 4.95;
 		const gap = count <= 3 ? 0.3 : count === 4 ? 0.2 : 0.14;
 		const cardH = (totalAvailH - (count - 1) * gap) / count;
 
 		points.forEach((p, i) => {
 			const y = startY + i * (cardH + gap);
 
-			// Card Row Background Box
+			// Card Row Background Box (Centered: x = 0.9, w = 11.5, right edge = 12.4 in inside 13.33 in slide)
 			slide.addShape(pres.ShapeType.roundRect, {
-				x: 0.8, y: y, w: 11.7, h: cardH,
+				x: 0.9, y: y, w: 11.5, h: cardH,
 				fill: { color: THEME.cardDark },
 				line: { color: THEME.accentCyan, width: 1 },
 				rectRadius: 0.12
 			});
 
-			// Number Pill Badge
+			// Number Pill Badge (Left of the card)
 			const badgeSize = Math.min(cardH * 0.65, 0.65);
 			const badgeY = y + (cardH - badgeSize) / 2;
 			slide.addShape(pres.ShapeType.roundRect, {
-				x: 1.05, y: badgeY, w: badgeSize, h: badgeSize,
+				x: 1.15, y: badgeY, w: badgeSize, h: badgeSize,
 				fill: { color: THEME.primaryGold },
 				rectRadius: 0.1
 			});
 			slide.addText(String(i + 1), {
-				x: 1.05, y: badgeY, w: badgeSize, h: badgeSize,
+				x: 1.15, y: badgeY, w: badgeSize, h: badgeSize,
 				fontSize: count > 4 ? 12 : 14,
 				fontFace: 'Arial',
 				bold: true,
@@ -375,10 +376,10 @@ async function buildPptxBuffer(data) {
 				valign: 'middle'
 			});
 
-			// Clean Text - Centered so it CANNOT touch or clip at the right or left border!
+			// Clean Text - Centered inside the card row with 10.2 in width
 			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			slide.addText(cleanText, {
-				x: 1.85, y: y, w: 10.4, h: cardH,
+				x: 1.95, y: y, w: 10.2, h: cardH,
 				fontSize: count > 4 ? 14 : 16,
 				fontFace: 'Arial',
 				color: THEME.textWhite,
@@ -387,9 +388,9 @@ async function buildPptxBuffer(data) {
 			});
 		});
 
-		// Footer branding
+		// Footer branding - Centered
 		slide.addText(`Bot Amirni Hamza  |  ${idx + 1} / ${slides.length}`, {
-			x: 0.8, y: 6.8, w: 11.7, h: 0.4,
+			x: 0.9, y: 6.85, w: 11.5, h: 0.4,
 			fontSize: 10,
 			fontFace: 'Arial',
 			color: THEME.textMuted,
