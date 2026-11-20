@@ -1,5 +1,5 @@
 // instagram.com/noureddine_ouafy
-import fetch from 'node-fetch';
+const fetch = globalThis.fetch;
 
 const AFTER_READ_SECONDS = 2; // AI replies disappear this many seconds after being read
 
