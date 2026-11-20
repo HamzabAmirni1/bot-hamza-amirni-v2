@@ -242,9 +242,6 @@ async function buildPptxBuffer(data) {
 	pres.author = 'Hamza Amirni';
 	pres.company = 'Bot Amirni Hamza';
 	pres.title = data.title || 'Presentation';
-	if (isPresentationRtl) {
-		pres.rtlMode = true; // Enables presentation-level RTL in PowerPoint & WPS
-	}
 
 	const THEME = {
 		bgDark: '0B132B',       // Deep tech navy
@@ -279,7 +276,6 @@ async function buildPptxBuffer(data) {
 		}
 	} catch (_) {}
 
-	const coverTitleRtl = isRtl(data.title);
 	const titleY = hasLogo ? 2.5 : 2.1;
 	const subtitleY = hasLogo ? 4.0 : 3.7;
 
@@ -291,8 +287,7 @@ async function buildPptxBuffer(data) {
 		bold: true,
 		color: THEME.primaryGold,
 		align: 'center',
-		valign: 'middle',
-		rtlMode: coverTitleRtl
+		valign: 'middle'
 	});
 
 	// Subtitle
@@ -303,8 +298,7 @@ async function buildPptxBuffer(data) {
 			fontFace: 'Arial',
 			color: THEME.accentCyan,
 			align: 'center',
-			valign: 'middle',
-			rtlMode: isRtl(data.subtitle)
+			valign: 'middle'
 		});
 	}
 
@@ -314,8 +308,7 @@ async function buildPptxBuffer(data) {
 		fontSize: 13,
 		fontFace: 'Arial',
 		color: THEME.textMuted,
-		align: 'center',
-		rtlMode: coverTitleRtl
+		align: 'center'
 	});
 
 	// ─── SLIDES 2+: CONTENT SLIDES ─────────────────────────
@@ -333,7 +326,7 @@ async function buildPptxBuffer(data) {
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Title & Number in a single unified text element
+		// Slide Title & Number - Centered so it NEVER gets cut off on left or right!
 		const rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : `Slide ${idx + 1}`)).trim();
 		const displayTitle = /^(\d+|شريحة|slide)/i.test(rawTitle)
 			? rawTitle
@@ -341,13 +334,12 @@ async function buildPptxBuffer(data) {
 
 		slide.addText(displayTitle, {
 			x: 1.0, y: 0.48, w: 11.3, h: 0.9,
-			fontSize: 22,
+			fontSize: 21,
 			fontFace: 'Arial',
 			bold: true,
 			color: THEME.primaryGold,
-			align: rtl ? 'right' : 'left',
-			valign: 'middle',
-			rtlMode: rtl
+			align: 'center',
+			valign: 'middle'
 		});
 
 		// Content Card Box
@@ -358,31 +350,29 @@ async function buildPptxBuffer(data) {
 			rectRadius: 0.15
 		});
 
-		// Bullet Points with explicit breakLine and bullet formatting
+		// Bullet Points using clean literal bullets & paragraphs (avoids PPTX indent bug on mobile)
 		const points = Array.isArray(s.points) ? s.points : [];
 		const bulletRuns = points.map((p) => {
 			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			return {
-				text: cleanText,
+				text: '•  ' + cleanText,
 				options: {
-					bullet: { code: '2022' }, // Standard round bullet symbol
-					breakLine: true,          // MUST be true so each bullet is a separate paragraph
-					fontSize: 16,
+					breakLine: true,
+					fontSize: 15,
 					fontFace: 'Arial',
 					color: THEME.textWhite,
-					rtlMode: rtl,
-					spacing: { after: 14 },
+					spacing: { after: 16 },
 					lineSpacing: 24
 				}
 			};
 		});
 
 		if (bulletRuns.length > 0) {
+			// Position text with 0.4 in safety padding on both left and right (x: 1.2, w: 10.9 inside w: 11.7)
 			slide.addText(bulletRuns, {
-				x: 1.1, y: 1.85, w: 11.1, h: 4.5,
+				x: 1.2, y: 1.85, w: 10.9, h: 4.5,
 				valign: 'top',
-				align: rtl ? 'right' : 'left',
-				rtlMode: rtl
+				align: rtl ? 'right' : 'left'
 			});
 		}
 
@@ -392,8 +382,7 @@ async function buildPptxBuffer(data) {
 			fontSize: 10,
 			fontFace: 'Arial',
 			color: THEME.textMuted,
-			align: rtl ? 'left' : 'right',
-			rtlMode: rtl
+			align: rtl ? 'left' : 'right'
 		});
 	});
 
