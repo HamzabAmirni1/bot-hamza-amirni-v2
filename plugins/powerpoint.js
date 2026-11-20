@@ -235,11 +235,16 @@ async function buildPptxBuffer(data) {
 	const PptxClass = await getPptxGen();
 	if (!PptxClass) throw new Error('pptxgenjs library is not available.');
 
+	const isPresentationRtl = isRtl(data.title || (data.slides && data.slides[0]?.title));
+
 	const pres = new PptxClass();
-	pres.layout = 'LAYOUT_16x9'; // 16:9 widescreen format
+	pres.layout = 'LAYOUT_16x9'; // 16:9 widescreen format (13.33 x 7.5 in)
 	pres.author = 'Hamza Amirni';
 	pres.company = 'Bot Amirni Hamza';
 	pres.title = data.title || 'Presentation';
+	if (isPresentationRtl) {
+		pres.rtlMode = true; // Enables presentation-level RTL in PowerPoint & WPS
+	}
 
 	const THEME = {
 		bgDark: '0B132B',       // Deep tech navy
@@ -276,18 +281,18 @@ async function buildPptxBuffer(data) {
 
 	const coverTitleRtl = isRtl(data.title);
 	const titleY = hasLogo ? 2.5 : 2.1;
-	const subtitleY = hasLogo ? 3.9 : 3.7;
+	const subtitleY = hasLogo ? 4.0 : 3.7;
 
 	// Presentation Title
 	slideCover.addText(data.title || 'عرض تقديمي', {
-		x: 0.8, y: titleY, w: 11.7, h: 1.3,
+		x: 0.8, y: titleY, w: 11.7, h: 1.4,
 		fontSize: 36,
 		fontFace: 'Arial',
 		bold: true,
 		color: THEME.primaryGold,
 		align: 'center',
 		valign: 'middle',
-		rtl: coverTitleRtl
+		rtlMode: coverTitleRtl
 	});
 
 	// Subtitle
@@ -299,7 +304,7 @@ async function buildPptxBuffer(data) {
 			color: THEME.accentCyan,
 			align: 'center',
 			valign: 'middle',
-			rtl: isRtl(data.subtitle)
+			rtlMode: isRtl(data.subtitle)
 		});
 	}
 
@@ -309,7 +314,8 @@ async function buildPptxBuffer(data) {
 		fontSize: 13,
 		fontFace: 'Arial',
 		color: THEME.textMuted,
-		align: 'center'
+		align: 'center',
+		rtlMode: coverTitleRtl
 	});
 
 	// ─── SLIDES 2+: CONTENT SLIDES ─────────────────────────
@@ -327,26 +333,21 @@ async function buildPptxBuffer(data) {
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Number Badge
-		slide.addText(`${idx + 1}`, {
-			x: rtl ? 11.6 : 1.0, y: 0.55, w: 0.7, h: 0.7,
-			fontSize: 16,
-			fontFace: 'Arial',
-			bold: true,
-			color: THEME.primaryGold,
-			align: 'center'
-		});
+		// Slide Title & Number in a single unified text element
+		const rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : `Slide ${idx + 1}`)).trim();
+		const displayTitle = /^(\d+|شريحة|slide)/i.test(rawTitle)
+			? rawTitle
+			: `${idx + 1}. ${rawTitle}`;
 
-		// Slide Title
-		slide.addText(s.title || (rtl ? `الشريحة ${idx + 1}` : `Slide ${idx + 1}`), {
-			x: rtl ? 1.0 : 1.8, y: 0.48, w: 10.4, h: 0.85,
+		slide.addText(displayTitle, {
+			x: 1.0, y: 0.48, w: 11.3, h: 0.9,
 			fontSize: 22,
 			fontFace: 'Arial',
 			bold: true,
-			color: THEME.textWhite,
+			color: THEME.primaryGold,
 			align: rtl ? 'right' : 'left',
 			valign: 'middle',
-			rtl: rtl
+			rtlMode: rtl
 		});
 
 		// Content Card Box
@@ -357,30 +358,31 @@ async function buildPptxBuffer(data) {
 			rectRadius: 0.15
 		});
 
-		// Bullet Points
+		// Bullet Points with explicit breakLine and bullet formatting
 		const points = Array.isArray(s.points) ? s.points : [];
-		const bulletItems = points.map((p) => {
-			const pointRtl = isRtl(p);
+		const bulletRuns = points.map((p) => {
+			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			return {
-				text: p,
+				text: cleanText,
 				options: {
-					bullet: { type: 'bullet', color: THEME.primaryGold },
+					bullet: { code: '2022' }, // Standard round bullet symbol
+					breakLine: true,          // MUST be true so each bullet is a separate paragraph
 					fontSize: 16,
 					fontFace: 'Arial',
 					color: THEME.textWhite,
+					rtlMode: rtl,
 					spacing: { after: 14 },
-					lineSpacing: 24,
-					rtl: pointRtl
+					lineSpacing: 24
 				}
 			};
 		});
 
-		if (bulletItems.length > 0) {
-			slide.addText(bulletItems, {
-				x: 1.2, y: 1.85, w: 10.9, h: 4.4,
+		if (bulletRuns.length > 0) {
+			slide.addText(bulletRuns, {
+				x: 1.1, y: 1.85, w: 11.1, h: 4.5,
 				valign: 'top',
 				align: rtl ? 'right' : 'left',
-				rtl: rtl
+				rtlMode: rtl
 			});
 		}
 
@@ -390,7 +392,8 @@ async function buildPptxBuffer(data) {
 			fontSize: 10,
 			fontFace: 'Arial',
 			color: THEME.textMuted,
-			align: rtl ? 'left' : 'right'
+			align: rtl ? 'left' : 'right',
+			rtlMode: rtl
 		});
 	});
 
