@@ -77,6 +77,8 @@ export async function before(m) {
 		case 'admin':
 		case 'self':
 		case 'owner':
+		case 'vu':
+			// VU mode: bot admins (+ owners) can use the bot anywhere, everyone else is blocked
 			if (!isBotAdmin) return true;
 			break;
 

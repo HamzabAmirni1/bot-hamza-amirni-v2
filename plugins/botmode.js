@@ -50,26 +50,27 @@ let handler = async (m, { command, text, conn }) => {
 
 	// ─── .setmode ────────────────────────────────────────────
 	if (/^setmode$/i.test(command)) {
-		const VALID_MODES = ['public', 'private', 'admin', 'group'];
+		const VALID_MODES = ['public', 'private', 'admin', 'group', 'vu'];
 		const newMode = text?.trim().toLowerCase();
 
 		if (!newMode || !VALID_MODES.includes(newMode)) {
 			return m.reply(t(
-				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🔒 *private* — DMs only (Default)\n🌍 *public* — Everyone can use the bot\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n\n📌 Current mode: *${settings.botMode || 'private'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة فقط (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n\n📌 الوضع الحالي: *${settings.botMode || 'private'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة غير (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n\n📌 الوضع دابا: *${settings.botMode || 'private'}*`
+				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🔒 *private* — DMs only (Default)\n🌍 *public* — Everyone can use the bot\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n👁️ *vu* — Bot admins only (all chats)\n\n📌 Current mode: *${settings.botMode || 'private'}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة فقط (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n👁️ *vu* — للمشرفين فقط (في كل مكان)\n\n📌 الوضع الحالي: *${settings.botMode || 'private'}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة غير (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n👁️ *vu* — الأدمينات غير (فكلشي: گروبات + خاص)\n\n📌 الوضع دابا: *${settings.botMode || 'private'}*`
 			));
 		}
 
 		settings.botMode = newMode;
 		await saveToSupabase('bot_mode', newMode);
 
-		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️' };
+		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️', vu: '👁️' };
 		const modeLabels = {
 			public:  t('Public — Everyone can use', 'عام — للجميع', 'عام — للجميع'),
 			private: t('Private — DMs only', 'خاص — رسائل خاصة فقط', 'خاص — رسائل خاصة غير'),
 			group:   t('Group — Groups only', 'مجموعات فقط', 'الگروبات غير'),
 			admin:   t('Admin — Bot admins only', 'مشرفون — للمشرفين فقط', 'الأدمينات غير'),
+			vu:      t('VU — Bot admins only (groups + DMs)', 'VU — للمشرفين فقط (گروبات + خاص)', 'VU — الأدمينات غير (فكلشي: گروبات + خاص)'),
 		};
 
 		await m.react('✅');
@@ -319,7 +320,7 @@ let handler = async (m, { command, text, conn }) => {
 		const rootOwnerNum = String(rawOwner || '212624855939').replace(/[^0-9]/g, '');
 		const dynamicOwners = (global.botOwners || []).map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')).filter(n => n && n !== rootOwnerNum);
 		const currentMode = settings.botMode || 'private';
-		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️' };
+		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️', vu: '👁️' };
 
 		let msg = t(
 			`🤖 *BOT MANAGEMENT & ROLES*\n━━━━━━━━━━━━━━━━━━━\n📌 Current Mode: ${modeEmojis[currentMode] || '🛡️'} *${currentMode.toUpperCase()}*\n\n👑 *Bot Owners (Unlimited Full Control):*\n• @${rootOwnerNum} _(Root Owner)_\n`,
