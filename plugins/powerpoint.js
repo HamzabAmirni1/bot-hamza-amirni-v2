@@ -84,9 +84,9 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'المقدمة والأهداف الرئيسية',
 						points: [
-							`نظرة عامة وشاملة حول ${topic}`,
-							'أهمية الموضوع وأهدافه المحورية في حياتنا ومجتمعنا',
-							'المحاور والمفاهيم الأساسية التي سنتناولها في هذا العرض'
+							`نظرة عامة وشاملة حول مفهوم ${topic} في حياة الإنسان`,
+							'أهمية الموضوع وأهدافه المحورية في بناء المجتمع وترسيخ القيم الإيجابية',
+							'المحاور والمفاهيم الأساسية التي سنتناولها بالتفصيل في هذا العرض'
 						]
 					},
 					{
@@ -94,39 +94,39 @@ function parseSlidesFromAnyText(raw, topic) {
 						points: [
 							`التعريف العلمي والدقيق لمفهوم ${topic}`,
 							'المبادئ الأساسية والقيم المرتبطة بالموضوع',
-							'التأثير المباشر والعميق على الفرد والمجتمع'
+							'التأثير المباشر والعميق على استقرار الفرد والمجتمع'
 						]
 					},
 					{
 						title: 'التحليل والتطبيق العملي',
 						points: [
-							'تحليل معمق للجوانب الإيجابية والتطبيقات الواقعية',
-							'نماذج ملهمة وتجارب عملية أثبتت نجاحها',
-							'خطوات عملية لتطبيق هذه المبادئ في الحياة اليومية'
+							'تحليل معمق للجوانب الإيجابية والتطبيقات الواقعية في حياتنا',
+							'نماذج ملهمة وتجارب عملية أثبتت نجاحها وأثرها الطيب',
+							'خطوات عملية لتطبيق هذه المبادئ في التعاملات اليومية'
 						]
 					},
 					{
 						title: 'الفوائد والنتائج المستدامة',
 						points: [
-							'تحقيق التوازن النفسي والارتقاء بجودة الحياة',
-							'تعزيز العلاقات الإنسانية وبناء بيئة إيجابية ومحفزة',
-							'الأثر طويل الأمد على النجاح الشخصي والمهني'
+							'تحقيق التوازن النفسي والارتقاء بجودة الحياة والسلام الداخلي',
+							'تعزيز العلاقات الإنسانية وبناء بيئة إيجابية ومحفزة للجميع',
+							'الأثر طويل الأمد على النجاح الشخصي والمهني والمجتمعي'
 						]
 					},
 					{
 						title: 'التحديات وسبل التغلب عليها',
 						points: [
-							'أبرز الصعوبات والمعوقات المحتملة التي قد تواجهنا',
-							'الحلول المبتكرة والاستراتيجيات الفعالة لتجاوزها',
-							'أهمية الاستمرارية والتطوير الذاتي المستمر'
+							'أبرز الصعوبات والمعوقات المحتملة التي قد تواجهنا في الواقع',
+							'الحلول المبتكرة والاستراتيجيات الفعالة لتجاوزها بنجاح',
+							'أهمية الاستمرارية والتطوير الذاتي المستمر للتغلب على التحديات'
 						]
 					},
 					{
 						title: 'الخاتمة والتوصيات العملية',
 						points: [
-							'ملخص شامل لأهم النقاط والدروس المستفادة',
-							'خارطة طريق وتوصيات ختامية قابلة للتنفيذ الفوري',
-							'شكر وتقدير لمتابعتكم هذا العرض التقديمي'
+							'ملخص شامل لأهم النقاط والدروس المستفادة من هذا العرض',
+							'خارطة طريق وتوصيات ختامية قابلة للتنفيذ الفوري في الواقع',
+							'شكر وتقدير لمتابعتكم الكريمة لهذا العرض التقديمي'
 						]
 					}
 				]
@@ -139,8 +139,8 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'Introduction & Objectives',
 						points: [
-							`Comprehensive overview of ${topic}`,
-							'Core significance and impact in modern context',
+							`Comprehensive overview of ${topic} and its core impact`,
+							'Core significance and practical value in modern context',
 							'Key milestones and agenda of this presentation'
 						]
 					},
@@ -163,7 +163,7 @@ function parseSlidesFromAnyText(raw, topic) {
 					{
 						title: 'Benefits & Strategic Value',
 						points: [
-							'Measurable improvements in efficiency and quality',
+							'Measurable improvements in efficiency and quality of life',
 							'Strategic advantages and sustainable long-term value',
 							'Positive impact on key performance indicators'
 						]
@@ -235,8 +235,6 @@ async function buildPptxBuffer(data) {
 	const PptxClass = await getPptxGen();
 	if (!PptxClass) throw new Error('pptxgenjs library is not available.');
 
-	const isPresentationRtl = isRtl(data.title || (data.slides && data.slides[0]?.title));
-
 	const pres = new PptxClass();
 	pres.layout = 'LAYOUT_16x9'; // 16:9 widescreen format (13.33 x 7.5 in)
 	pres.author = 'Hamza Amirni';
@@ -279,7 +277,7 @@ async function buildPptxBuffer(data) {
 	const titleY = hasLogo ? 2.5 : 2.1;
 	const subtitleY = hasLogo ? 4.0 : 3.7;
 
-	// Presentation Title
+	// Presentation Title - Centered
 	slideCover.addText(data.title || 'عرض تقديمي', {
 		x: 0.8, y: titleY, w: 11.7, h: 1.4,
 		fontSize: 36,
@@ -290,7 +288,7 @@ async function buildPptxBuffer(data) {
 		valign: 'middle'
 	});
 
-	// Subtitle
+	// Subtitle - Centered
 	if (data.subtitle) {
 		slideCover.addText(data.subtitle, {
 			x: 1.0, y: subtitleY, w: 11.3, h: 0.9,
@@ -317,8 +315,6 @@ async function buildPptxBuffer(data) {
 		const slide = pres.addSlide();
 		slide.background = { color: THEME.bgDark };
 
-		const rtl = isRtl(s.title || (s.points && s.points[0]));
-
 		// Top Header Banner
 		slide.addShape(pres.ShapeType.rect, {
 			x: 0.8, y: 0.45, w: 11.7, h: 0.95,
@@ -326,8 +322,8 @@ async function buildPptxBuffer(data) {
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Title & Number - Centered so it NEVER gets cut off on left or right!
-		const rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : `Slide ${idx + 1}`)).trim();
+		// Slide Title & Number - Centered so it NEVER clips!
+		const rawTitle = String(s.title || `الشريحة ${idx + 1}`).trim();
 		const displayTitle = /^(\d+|شريحة|slide)/i.test(rawTitle)
 			? rawTitle
 			: `${idx + 1}. ${rawTitle}`;
@@ -342,47 +338,62 @@ async function buildPptxBuffer(data) {
 			valign: 'middle'
 		});
 
-		// Content Card Box
-		slide.addShape(pres.ShapeType.roundRect, {
-			x: 0.8, y: 1.6, w: 11.7, h: 4.9,
-			fill: { color: THEME.cardDark },
-			line: { color: THEME.borderCyan, width: 1 },
-			rectRadius: 0.15
-		});
+		// Render Content Points as Modern Elegant Card Rows
+		const points = (Array.isArray(s.points) ? s.points : []).slice(0, 6);
+		const count = Math.min(Math.max(points.length, 1), 6);
+		const startY = 1.6;
+		const totalAvailH = 4.9;
+		const gap = count <= 3 ? 0.3 : count === 4 ? 0.2 : 0.14;
+		const cardH = (totalAvailH - (count - 1) * gap) / count;
 
-		// Bullet Points using clean literal bullets & paragraphs (avoids PPTX indent bug on mobile)
-		const points = Array.isArray(s.points) ? s.points : [];
-		const bulletRuns = points.map((p) => {
-			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
-			return {
-				text: '•  ' + cleanText,
-				options: {
-					breakLine: true,
-					fontSize: 15,
-					fontFace: 'Arial',
-					color: THEME.textWhite,
-					spacing: { after: 16 },
-					lineSpacing: 24
-				}
-			};
-		});
+		points.forEach((p, i) => {
+			const y = startY + i * (cardH + gap);
 
-		if (bulletRuns.length > 0) {
-			// Position text with 0.4 in safety padding on both left and right (x: 1.2, w: 10.9 inside w: 11.7)
-			slide.addText(bulletRuns, {
-				x: 1.2, y: 1.85, w: 10.9, h: 4.5,
-				valign: 'top',
-				align: rtl ? 'right' : 'left'
+			// Card Row Background Box
+			slide.addShape(pres.ShapeType.roundRect, {
+				x: 0.8, y: y, w: 11.7, h: cardH,
+				fill: { color: THEME.cardDark },
+				line: { color: THEME.accentCyan, width: 1 },
+				rectRadius: 0.12
 			});
-		}
+
+			// Number Pill Badge
+			const badgeSize = Math.min(cardH * 0.65, 0.65);
+			const badgeY = y + (cardH - badgeSize) / 2;
+			slide.addShape(pres.ShapeType.roundRect, {
+				x: 1.05, y: badgeY, w: badgeSize, h: badgeSize,
+				fill: { color: THEME.primaryGold },
+				rectRadius: 0.1
+			});
+			slide.addText(String(i + 1), {
+				x: 1.05, y: badgeY, w: badgeSize, h: badgeSize,
+				fontSize: count > 4 ? 12 : 14,
+				fontFace: 'Arial',
+				bold: true,
+				color: '0B132B',
+				align: 'center',
+				valign: 'middle'
+			});
+
+			// Clean Text - Centered so it CANNOT touch or clip at the right or left border!
+			const cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
+			slide.addText(cleanText, {
+				x: 1.85, y: y, w: 10.4, h: cardH,
+				fontSize: count > 4 ? 14 : 16,
+				fontFace: 'Arial',
+				color: THEME.textWhite,
+				align: 'center',
+				valign: 'middle'
+			});
+		});
 
 		// Footer branding
 		slide.addText(`Bot Amirni Hamza  |  ${idx + 1} / ${slides.length}`, {
-			x: 0.8, y: 6.7, w: 11.7, h: 0.4,
+			x: 0.8, y: 6.8, w: 11.7, h: 0.4,
 			fontSize: 10,
 			fontFace: 'Arial',
 			color: THEME.textMuted,
-			align: rtl ? 'left' : 'right'
+			align: 'center'
 		});
 	});
 
