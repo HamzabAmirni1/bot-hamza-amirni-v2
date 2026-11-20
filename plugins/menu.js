@@ -219,6 +219,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'sdxl': 'توليد وتصميم صور فائقة الجودة بنموذج SDXL',
       'artly': 'توليد رسومات وتصاميم فنية بالذكاء الاصطناعي',
       'tibbi': 'استشارة ومعلومات طبية وصحية بالذكاء الاصطناعي',
+      'ppt': 'تصميم عروض تقديمية كاملة (PowerPoint .pptx) بالذكاء الاصطناعي',
 
       // Downloader & Music
       'play': 'البحث وتحميل مقاطع صوتية MP3',
@@ -748,6 +749,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'sdxl': 'توليد وتصميم صور فائقة الجودة بنموذج SDXL',
       'artly': 'توليد رسومات وتصاميم فنية بالذكاء الاصطناعي',
       'tibbi': 'استشارات ومعلومات طبية وصحية بالذكاء الاصطناعي',
+      'ppt': 'إنشاء وتصميم عروض تقديمية (PowerPoint .pptx) بالذكاء الاصطناعي',
 
       // Downloader & Music
       'play': 'البحث وتحميل الصوت من يوتيوب MP3',
@@ -1131,6 +1133,7 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'sdxl': 'Generate high-resolution images with SDXL model',
       'artly': 'Create artistic illustrations and drawings with Artly AI',
       'tibbi': 'AI medical and health consultation assistant',
+      'ppt': 'Generate complete PowerPoint (.pptx) presentations using AI',
 
       // Downloader
       'play': 'Search & download MP3 audio from YouTube',
