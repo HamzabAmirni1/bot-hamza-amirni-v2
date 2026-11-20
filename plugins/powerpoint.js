@@ -1,7 +1,7 @@
 // ============================================================
 // PowerPoint (.pptx) Presentation Generator Plugin
 // Developed for Bot Amirni Hamza by Hamza Amirni
-// Commands: .ppt | .pptx | .powerpoint | .presentation | .عرض | .بوربوينت
+// Commands: .ppt | .pptx | .pp | .powerpoint | .presentation | .عرض | .بوربوينت
 // ============================================================
 
 import fs from 'fs';
@@ -23,59 +23,209 @@ async function getPptxGen() {
 const isRtl = (str) => /[\u0600-\u06FF]/.test(String(str || ''));
 
 /**
+ * Intelligent parser that extracts or constructs slides from any AI response (JSON or plain text)
+ */
+function parseSlidesFromAnyText(raw, topic) {
+	if (!raw) raw = '';
+
+	// 1. Try pure JSON extraction
+	const firstBrace = raw.indexOf('{');
+	const lastBrace = raw.lastIndexOf('}');
+	if (firstBrace !== -1 && lastBrace > firstBrace) {
+		try {
+			const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1));
+			if (parsed.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
+				return {
+					title: parsed.title || topic,
+					subtitle: parsed.subtitle || (isRtl(topic) ? 'عرض تقديمي شامل ومفصل' : 'Comprehensive Presentation'),
+					slides: parsed.slides.slice(0, 10)
+				};
+			}
+		} catch (_) {}
+	}
+
+	// 2. Parse Markdown headings or bullet points
+	const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+	const slides = [];
+	let currentSlide = null;
+
+	for (const line of lines) {
+		if (/^(أهلاً|مرحباً|أهلا|بالتأكيد|إليك|السلام|hello|sure|here is|welcome)/i.test(line) && line.length < 80) {
+			continue;
+		}
+
+		const isHeading = /^(\#{1,4}|[0-9]+[\.\-\)]|[•\-\*]\s*عنوان|\*\*)/.test(line) || (line.endsWith(':') && line.length < 60);
+		if (isHeading && line.length < 80) {
+			if (currentSlide && currentSlide.points.length > 0) {
+				slides.push(currentSlide);
+			}
+			const cleanTitle = line.replace(/^[\#\*\d\.\-\)\:\s]+/, '').replace(/[\*\:]+$/g, '').trim();
+			currentSlide = { title: cleanTitle || ('شريحة ' + (slides.length + 1)), points: [] };
+		} else if (currentSlide) {
+			const cleanPoint = line.replace(/^[•\-\*\d\.\)\s]+/, '').trim();
+			if (cleanPoint.length > 3) currentSlide.points.push(cleanPoint);
+		} else {
+			const clean = line.replace(/^[•\-\*\d\.\)\s]+/, '').trim();
+			if (clean.length > 10) {
+				currentSlide = { title: topic || 'المقدمة', points: [clean] };
+			}
+		}
+	}
+	if (currentSlide && currentSlide.points.length > 0) slides.push(currentSlide);
+
+	// 3. Fallback: Generate comprehensive professional slides if AI output is sparse
+	if (slides.length < 3) {
+		const rtl = isRtl(topic);
+		if (rtl) {
+			return {
+				title: topic,
+				subtitle: 'عرض تقديمي شامل ومفصل • Bot Amirni Hamza',
+				slides: [
+					{
+						title: 'المقدمة والأهداف الرئيسية',
+						points: [
+							`نظرة عامة وشاملة حول ${topic}`,
+							'أهمية الموضوع وأهدافه المحورية في حياتنا ومجتمعنا',
+							'المحاور والمفاهيم الأساسية التي سنتناولها في هذا العرض'
+						]
+					},
+					{
+						title: 'المفاهيم والأسس الجوهرية',
+						points: [
+							`التعريف العلمي والدقيق لمفهوم ${topic}`,
+							'المبادئ الأساسية والقيم المرتبطة بالموضوع',
+							'التأثير المباشر والعميق على الفرد والمجتمع'
+						]
+					},
+					{
+						title: 'التحليل والتطبيق العملي',
+						points: [
+							'تحليل معمق للجوانب الإيجابية والتطبيقات الواقعية',
+							'نماذج ملهمة وتجارب عملية أثبتت نجاحها',
+							'خطوات عملية لتطبيق هذه المبادئ في الحياة اليومية'
+						]
+					},
+					{
+						title: 'الفوائد والنتائج المستدامة',
+						points: [
+							'تحقيق التوازن النفسي والارتقاء بجودة الحياة',
+							'تعزيز العلاقات الإنسانية وبناء بيئة إيجابية ومحفزة',
+							'الأثر طويل الأمد على النجاح الشخصي والمهني'
+						]
+					},
+					{
+						title: 'التحديات وسبل التغلب عليها',
+						points: [
+							'أبرز الصعوبات والمعوقات المحتملة التي قد تواجهنا',
+							'الحلول المبتكرة والاستراتيجيات الفعالة لتجاوزها',
+							'أهمية الاستمرارية والتطوير الذاتي المستمر'
+						]
+					},
+					{
+						title: 'الخاتمة والتوصيات العملية',
+						points: [
+							'ملخص شامل لأهم النقاط والدروس المستفادة',
+							'خارطة طريق وتوصيات ختامية قابلة للتنفيذ الفوري',
+							'شكر وتقدير لمتابعتكم هذا العرض التقديمي'
+						]
+					}
+				]
+			};
+		} else {
+			return {
+				title: topic,
+				subtitle: 'Comprehensive Presentation • Bot Amirni Hamza',
+				slides: [
+					{
+						title: 'Introduction & Objectives',
+						points: [
+							`Comprehensive overview of ${topic}`,
+							'Core significance and impact in modern context',
+							'Key milestones and agenda of this presentation'
+						]
+					},
+					{
+						title: 'Key Concepts & Framework',
+						points: [
+							`Fundamental definitions and principles of ${topic}`,
+							'Key theoretical and practical pillars',
+							'Industry standards and best practices'
+						]
+					},
+					{
+						title: 'Deep-Dive & Practical Analysis',
+						points: [
+							'In-depth examination of core operational mechanisms',
+							'Real-world case studies and notable examples',
+							'Actionable insights for direct implementation'
+						]
+					},
+					{
+						title: 'Benefits & Strategic Value',
+						points: [
+							'Measurable improvements in efficiency and quality',
+							'Strategic advantages and sustainable long-term value',
+							'Positive impact on key performance indicators'
+						]
+					},
+					{
+						title: 'Challenges & Solutions',
+						points: [
+							'Common pitfalls and potential barriers to success',
+							'Proven risk mitigation techniques and strategies',
+							'Continuous improvement and adaptation framework'
+						]
+					},
+					{
+						title: 'Conclusion & Key Takeaways',
+						points: [
+							'Summary of essential lessons and core takeaways',
+							'Recommended next steps and future roadmap',
+							'Thank you for viewing this presentation'
+						]
+					}
+				]
+			};
+		}
+	}
+
+	return {
+		title: topic,
+		subtitle: isRtl(topic) ? 'عرض تقديمي بواسطة Bot Amirni Hamza' : 'Presented by Bot Amirni Hamza',
+		slides: slides.slice(0, 8)
+	};
+}
+
+/**
  * Generate structured slide data using AI
  */
 async function generatePresentationData(topic, userLang = 'darija') {
-	const systemPrompt = `You are a professional presentation designer and subject matter expert for "Bot Amirni Hamza".
-Your task is to create a complete, well-structured, informative PowerPoint presentation outline about the topic provided by the user.
-
-IMPORTANT RULES:
-1. Return ONLY a valid, raw JSON object (NO markdown backticks, NO code blocks, NO preamble, NO extra commentary).
-2. The language of the content MUST match the user's topic language (e.g. Arabic/Darija if requested in Arabic, English if requested in English, French if requested in French).
-3. The JSON structure MUST be exactly:
+	const systemPrompt = `You are a professional presentation designer for "Bot Amirni Hamza".
+Create a complete, high-quality PowerPoint presentation outline about: "${topic}".
+Format your response ONLY as valid raw JSON (no greetings, no code block backticks):
 {
-  "title": "Short Main Presentation Title",
-  "subtitle": "Informative Subtitle",
+  "title": "Presentation Title",
+  "subtitle": "Subtitle",
   "slides": [
     {
-      "title": "Title of Slide",
-      "points": [
-        "First key point explaining the concept clearly",
-        "Second key point with relevant data or insight",
-        "Third key point highlighting practical details",
-        "Fourth key point or takeaway"
-      ]
+      "title": "Slide Title",
+      "points": ["Point 1", "Point 2", "Point 3", "Point 4"]
     }
   ]
 }
-4. Provide between 6 to 8 slides total:
-   - Slide 1: Introduction / Background (المقدمة والسياق)
-   - Slide 2: Key Concepts / Framework (المفاهيم الأساسية)
-   - Slide 3: Main Topic Deep-Dive (التحليل والتفاصيل)
-   - Slide 4: Benefits & Opportunities (المزايا والفوائد)
-   - Slide 5: Challenges & Solutions (التحديات والحلول)
-   - Slide 6: Future Outlook / Trends (الآفاق المستقبلية)
-   - Slide 7: Conclusion & Key Takeaways (الخلاصة والتوصيات)
-5. Each point must be meaningful, complete, and professionally written.`;
+Include 6 to 8 slides in the language of the topic (Arabic for Arabic topics, English for English).`;
 
-	const rawResponse = await getSmartAIReply(`Topic: ${topic}`, systemPrompt);
-	if (!rawResponse) throw new Error('AI service failed to respond.');
+	const userPrompt = `Topic: "${topic}".
+Output ONLY the raw JSON object for the slides.`;
 
-	// Extract JSON safely
-	let cleanedJson = rawResponse.trim();
-	if (cleanedJson.includes('```json')) {
-		cleanedJson = cleanedJson.split('```json')[1].split('```')[0].trim();
-	} else if (cleanedJson.includes('```')) {
-		cleanedJson = cleanedJson.split('```')[1].split('```')[0].trim();
+	let rawResponse = '';
+	try {
+		rawResponse = await getSmartAIReply(userPrompt, { systemPrompt });
+	} catch (e) {
+		console.warn('[PPT] AI fetch failed, using smart slide builder:', e.message);
 	}
 
-	const firstBrace = cleanedJson.indexOf('{');
-	const lastBrace = cleanedJson.lastIndexOf('}');
-	if (firstBrace !== -1 && lastBrace !== -1) {
-		cleanedJson = cleanedJson.substring(firstBrace, lastBrace + 1);
-	}
-
-	return JSON.parse(cleanedJson);
+	return parseSlidesFromAnyText(rawResponse, topic);
 }
 
 /**
@@ -261,7 +411,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	}
 
 	await m.react('⏳');
-	const waitMsg = await conn.sendMessage(m.chat, {
+	await conn.sendMessage(m.chat, {
 		text: t(
 			`⏳ *Creating your PowerPoint presentation...*\nStructuring content and designing professional slides about: *${text.trim()}*`,
 			`⏳ *جاري تصميم عرض البوربوينت الخاص بك...*\nنقوم الآن بإنشاء المحتوى وتنسيق الشرائح باحترافية حول: *${text.trim()}*`,
@@ -305,8 +455,8 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	}
 };
 
-handler.help = ['ppt <topic>', 'pptx <topic>', 'powerpoint <topic>', 'presentation <topic>'];
+handler.help = ['ppt <topic>', 'pptx <topic>', 'pp <topic>', 'powerpoint <topic>', 'presentation <topic>'];
 handler.tags = ['ai', 'tools'];
-handler.command = /^(ppt|pptx|powerpoint|presentation|عرض|بوربوينت)$/i;
+handler.command = /^(ppt|pptx|pp|powerpoint|presentation|عرض|بوربوينت)$/i;
 
 export default handler;
