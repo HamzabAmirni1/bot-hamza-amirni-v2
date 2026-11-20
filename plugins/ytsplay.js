@@ -2,7 +2,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
-import yts from 'yt-search';
+import { searchYouTube as yts, getVideoDetails } from '../lib/yts.js';
 import { downloadYouTube } from '../lib/ytdl.js';
 
 // ============================================================
@@ -325,7 +325,7 @@ const handler = async (m, { conn, text, command }) => {
 		try {
 			const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
 			if (id) {
-				const res = await yts({ videoId: id });
+				const res = await getVideoDetails(id);
 				videoTitle = res.title || '';
 				videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 			}
@@ -514,7 +514,7 @@ const handler = async (m, { conn, text, command }) => {
 		try {
 			const id = (videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
 			if (id) {
-				const res = await yts({ videoId: id });
+				const res = await getVideoDetails(id);
 				videoTitle = res.title || '';
 				videoThumb = res.image || res.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 			}

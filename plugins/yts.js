@@ -1,4 +1,4 @@
-import yts from 'yt-search';
+import { searchYouTube as yts } from '../lib/yts.js';
 
 let handler = async (m, { conn, usedPrefix, command, text }) => {
  let user = global.db.data.users[m.sender] || {};
