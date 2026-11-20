@@ -9,7 +9,7 @@ const IGNORED_ERRORS = [
     'Timed Out', 'timed out', 'Connection Closed', 'connection closed',
     'uploadPreKeysToServerIfRequired', 'getAvailablePreKeysOnServer',
     'waitForMessage', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND',
-    'socket hang up', 'read ECONNRESET', 'write ECONNRESET',
+    'socket hang up', 'read ECONNRESET', 'write ECONNRESET', 'EPIPE', 'write EPIPE',
     'Could not decode', 'Conflict', 'conflict', 'Bad MAC'
 ];
 
