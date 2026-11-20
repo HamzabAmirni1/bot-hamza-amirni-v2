@@ -1,6 +1,7 @@
 // ============================================================
-// Book & Novel PDF Downloader Plugin (.kitab)
+// Book & Novel PDF Downloader Plugin (.kitab / .books)
 // Commands: .kitab | .ktab | .book | .books | .pdfbook | .كتاب | .كتب | .رواية | .روايات | .novel
+// Interactive Buttons & Direct PDF Transfer
 // Developed for Bot Hamza Amirni by Hamza Amirni
 // ============================================================
 
@@ -125,13 +126,11 @@ async function getArchivePdfMeta(identifier) {
 	});
 
 	if (pdfs.length === 0) {
-		// Look for any PDF
 		const anyPdf = files.find(f => (f.name || '').toLowerCase().endsWith('.pdf'));
 		if (!anyPdf) throw new Error('لم يتم العثور على نسخة PDF في هذا الكتاب.');
 		pdfs.push(anyPdf);
 	}
 
-	// Pick the best file (largest reasonable PDF for full book content)
 	pdfs.sort((a, b) => (parseInt(b.size || 0) - parseInt(a.size || 0)));
 	const best = pdfs[0];
 	const size = parseInt(best.size || 0, 10);
@@ -233,13 +232,51 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 		}
 	}
 
-	// ── CASE 2: EMPTY QUERY (HELP MESSAGE) ──────────────────────────────
+	// ── CASE 2: EMPTY QUERY (HELP MESSAGE WITH BUTTONS) ──────────────────
 	if (!arg) {
-		return m.reply(t(
-			`📚 *PDF Book & Novel Downloader*\n━━━━━━━━━━━━━━━━━━━━\nSearch and download millions of free books directly as PDF documents!\n\n*Usage:*\n← ${usedPrefix + command} <book or author name>\n\n*Examples:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} The Little Prince\n\n_After searching, reply with the book number (e.g. ${usedPrefix + command} 1) to download instantly!_`,
-			`📚 *مكتبة تحميل الكتب والروايات (PDF)*\n━━━━━━━━━━━━━━━━━━━━\nابحث وحمّل ملايين الكتب والروايات العربية والعالمية مباشرة بصيغة PDF على واتساب!\n\n*طريقة الاستخدام:*\n← ${usedPrefix + command} <اسم الكتاب أو المؤلف>\n\n*أمثلة:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} قواعد العشق الاربعون\n← ${usedPrefix + command} طه حسين\n\n_بعد ظهور النتائج، أرسل رقم الكتاب (مثلاً: ${usedPrefix + command} 1) لتحميل الـ PDF فوراً!_`,
-			`📚 *مكتبة الكتب والروايات PDF*\n━━━━━━━━━━━━━━━━━━━━\nتيليشارجي أي كتاب ولا رواية بغيتيها مباشرة بصيغة PDF فـ واتساب فابور!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <سمية الكتاب ولا الكاتب>\n\n*أمثلة:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} قواعد العشق الاربعون\n\n_ملي تخرج ليك القائمة، صيفط غير رقم الكتاب (مثال: ${usedPrefix + command} 1) باش يوصلك PDF ديريكت!_`
-		));
+		const helpText = t(
+			`📚 *PDF Book & Novel Downloader*\n━━━━━━━━━━━━━━━━━━━━\nSearch and download millions of free books directly as PDF documents!\n\n*Usage:*\n← ${usedPrefix + command} <book or author name>\n\n*Examples:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} The Little Prince\n\n_Or click any of the popular search buttons below:_`,
+			`📚 *مكتبة تحميل الكتب والروايات (PDF)*\n━━━━━━━━━━━━━━━━━━━━\nابحث وحمّل ملايين الكتب والروايات العربية والعالمية مباشرة بصيغة PDF على واتساب!\n\n*طريقة الاستخدام:*\n← ${usedPrefix + command} <اسم الكتاب أو المؤلف>\n\n*أمثلة:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} قواعد العشق الاربعون\n← ${usedPrefix + command} طه حسين\n\n_أو اضغط على أحد الأزرار السريعة بالأسفل للبحث الفوري:_`,
+			`📚 *مكتبة الكتب والروايات PDF*\n━━━━━━━━━━━━━━━━━━━━\nتيليشارجي أي كتاب ولا رواية بغيتيها مباشرة بصيغة PDF فـ واتساب فابور!\n\n*طريقة الاستعمال:*\n← ${usedPrefix + command} <سمية الكتاب ولا الكاتب>\n\n*أمثلة:*\n← ${usedPrefix + command} مقدمة ابن خلدون\n← ${usedPrefix + command} العادات الذرية\n← ${usedPrefix + command} قواعد العشق الاربعون\n\n_أو ورك على أحد الأزرار التفاعلية لتحت باش تقلب فالبلاصة:_`
+		);
+
+		const sampleButtons = [
+			{
+				name: 'quick_reply',
+				buttonParamsJson: JSON.stringify({
+					display_text: '📖 مقدمة ابن خلدون',
+					id: `${usedPrefix + command} مقدمة ابن خلدون`
+				})
+			},
+			{
+				name: 'quick_reply',
+				buttonParamsJson: JSON.stringify({
+					display_text: '📖 العادات الذرية',
+					id: `${usedPrefix + command} العادات الذرية`
+				})
+			},
+			{
+				name: 'quick_reply',
+				buttonParamsJson: JSON.stringify({
+					display_text: '📖 The Little Prince',
+					id: `${usedPrefix + command} The Little Prince`
+				})
+			}
+		];
+
+		try {
+			return await conn.sendButton(
+				m.chat,
+				{
+					text: helpText,
+					footer: `${global.namebot || 'Bot Hamza Amirni'} • @hamza_amirni_01`,
+					buttons: sampleButtons
+				},
+				{ quoted: m }
+			);
+		} catch (_) {
+			return m.reply(helpText);
+		}
 	}
 
 	// ── CASE 3: SEARCH FOR BOOKS ────────────────────────────────────────
@@ -269,12 +306,79 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 		return `${i + 1}. 📖 *${b.title}*${authorLine}\n   🏛️ ${b.source}`;
 	}).join('\n\n');
 
+	// Construct interactive selection menu rows (like .yts)
+	const rows = merged.map((b, i) => ({
+		header: '',
+		title: `${i + 1}. ${b.title.substring(0, 24)}`,
+		description: `✍️ ${(b.author || b.source).substring(0, 30)} | 🏛️ ${b.source}`,
+		id: `${usedPrefix + command} ${i + 1}`
+	}));
+
+	const buttonSections = [
+		{
+			title: t(`Available Books (${merged.length} results)`, `قائمة الكتب المتوفرة (${merged.length} نتيجة)`, `ليستة ديال الكتوبة (${merged.length} نتيجة)`),
+			rows: rows
+		}
+	];
+
+	const buttons = [
+		{
+			name: 'single_select',
+			buttonParamsJson: JSON.stringify({
+				title: t('📖 Select Book to Download (PDF)', '📖 اختر كتاباً للتحميل (PDF)', '📖 اختار الكتاب للتحميل (PDF)'),
+				sections: buttonSections
+			})
+		}
+	];
+
+	// Quick reply button for #1
+	if (merged[0]) {
+		buttons.push({
+			name: 'quick_reply',
+			buttonParamsJson: JSON.stringify({
+				display_text: `📥 تحميل: 1. ${merged[0].title.substring(0, 16)}`,
+				id: `${usedPrefix + command} 1`
+			})
+		});
+	}
+
+	// Channel & Instagram CTA buttons
+	buttons.push({
+		name: 'cta_url',
+		buttonParamsJson: JSON.stringify({
+			display_text: '📸 Instagram',
+			url: 'https://www.instagram.com/hamza_amirni_01'
+		})
+	});
+
+	const summaryText = t(
+		`📚 *Book Search Results for "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *To Download as PDF:* Tap the *Select Book* button below, or reply with the number: *${usedPrefix + command} 1*`,
+		`📚 *نتائج البحث عن: "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *للتحميل بصيغة PDF:* اضغط على زر *اختر كتاباً* بالأسفل، أو أرسل الرقم: *${usedPrefix + command} 1*`,
+		`📚 *كتب لقيتها على: "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *باش التيليشارجيه PDF:* كليكي على البوطون ديال *اختار الكتاب* لتحت، ولا صيفط الرقم: *${usedPrefix + command} 1*`
+	);
+
 	await m.react('📚');
-	return m.reply(t(
-		`📚 *Book Search Results for "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *To Download as PDF:* Send:\n← *${usedPrefix + command} <number>*\n_Example: ${usedPrefix + command} 1_`,
-		`📚 *نتائج البحث عن: "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *للتحميل بصيغة PDF:* أرسل:\n← *${usedPrefix + command} <الرقم>*\n_مثال: ${usedPrefix + command} 1_`,
-		`📚 *كتب لقيتها على: "${arg}":*\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedList}\n\n━━━━━━━━━━━━━━━━━━━━\n⬇️ *باش التيليشارجيه PDF:* صيفط:\n← *${usedPrefix + command} <الرقم>*\n_مثال: ${usedPrefix + command} 1_`
-	));
+
+	try {
+		return await conn.sendButton(
+			m.chat,
+			{
+				text: summaryText,
+				footer: `${global.namebot || 'Bot Hamza Amirni'} • @hamza_amirni_01`,
+				buttons: buttons,
+				messageParamsJson: JSON.stringify({
+					bottom_sheet: {
+						list_title: 'PDF Book Library',
+						button_title: t('Select Book', 'اختر كتاباً', 'عزل الكتاب'),
+					}
+				})
+			},
+			{ quoted: m }
+		);
+	} catch (e) {
+		console.error('[KITAB sendButton error]:', e.message);
+		return m.reply(summaryText);
+	}
 };
 
 handler.help = ['kitab <اسم الكتاب>', 'book <name>'];
