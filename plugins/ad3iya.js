@@ -168,8 +168,15 @@ Select an Adhkar category below to read authentic supplications:
             {
               name: 'quick_reply',
               buttonParamsJson: JSON.stringify({
-                display_text: t('🌆 Evening Adhkar', '🌆 أذكار المساء', '🌆 أذكار المساء'),
-                id: `${_p}ad3iya مساء`
+                display_text: t('🕌 Prayer Times & Alerts', '🕌 أوقات الصلاة والتذكير', '🕌 أوقات الصلاة والتذكير'),
+                id: `${_p}salat`
+              })
+            },
+            {
+              name: 'quick_reply',
+              buttonParamsJson: JSON.stringify({
+                display_text: t('📖 Surat Al-Kahf', '📖 سورة الكهف', '📖 سورة الكهف'),
+                id: `${_p}kahf`
               })
             }
           ]

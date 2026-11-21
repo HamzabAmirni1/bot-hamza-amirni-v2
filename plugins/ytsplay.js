@@ -602,8 +602,25 @@ const handler = async (m, { conn, text, command }) => {
 			}
 		}
 
+		let videoBuffer = null;
+		if (tmpVidPath && fs.existsSync(tmpVidPath)) {
+			try { videoBuffer = fs.readFileSync(tmpVidPath); } catch (_) {}
+		}
+		if (!videoBuffer && finalVideoUrl) {
+			try {
+				const vRes = await axios.get(finalVideoUrl, {
+					responseType: 'arraybuffer',
+					timeout: 60000,
+					headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }
+				});
+				if (vRes.data && vRes.data.byteLength > 1024) {
+					videoBuffer = Buffer.from(vRes.data);
+				}
+			} catch (_) {}
+		}
+
 		try {
-			const vidTarget = (tmpVidPath && fs.existsSync(tmpVidPath)) ? { url: tmpVidPath } : { url: finalVideoUrl };
+			const vidTarget = videoBuffer || (tmpVidPath && fs.existsSync(tmpVidPath) ? { url: tmpVidPath } : { url: finalVideoUrl });
 			await conn.sendMessage(m.chat, {
 				video: vidTarget,
 				mimetype: 'video/mp4',
@@ -614,7 +631,7 @@ const handler = async (m, { conn, text, command }) => {
 		} catch (vErr) {
 			console.log('[ytsplay/video] Standard video send failed, falling back to document:', vErr.message);
 			try {
-				const docTarget = (tmpVidPath && fs.existsSync(tmpVidPath)) ? { url: tmpVidPath } : { url: finalVideoUrl };
+				const docTarget = videoBuffer || (tmpVidPath && fs.existsSync(tmpVidPath) ? { url: tmpVidPath } : { url: finalVideoUrl });
 				await conn.sendMessage(m.chat, {
 					document: docTarget,
 					mimetype: 'video/mp4',
