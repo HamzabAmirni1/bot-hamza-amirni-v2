@@ -9,7 +9,7 @@ import axios from 'axios';
 import { getPrayerTimes } from './salat.js';
 
 const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
-const TZ = 'Africa/Casablanca';
+const TZ = 'UTC'; // Morocco GMT+0 (المغرب توقيت غرينتش)
 
 // Surat Al-Kahf Official CDN MP3 recitations
 const KAHF_AUDIO_URL = 'https://server8.mp3quran.net/afs/018.mp3'; // Sheikh Mishary Rashid Alafasy

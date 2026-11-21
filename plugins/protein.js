@@ -25,8 +25,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
 
   // ── helpers ────────────────────────────────────────────────
   const getTodayKey = () => {
-    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Casablanca' }))
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const d = new Date()
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
   }
 
   const progressBar = (val, max, len = 12) => {
@@ -86,7 +86,7 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
         ),
         footer: 'Bot Hamza Amirni • @hamza_amirni_01',
         buttons: [
-          { type: 'quick_reply', display: '📲 ' + t('Help', 'مساعدة', 'مساعدة'), id: `${usedPrefix}protein help` },
+          { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📲 ' + t('Help', 'مساعدة', 'مساعدة'), id: `${usedPrefix}protein help` }) }
         ]
       }, { quoted: m })
     }
@@ -105,8 +105,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       ),
       footer: 'Bot Hamza Amirni • @hamza_amirni_01',
       buttons: [
-        { type: 'quick_reply', display: '📊 ' + t('View Progress', 'التقدم', 'شوف التقدم'), id: `${usedPrefix}protein` },
-        { type: 'quick_reply', display: '🍗 ' + t('Food Catalog', 'كتالوج الطعام', 'الأكل'), id: `${usedPrefix}protein food` },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📊 ' + t('View Progress', 'التقدم', 'شوف التقدم'), id: `${usedPrefix}protein` }) },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🍗 ' + t('Food Catalog', 'كتالوج الطعام', 'الأكل'), id: `${usedPrefix}protein food` }) }
       ]
     }, { quoted: m })
   }
@@ -154,14 +154,14 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     const logs = userLogs[sender] || {}
     const days = []
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Casablanca' }))
-      d.setDate(d.getDate() - i)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() - i)
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
       const val = logs[key] || 0
       const pct = Math.min(val / goal, 1)
       const fill = Math.round(pct * 8)
       const bar  = '▓'.repeat(fill) + '░'.repeat(8 - fill)
-      const dayLabel = `${d.getDate()}/${d.getMonth() + 1}`
+      const dayLabel = `${d.getUTCDate()}/${d.getUTCMonth() + 1}`
       let emoji = val === 0 ? '⬛' : pct >= 1 ? '✅' : pct >= 0.7 ? '🟢' : pct >= 0.3 ? '🟡' : '🔴'
       days.push(`${emoji} ${dayLabel}  [${bar}]  ${val}g`)
     }
@@ -169,9 +169,9 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     // streak count
     let streak = 0
     for (let i = 0; i < 30; i++) {
-      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Casablanca' }))
-      d.setDate(d.getDate() - i)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() - i)
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
       if ((logs[key] || 0) >= goal) streak++
       else break
     }
@@ -186,8 +186,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       text: histText,
       footer: 'Bot Hamza Amirni • @hamza_amirni_01',
       buttons: [
-        { type: 'quick_reply', display: '📊 ' + t('Today', 'اليوم', 'اليوم'), id: `${usedPrefix}protein` },
-        { type: 'quick_reply', display: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📊 ' + t('Today', 'اليوم', 'اليوم'), id: `${usedPrefix}protein` }) },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` }) }
       ]
     }, { quoted: m })
   }
@@ -221,12 +221,13 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       footer: 'Bot Hamza Amirni • @hamza_amirni_01',
       buttons: [
         {
-          type: 'single_select',
-          display: t('🍗 Select Food', '🍗 اختر طعامًا', '🍗 ختار أكل'),
-          title: t('Foods', 'الأطعمة', 'الأكل'),
-          rows
+          name: 'single_select',
+          buttonParamsJson: JSON.stringify({
+            title: t('🍗 Select Food', '🍗 اختر طعامًا', '🍗 ختار أكل'),
+            sections: [{ title: t('High-Protein Foods', 'الأطعمة الغنية بالبروتين', 'الأكل الغني بالبروتين'), rows }]
+          })
         },
-        { type: 'quick_reply', display: '📊 ' + t('My Progress', 'تقدمي', 'التقدم ديالي'), id: `${usedPrefix}protein` },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📊 ' + t('My Progress', 'تقدمي', 'التقدم ديالي'), id: `${usedPrefix}protein` }) }
       ]
     }, { quoted: m })
   }
@@ -258,9 +259,9 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     let streak = 0
     const logs = userLogs[sender]
     for (let i = 0; i < 30; i++) {
-      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Casablanca' }))
-      d.setDate(d.getDate() - i)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() - i)
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
       if ((logs[key] || 0) >= goal) streak++
       else break
     }
@@ -280,9 +281,9 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       text: logText,
       footer: 'Bot Hamza Amirni • @hamza_amirni_01',
       buttons: [
-        { type: 'quick_reply', display: '🍗 ' + t('Add Food', 'إضافة طعام', 'زيد أكل'), id: `${usedPrefix}protein food` },
-        { type: 'quick_reply', display: '📅 ' + t('History', 'التاريخ', 'Historique'), id: `${usedPrefix}protein history` },
-        { type: 'quick_reply', display: '🔄 ' + t('Reset', 'إعادة', 'Reset'), id: `${usedPrefix}protein reset` },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🍗 ' + t('Add Food', 'إضافة طعام', 'زيد أكل'), id: `${usedPrefix}protein food` }) },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📅 ' + t('History', 'التاريخ', 'Historique'), id: `${usedPrefix}protein history` }) },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🔄 ' + t('Reset', 'إعادة', 'Reset'), id: `${usedPrefix}protein reset` }) }
       ]
     }, { quoted: m })
   }
@@ -297,8 +298,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       ),
       footer: 'Bot Hamza Amirni • @hamza_amirni_01',
       buttons: [
-        { type: 'quick_reply', display: '⚙️ Setup', id: `${usedPrefix}protein setup 75` },
-        { type: 'quick_reply', display: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '⚙️ Setup (75kg)', id: `${usedPrefix}protein setup 75` }) },
+        { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` }) }
       ]
     }, { quoted: m })
   }
@@ -309,9 +310,9 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
   const logs2     = userLogs[sender]
   let streak2     = 0
   for (let i = 0; i < 30; i++) {
-    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Casablanca' }))
-    d.setDate(d.getDate() - i)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const d = new Date()
+    d.setUTCDate(d.getUTCDate() - i)
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
     if ((logs2[key] || 0) >= goal) streak2++
     else break
   }
@@ -326,9 +327,9 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     text: progressText,
     footer: 'Bot Hamza Amirni • @hamza_amirni_01',
     buttons: [
-      { type: 'quick_reply', display: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` },
-      { type: 'quick_reply', display: '📅 ' + t('History', 'التاريخ', 'Historique'), id: `${usedPrefix}protein history` },
-      { type: 'quick_reply', display: '🔄 ' + t('Reset Today', 'إعادة', 'Reset'), id: `${usedPrefix}protein reset` },
+      { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🍗 ' + t('Food Catalog', 'الأكل', 'الأكل'), id: `${usedPrefix}protein food` }) },
+      { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '📅 ' + t('History', 'التاريخ', 'Historique'), id: `${usedPrefix}protein history` }) },
+      { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: '🔄 ' + t('Reset Today', 'إعادة', 'Reset'), id: `${usedPrefix}protein reset` }) }
     ]
   }, { quoted: m })
 }

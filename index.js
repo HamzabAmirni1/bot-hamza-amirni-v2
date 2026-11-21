@@ -1904,7 +1904,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
       BOT_MODE: global.BOT_MODE || 'private',
       BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
-      UV_THREADPOOL_SIZE: '16'
+      UV_THREADPOOL_SIZE: '4'
     }
   });
 
@@ -2469,13 +2469,11 @@ function startAntiCrashWatchdog() {
 
       // Proactive RAM check & Garbage Collection (keeps container around 40-60% RAM)
       const mem = process.memoryUsage();
-      if (mem.heapUsed > 180 * 1024 * 1024 || (typeof global.gc === 'function')) {
-        if (typeof global.gc === 'function') {
-          global.gc();
-        }
+      if (typeof global.gc === 'function') {
+        global.gc();
       }
     } catch (_) {}
-  }, 3 * 60 * 1000);
+  }, 60 * 1000);
 
   // ── 4. Cloud Self-Ping Keep-Alive (Every 4 minutes) ──
   setInterval(() => {
