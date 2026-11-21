@@ -1895,6 +1895,11 @@ function startBotWorker(phone, isManual = false) {
   const w = new Worker(full, {
     stdout: true,
     stderr: true,
+    // Limit each worker to max 160MB heap to prevent OOM on 512MB Koyeb container
+    resourceLimits: {
+      maxOldGenerationSizeMb: 160,
+      maxYoungGenerationSizeMb: 32
+    },
     env: {
       ...process.env,
       PAIRING_NUMBER: cleanPhone,
@@ -1904,7 +1909,8 @@ function startBotWorker(phone, isManual = false) {
       BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
       BOT_MODE: global.BOT_MODE || 'private',
       BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
-      UV_THREADPOOL_SIZE: '4'
+      UV_THREADPOOL_SIZE: '2',
+      NODE_OPTIONS: '--max-old-space-size=160'
     }
   });
 
@@ -2181,14 +2187,14 @@ function startBackupWatcher() {
   backupWatcherStarted = true;
   console.log('📡 Starting Multi-Bot Supabase session backup watcher...');
 
-  // Periodic session backup (every 2 minutes) for all connected bots
+  // Periodic session backup (every 8 minutes) for all connected bots — reduced to save CPU/RAM on 512MB Koyeb
   setInterval(() => {
     for (const [phone, info] of workersMap.entries()) {
       if (info.connected) {
         backupSessionForPhone(phone);
       }
     }
-  }, 2 * 60 * 1000);
+  }, 8 * 60 * 1000);
 }
 
 let backupWatcherStarted = false;
@@ -2447,7 +2453,7 @@ function startAntiCrashWatchdog() {
     }
   }, 45 * 1000);
 
-  // ── 2. Missing & Dropped Bots Resurrector (Every 2 minutes) ──
+  // ── 2. Missing & Dropped Bots Resurrector (Every 5 minutes) — reduced poll frequency to save CPU
   setInterval(async () => {
     try {
       const res = await fetch(
@@ -2470,7 +2476,7 @@ function startAntiCrashWatchdog() {
         }
       }
     } catch (_) {}
-  }, 2 * 60 * 1000);
+  }, 5 * 60 * 1000);
 
   // ── 3. RAM & Disk Watchdog (Every 10 minutes) ──
   setInterval(() => {

@@ -247,10 +247,10 @@ async function processSalatHeartbeat() {
   }
 }
 
-// Start continuous background watchdog
+// Start continuous background watchdog — runs every 90s (was 60s) to reduce CPU on 512MB Koyeb
 if (!global.__salatSchedulerActive) {
   global.__salatSchedulerActive = true;
-  setInterval(processSalatHeartbeat, 60000);
+  setInterval(processSalatHeartbeat, 90000);
 }
 
 // ── ON-DEMAND COMMAND: .kahf / .كهف (Manual Surat Al-Kahf Audio & Text) ─────
