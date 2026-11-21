@@ -334,7 +334,7 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
 }
 
 handler.command    = /^(protein|protin|بروتين|nutrition|نوتريشن)$/i
-handler.tags       = ['health', 'fitness']
+handler.tags       = ['tools', 'main']
 handler.help       = ['protein', 'protin', 'nutrition']
 handler.description = 'Daily protein intake tracker to maintain muscle mass and health 💪'
 handler.group      = false

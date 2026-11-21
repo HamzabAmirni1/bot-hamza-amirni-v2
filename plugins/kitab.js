@@ -1057,8 +1057,8 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 	}
 };
 
-handler.help = ['kitab <اسم الكتاب>', 'dross <المادة/الدرس>', 'book <name>'];
-handler.tags = ['downloader', 'education'];
+handler.help = ['kitab <اسم الكتاب>', 'books <name>', 'dross <المادة/الدرس>', 'riwayat <الرواية>'];
+handler.tags = ['downloader', 'tools'];
 handler.command = /^(kitab|ktab|book|books|pdfbook|كتاب|كتب|رواية|روايات|novel|kutub|dross|dars|دروس|درس|cours|resume)$/i;
 
 export default handler;
