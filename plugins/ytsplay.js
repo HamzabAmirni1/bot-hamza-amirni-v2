@@ -402,9 +402,6 @@ const handler = async (m, { conn, text, command }) => {
 		// Check if downloaded directly as local file (e.g. via yt-dlp)
 		if (audioData.isLocalFile || (typeof audioData.download === 'string' && fs.existsSync(audioData.download))) {
 			tmpAudioPath = audioData.download;
-			try {
-				audioBuffer = fs.readFileSync(tmpAudioPath);
-			} catch (_) {}
 		} else {
 			try {
 				const { downloadWithProgress } = await import('../lib/downloadProgress.js');
@@ -418,61 +415,38 @@ const handler = async (m, { conn, text, command }) => {
 					outputPath: tmpAudioPath,
 					timeout: 45000
 				});
-
-				if (fs.existsSync(tmpAudioPath)) {
-					audioBuffer = fs.readFileSync(tmpAudioPath);
-				}
 			} catch (dlErr) {
-				console.log('[ytsplay/audio] Progress download notice, trying direct buffer:', dlErr.message);
-				try {
-					const aRes = await axios.get(audioData.download, {
-						responseType: 'arraybuffer',
-						timeout: 30000,
-						headers: {
-							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-							'Accept': '*/*'
-						}
-					});
-					if (aRes.data && aRes.data.byteLength > 1024) {
-						audioBuffer = Buffer.from(aRes.data);
-					}
-				} catch (_) {}
+				console.log('[ytsplay/audio] Progress download stream notice:', dlErr.message);
 			}
 		}
 
+		const audioTarget = (tmpAudioPath && fs.existsSync(tmpAudioPath)) ? { url: tmpAudioPath } : { url: audioData.download };
+
 		try {
-			if (audioBuffer) {
-				// Send as direct audio buffer
-				await conn.sendMessage(m.chat, {
-					audio: audioBuffer,
-					mimetype: 'audio/mp4',
-					fileName: `${audioTitle}.mp3`,
-					ptt: false
-				}, { quoted: m });
-				return m.react('✅');
-			} else {
-				// Stream fallback
-				await conn.sendMessage(m.chat, {
-					audio: { url: audioData.download },
-					mimetype: 'audio/mp4',
-					fileName: `${audioTitle}.mp3`,
-					ptt: false
-				}, { quoted: m });
-				return m.react('✅');
-			}
+			await conn.sendMessage(m.chat, {
+				audio: audioTarget,
+				mimetype: 'audio/mp4',
+				fileName: `${audioTitle}.mp3`,
+				ptt: false
+			}, { quoted: m });
+			return m.react('✅');
 		} catch (aErr) {
 			console.log('[ytsplay/audio] Audio send failed, attempting as document:', aErr.message);
 			try {
-				const docPayload = audioBuffer
-					? { document: audioBuffer, mimetype: 'audio/mpeg', fileName: `${audioTitle}.mp3` }
-					: { document: { url: audioData.download }, mimetype: 'audio/mpeg', fileName: `${audioTitle}.mp3` };
-
-				await conn.sendMessage(m.chat, docPayload, { quoted: m });
+				await conn.sendMessage(m.chat, {
+					document: audioTarget,
+					mimetype: 'audio/mpeg',
+					fileName: `${audioTitle}.mp3`
+				}, { quoted: m });
 				return m.react('✅');
 			} catch (docErr) {
 				console.log('[ytsplay/audio] Document send failed:', docErr.message);
 				await m.react('⚠️');
 				return m.reply(`🎵 *${audioTitle}*\n\n🔗 *رابط تحميل المقطع الصوتي مباشرة:*\n${audioData.download}`);
+			}
+		} finally {
+			if (tmpAudioPath && fs.existsSync(tmpAudioPath)) {
+				try { fs.unlinkSync(tmpAudioPath); } catch (_) {}
 			}
 		}
 	}
@@ -602,25 +576,9 @@ const handler = async (m, { conn, text, command }) => {
 			}
 		}
 
-		let videoBuffer = null;
-		if (tmpVidPath && fs.existsSync(tmpVidPath)) {
-			try { videoBuffer = fs.readFileSync(tmpVidPath); } catch (_) {}
-		}
-		if (!videoBuffer && finalVideoUrl) {
-			try {
-				const vRes = await axios.get(finalVideoUrl, {
-					responseType: 'arraybuffer',
-					timeout: 60000,
-					headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' }
-				});
-				if (vRes.data && vRes.data.byteLength > 1024) {
-					videoBuffer = Buffer.from(vRes.data);
-				}
-			} catch (_) {}
-		}
+		const vidTarget = (tmpVidPath && fs.existsSync(tmpVidPath)) ? { url: tmpVidPath } : { url: finalVideoUrl };
 
 		try {
-			const vidTarget = videoBuffer || (tmpVidPath && fs.existsSync(tmpVidPath) ? { url: tmpVidPath } : { url: finalVideoUrl });
 			await conn.sendMessage(m.chat, {
 				video: vidTarget,
 				mimetype: 'video/mp4',
@@ -631,9 +589,8 @@ const handler = async (m, { conn, text, command }) => {
 		} catch (vErr) {
 			console.log('[ytsplay/video] Standard video send failed, falling back to document:', vErr.message);
 			try {
-				const docTarget = videoBuffer || (tmpVidPath && fs.existsSync(tmpVidPath) ? { url: tmpVidPath } : { url: finalVideoUrl });
 				await conn.sendMessage(m.chat, {
-					document: docTarget,
+					document: vidTarget,
 					mimetype: 'video/mp4',
 					fileName: `${vidTitle}.mp4`,
 					caption: `🎬 *${vidTitle}*\n\n⚡ *bot amirni hamza*`

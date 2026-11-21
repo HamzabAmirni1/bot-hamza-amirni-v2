@@ -2409,16 +2409,19 @@ function startAntiCrashWatchdog() {
         info.worker.postMessage({ type: 'ping', timestamp: now });
       } catch (_) {}
 
-      // If worker was marked connected, but has been completely silent / frozen for > 5 minutes:
+      // Check for genuine worker deadlock: only auto-recover if event-loop stops responding to ping for > 10 minutes
+      const pongLag = info.lastPong ? (now - info.lastPong) : 0;
       const inactiveMs = now - (info.lastActivity || now);
-      if (info.connected && inactiveMs > 5 * 60 * 1000) {
-        console.log(`⚠️ [Watchdog] Bot +${phone} is frozen / unresponsive for ${Math.round(inactiveMs/1000)}s. Auto-recovering worker...`);
+      const isDeadlocked = info.lastPong ? (pongLag > 10 * 60 * 1000) : (!info.connected && inactiveMs > 10 * 60 * 1000);
+
+      if (isDeadlocked) {
+        console.log(`⚠️ [Watchdog] Bot +${phone} is genuinely frozen / deadlocked (pong lag: ${Math.round(pongLag/1000)}s, idle: ${Math.round(inactiveMs/1000)}s). Auto-recovering worker...`);
         try { info.worker.terminate(); } catch (_) {}
         workersMap.delete(phone);
         setTimeout(() => {
           console.log(`🔄 [Watchdog] Spawning clean worker for +${phone}...`);
           startBotWorker(phone);
-        }, 2000);
+        }, 3000);
       }
     }
   }, 45 * 1000);

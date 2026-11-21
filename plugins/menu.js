@@ -1782,7 +1782,7 @@ function clockString(ms) {
 }
 
 function ucapanDarija() {
-  const time = moment.tz('Africa/Casablanca').format('HH');
+  const time = moment.utc().format('HH');
   if (time < 5) return 'ليلة سعيدة وزوينة أ عشيري';
   if (time < 12) return 'صباح الخير والورد والفل';
   if (time < 18) return 'مساء الخير والنشاط';
@@ -1790,7 +1790,7 @@ function ucapanDarija() {
 }
 
 function ucapanArabic() {
-  const time = moment.tz('Africa/Casablanca').format('HH');
+  const time = moment.utc().format('HH');
   if (time < 5) return 'طاب مساؤك';
   if (time < 12) return 'صباح الخير';
   if (time < 18) return 'مساء الخير';
