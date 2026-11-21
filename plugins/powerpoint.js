@@ -25,6 +25,30 @@ const isFrenchTopic = (str) => /[àâäéèêëîïôöùûüçœ]/i.test(String
 	/(présentation|sujet|projet|cours|gestion|management|analyse|rapport|travail|devoir|exposé|société|santé|technologie|avenir|monde|expert)/i.test(String(str || ''));
 
 /**
+ * Clean Arabic text to eliminate BiDi / RTL layout conflicts in PowerPoint:
+ * Removes flipped parentheses around Latin terms, fixes Arabic punctuation,
+ * and ensures no ugly trailing ellipsis (...) break line direction.
+ */
+function cleanArabicText(text) {
+	if (!text) return '';
+	return String(text)
+		// Remove parentheses around Latin/English words: "(Smartphone)" -> "Smartphone"
+		.replace(/\(([A-Za-z0-9\s\-]+)\)/g, ' $1 ')
+		// Replace English commas with Arabic commas
+		.replace(/,/g, '،')
+		// Replace English semicolons with Arabic semicolons
+		.replace(/;/g, '؛')
+		// Replace English question mark with Arabic
+		.replace(/\?/g, '؟')
+		// Remove multiple trailing dots / ellipsis that break RTL layout
+		.replace(/\.{2,}/g, '.')
+		// Remove trailing commas, colons or dashes
+		.replace(/[،,;؛:\-\s]+$/, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/**
  * Clean & extract a concise presentation title (max 50 chars) from any input or prompt
  */
 function sanitizeTitle(str) {
@@ -420,10 +444,21 @@ async function generatePresentationData(inputContent, userLang = 'darija') {
   * إحصائيات وأرقام وتأثيرات ملموسة في حياة الناس.
   * تحديات حقيقية (أمن البيانات، الوظائف، الأخلاقيات) وحلول عملية قابلة للتنفيذ.
 
-🔤 قواعد ضبط اتجاه النص العربي والرموز والمصطلحات الأجنبية (BiDi):
-- اكتب بأسلوب عربي فصيح متماسك ومتناسق من اليمين إلى اليسار.
-- عند إدراج أي مصطلح تقني لاتيني (إنجليزي أو فرنسي)، ضعه داخل قوسين بجانب المعنى العربي مباشرة وبسلاسة، مثال: «نظام التشغيل (iOS و Android)» أو «وحدات المعالجة العصبية (NPU)».
-- تجنب وضع الأقواس أو النقطتين أو الرموز في أطراف الجملة بشكل معزول لضمان بقاء علامات الترقيم والأقواس في مكانها الطبيعي السليم.
+🔤 قواعد ذهبية لسلامة واتساق النص العربي وتفادي خربطة الحروف والأقواس نهائياً:
+- اكتب باللغة العربية الفصحى السليمة والخالصة فقط.
+- ممنوع منعاً باتاً كتابة المصطلحات اللاتينية أو الإنجليزية بين قوسين (لا تضع أي كلمة إنجليزية داخل قوسين لأن الأقواس تنقلب وتخرب النص في برنامج العرض).
+- قم بتعريب وترجمة المصطلحات إلى العربية الفصحى:
+  * اكتب: "الهواتف الذكية" وليس (Smartphone)
+  * اكتب: "أنظمة أندرويد وآي أو إس" وليس (Android و iOS)
+  * اكتب: "المعالجات المتقدمة ومحركات الذكاء الاصطناعي" وليس (CPU و NPU)
+  * اكتب: "شبكات الجيل الخامس" وليس (5G)
+  * اكتب: "المحافظ الرقمية وخدمات الدفع اللاتلامسي" وليس (Apple Pay)
+  * اكتب: "أنظمة الملاحة وتطبيقات النقل الذكي" وليس (GPS و Uber)
+  * اكتب: "المصادقة الثنائية والتشفير الشامل" وليس (2FA)
+  * اكتب: "إنترنت الأشياء والواقع المعزز" وليس (IoT و AR)
+- استخدم علامات الترقيم العربية السليمة فقط: الفاصلة العربية (،) والنقطة العربية (.).
+- ممنوع وضع نقاط الحذف (...) في نهاية الجمل، بل اختم كل فكرة بجملة مفيدة ومكتملة.
+- اجعل طول كل نقطة ما بين 20 إلى 35 كلمة لتبدو متناسقة وواضحة جداً داخل الشريحة.
 
 هيكلة العرض (6 إلى 8 شرائح غنية):
 1. شريحة 1: الغلاف (عنوان جذاب ومختصر أقل من 6 كلمات، وسطر وصفي أنيق).
@@ -602,7 +637,7 @@ async function buildPptxBuffer(data, presenterName = '') {
 
 	// Subtitle - Centered
 	let safeSubtitle = String(data.subtitle || '').trim();
-	if (safeSubtitle.length > 90) safeSubtitle = safeSubtitle.substring(0, 87) + '...';
+	if (rtl) safeSubtitle = cleanArabicText(safeSubtitle);
 	if (safeSubtitle) {
 		slideCover.addText(safeSubtitle, {
 			x: 1.0, y: subtitleY, w: 11.3, h: 0.9,
@@ -611,6 +646,7 @@ async function buildPptxBuffer(data, presenterName = '') {
 			color: THEME.accentCyan,
 			align: 'center',
 			rtl: rtl,
+			wrap: true,
 			valign: 'middle'
 		});
 	}
@@ -658,22 +694,24 @@ async function buildPptxBuffer(data, presenterName = '') {
 			line: { color: THEME.accentCyan, width: 1.5 }
 		});
 
-		// Slide Title & Number - Centered and explicit
+		// Slide Title & Number - Centered and clean
 		let rawTitle = String(s.title || (rtl ? `الشريحة ${idx + 1}` : fr ? `Diapositive ${idx + 1}` : `Slide ${idx + 1}`)).trim();
-		if (rawTitle.length > 50) rawTitle = rawTitle.substring(0, 47) + '...';
+		rawTitle = rawTitle.replace(/^\d+[\.\-\s:]+/, '').trim();
+		if (rtl) rawTitle = cleanArabicText(rawTitle);
 
-		const displayTitle = /^(\d+|شريحة|slide|diapositive)/i.test(rawTitle)
-			? rawTitle
+		const displayTitle = rtl
+			? `${idx + 1} - ${rawTitle}`
 			: `${idx + 1}. ${rawTitle}`;
 
 		slide.addText(displayTitle, {
 			x: 1.0, y: 0.5, w: 11.3, h: 0.95,
-			fontSize: 21,
+			fontSize: rawTitle.length > 35 ? 18 : 21,
 			fontFace: rtl ? 'Calibri' : 'Arial',
 			bold: true,
 			color: THEME.primaryGold,
 			align: 'center',
 			rtl: rtl,
+			wrap: true,
 			valign: 'middle'
 		});
 
@@ -724,15 +762,22 @@ async function buildPptxBuffer(data, presenterName = '') {
 
 			// Point Text - Aligned according to language with native BiDi RTL support
 			let cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
-			if (cleanText.length > 150) cleanText = cleanText.substring(0, 147) + '...';
+			if (rtl) cleanText = cleanArabicText(cleanText);
+
+			const textLen = cleanText.length;
+			let pointFontSize = 15;
+			if (count > 4 || textLen > 220) pointFontSize = 11.5;
+			else if (count === 4 || textLen > 150) pointFontSize = 13;
+			else if (textLen > 100) pointFontSize = 14;
 
 			slide.addText(cleanText, {
 				x: textX, y: y, w: textW, h: cardH,
-				fontSize: count > 4 ? 14 : 16,
+				fontSize: pointFontSize,
 				fontFace: rtl ? 'Calibri' : 'Arial',
 				color: THEME.textWhite,
 				align: rtl ? 'right' : 'left',
 				rtl: rtl,
+				wrap: true,
 				valign: 'middle'
 			});
 		});
