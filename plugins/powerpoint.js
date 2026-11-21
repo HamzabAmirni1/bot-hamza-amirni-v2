@@ -420,6 +420,11 @@ async function generatePresentationData(inputContent, userLang = 'darija') {
   * إحصائيات وأرقام وتأثيرات ملموسة في حياة الناس.
   * تحديات حقيقية (أمن البيانات، الوظائف، الأخلاقيات) وحلول عملية قابلة للتنفيذ.
 
+🔤 قواعد ضبط اتجاه النص العربي والرموز والمصطلحات الأجنبية (BiDi):
+- اكتب بأسلوب عربي فصيح متماسك ومتناسق من اليمين إلى اليسار.
+- عند إدراج أي مصطلح تقني لاتيني (إنجليزي أو فرنسي)، ضعه داخل قوسين بجانب المعنى العربي مباشرة وبسلاسة، مثال: «نظام التشغيل (iOS و Android)» أو «وحدات المعالجة العصبية (NPU)».
+- تجنب وضع الأقواس أو النقطتين أو الرموز في أطراف الجملة بشكل معزول لضمان بقاء علامات الترقيم والأقواس في مكانها الطبيعي السليم.
+
 هيكلة العرض (6 إلى 8 شرائح غنية):
 1. شريحة 1: الغلاف (عنوان جذاب ومختصر أقل من 6 كلمات، وسطر وصفي أنيق).
 2. شريحة 2: المفهوم والتعريف الشامل (ما هو بالضبط؟ نشأته وأهميته الحقيقية).
@@ -587,10 +592,11 @@ async function buildPptxBuffer(data, presenterName = '') {
 	slideCover.addText(safeTitle, {
 		x: 0.9, y: titleY, w: 11.5, h: 1.4,
 		fontSize: safeTitle.length > 35 ? 30 : 36,
-		fontFace: 'Arial',
+		fontFace: rtl ? 'Calibri' : 'Arial',
 		bold: true,
 		color: THEME.primaryGold,
 		align: 'center',
+		rtl: rtl,
 		valign: 'middle'
 	});
 
@@ -601,9 +607,10 @@ async function buildPptxBuffer(data, presenterName = '') {
 		slideCover.addText(safeSubtitle, {
 			x: 1.0, y: subtitleY, w: 11.3, h: 0.9,
 			fontSize: 20,
-			fontFace: 'Arial',
+			fontFace: rtl ? 'Calibri' : 'Arial',
 			color: THEME.accentCyan,
 			align: 'center',
+			rtl: rtl,
 			valign: 'middle'
 		});
 	}
@@ -617,10 +624,11 @@ async function buildPptxBuffer(data, presenterName = '') {
 	slideCover.addText(presenterLine, {
 		x: 1.0, y: 5.4, w: 11.3, h: 0.5,
 		fontSize: 15,
-		fontFace: 'Arial',
+		fontFace: rtl ? 'Calibri' : 'Arial',
 		bold: true,
 		color: THEME.primaryGold,
-		align: 'center'
+		align: 'center',
+		rtl: rtl
 	});
 
 	// Permanent Official Bot & Developer Copyright Watermark on Cover
@@ -631,9 +639,10 @@ async function buildPptxBuffer(data, presenterName = '') {
 	slideCover.addText(coverFooterText, {
 		x: 1.0, y: 6.4, w: 11.3, h: 0.5,
 		fontSize: 12,
-		fontFace: 'Arial',
+		fontFace: rtl ? 'Calibri' : 'Arial',
 		color: THEME.textMuted,
-		align: 'center'
+		align: 'center',
+		rtl: rtl
 	});
 
 	// ─── DIAPOSITIVES 2+: CONTENU STRUCTURÉ ─────────────────────────
@@ -660,10 +669,11 @@ async function buildPptxBuffer(data, presenterName = '') {
 		slide.addText(displayTitle, {
 			x: 1.0, y: 0.5, w: 11.3, h: 0.95,
 			fontSize: 21,
-			fontFace: 'Arial',
+			fontFace: rtl ? 'Calibri' : 'Arial',
 			bold: true,
 			color: THEME.primaryGold,
 			align: 'center',
+			rtl: rtl,
 			valign: 'middle'
 		});
 
@@ -686,34 +696,43 @@ async function buildPptxBuffer(data, presenterName = '') {
 				rectRadius: 0.12
 			});
 
-			// Number Pill Badge (Left-side golden pill)
 			const badgeSize = Math.min(cardH * 0.65, 0.65);
 			const badgeY = y + (cardH - badgeSize) / 2;
+
+			// Position elements based on reading direction (RTL vs LTR)
+			// In Arabic (RTL): Number badge is on the RIGHT, text flows to the left
+			// In French/English (LTR): Number badge is on the LEFT, text flows to the right
+			const badgeX = rtl ? (12.4 - 0.25 - badgeSize) : 1.15;
+			const textX = rtl ? 1.15 : (1.15 + badgeSize + 0.25);
+			const textW = rtl ? ((badgeX - 0.25) - textX) : (12.4 - 0.25 - textX);
+
+			// Number Pill Badge
 			slide.addShape(pres.ShapeType.roundRect, {
-				x: 1.15, y: badgeY, w: badgeSize, h: badgeSize,
+				x: badgeX, y: badgeY, w: badgeSize, h: badgeSize,
 				fill: { color: THEME.primaryGold },
 				rectRadius: 0.1
 			});
 			slide.addText(String(i + 1), {
-				x: 1.15, y: badgeY, w: badgeSize, h: badgeSize,
+				x: badgeX, y: badgeY, w: badgeSize, h: badgeSize,
 				fontSize: count > 4 ? 12 : 14,
-				fontFace: 'Arial',
+				fontFace: rtl ? 'Calibri' : 'Arial',
 				bold: true,
 				color: '0B132B',
 				align: 'center',
 				valign: 'middle'
 			});
 
-			// Point Text - Centered with safe margins (never clips on left or right)
+			// Point Text - Aligned according to language with native BiDi RTL support
 			let cleanText = String(p || '').replace(/^[•\-\*\d\.\)\s]+/, '').trim();
 			if (cleanText.length > 150) cleanText = cleanText.substring(0, 147) + '...';
 
 			slide.addText(cleanText, {
-				x: 1.95, y: y, w: 10.2, h: cardH,
+				x: textX, y: y, w: textW, h: cardH,
 				fontSize: count > 4 ? 14 : 16,
-				fontFace: 'Arial',
+				fontFace: rtl ? 'Calibri' : 'Arial',
 				color: THEME.textWhite,
-				align: 'center',
+				align: rtl ? 'right' : 'left',
+				rtl: rtl,
 				valign: 'middle'
 			});
 		});
@@ -723,7 +742,7 @@ async function buildPptxBuffer(data, presenterName = '') {
 		slide.addText(slideFooterText, {
 			x: 0.9, y: 6.85, w: 11.5, h: 0.4,
 			fontSize: 10,
-			fontFace: 'Arial',
+			fontFace: rtl ? 'Calibri' : 'Arial',
 			color: THEME.textMuted,
 			align: 'center'
 		});
