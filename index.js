@@ -1935,6 +1935,23 @@ function startBotWorker(phone, isManual = false) {
       }).catch(() => {});
     }
 
+    // Detect WhatsApp ban or permanent logout — stop restart loop immediately
+    if (chunkStr.includes('WhatsApp account banned') || chunkStr.includes('Session logged out') || chunkStr.includes('logged out. Recreate session')) {
+      const isBanned = chunkStr.includes('banned');
+      const reason = isBanned ? 'banned' : 'logged_out';
+      console.log(`🛑 [+${cleanPhone}] WhatsApp account detected as ${reason.toUpperCase()}! Halting worker and disabling restart.`);
+      stoppedWorkers.add(cleanPhone);
+      botInfo.connected = false;
+      fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${cleanPhone}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: reason, updated_at: new Date().toISOString() })
+      }).catch(() => {});
+      try { rmSync(`./sessions/session_${cleanPhone}`, { recursive: true, force: true }); } catch (_) {}
+      try { w.terminate(); } catch (_) {}
+      return;
+    }
+
     const silencePatterns = ['Closing open session', 'Closing session', 'SessionEntry', 'No session record', 'Bad MAC'];
     if (silencePatterns.some(p => chunkStr.includes(p))) return;
 
@@ -2055,6 +2072,10 @@ async function restoreAllSessions() {
           cleanP = '212' + cleanP.slice(4);
         }
         if (cleanP.length < 10 || seenPhones.has(cleanP)) continue;
+        if (r.status === 'banned' || r.status === 'logged_out' || stoppedWorkers.has(cleanP)) {
+          console.log(`🛑 Skipping banned/logged_out bot +${cleanP} from session restore.`);
+          continue;
+        }
         seenPhones.add(cleanP);
 
         const buffer = Buffer.from(r.session_data, 'base64');

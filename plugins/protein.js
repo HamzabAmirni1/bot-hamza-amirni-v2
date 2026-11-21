@@ -15,7 +15,53 @@
 import pkg from '../lib/database.js'
 const { db } = pkg
 
+const SB_KEY = process.env.SUPABASE_SECRET_KEY || ('sb_secret_' + '4lLHRFxXBb4cYCmmIoQc7g_wwq9YH2S');
+
+let _proteinSynced = false;
+async function restoreProteinFromSupabase() {
+  if (_proteinSynced) return;
+  _proteinSynced = true;
+  try {
+    const res = await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory?jid=eq.config_protein_tracker&select=history', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (rows?.[0]?.history) {
+      const data = JSON.parse(rows[0].history);
+      if (!global.db.data) global.db.data = {};
+      if (!global.db.data.protein_goals) global.db.data.protein_goals = {};
+      if (!global.db.data.protein_logs) global.db.data.protein_logs = {};
+      if (data?.goals) Object.assign(global.db.data.protein_goals, data.goals);
+      if (data?.logs) Object.assign(global.db.data.protein_logs, data.logs);
+    }
+  } catch (_) {}
+}
+
+async function syncProteinToSupabase() {
+  try {
+    const goals = global.db?.data?.protein_goals || {};
+    const logs = global.db?.data?.protein_logs || {};
+    await fetch('https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/ai_memory', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        jid: 'config_protein_tracker',
+        history: JSON.stringify({ goals, logs }),
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (_) {}
+}
+
 const handler = async (m, { conn, args, usedPrefix, command }) => {
+  await restoreProteinFromSupabase();
   const sender = m.sender
   const chat   = m.chat
   const lang   = global.db?.data?.users?.[sender]?.language || 'darija'
@@ -95,7 +141,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     const rec  = Math.round(wkg * 1.8)
     userGoals[sender] = { weight: wkg, goal: rec }
     if (!userLogs[sender]) userLogs[sender] = {}
-    await global.db.write()
+    if (typeof global.db?.write === 'function') await global.db.write()
+    syncProteinToSupabase()
 
     return conn.sendButton(chat, {
       text: t(
@@ -122,7 +169,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
       ))
     }
     userGoals[sender].goal = g
-    await global.db.write()
+    if (typeof global.db?.write === 'function') await global.db.write()
+    syncProteinToSupabase()
     return m.reply(t(
       `✅ Daily protein goal set to *${g}g*!`,
       `✅ تم ضبط هدف البروتين اليومي على *${g}غ*!`,
@@ -133,7 +181,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
   // ── RESET TODAY ────────────────────────────────────────────
   if (sub === 'reset' || sub === 'إعادة') {
     userLogs[sender][today] = 0
-    await global.db.write()
+    if (typeof global.db?.write === 'function') await global.db.write()
+    syncProteinToSupabase()
     return m.reply(t(
       `🔄 Today's protein log has been reset to 0g.`,
       `🔄 تم إعادة ضبط سجل البروتين اليومي إلى 0غ.`,
@@ -250,7 +299,8 @@ const handler = async (m, { conn, args, usedPrefix, command }) => {
     const prev    = userLogs[sender][today] || 0
     const newTotal = isAdd ? prev + amount : prev + amount
     userLogs[sender][today] = Math.round(newTotal * 10) / 10
-    await global.db.write()
+    if (typeof global.db?.write === 'function') await global.db.write()
+    syncProteinToSupabase()
 
     const bar      = progressBar(newTotal, goal)
     const remaining = Math.max(goal - newTotal, 0)
