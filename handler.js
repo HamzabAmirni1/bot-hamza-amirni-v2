@@ -1652,7 +1652,7 @@ export async function callUpdate(callEvents = []) {
 					cleanCallerNum === '212631342792' || 
 					cleanCallerNum === '212708869993' ||
 					(global.owner && global.owner.some(([id]) => id === cleanCallerNum)) ||
-					(global.db?.data?.settings?.botAdmins && global.db.data.settings.botAdmins.includes(cleanCallerNum))
+					(Array.isArray(global.db?.data?.settings?.botAdmins) && global.db.data.settings.botAdmins.includes(cleanCallerNum))
 				);
 
 				let callAnswered = false;
