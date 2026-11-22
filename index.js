@@ -1895,10 +1895,10 @@ function startBotWorker(phone, isManual = false) {
   const w = new Worker(full, {
     stdout: true,
     stderr: true,
-    // Limit each worker to max 160MB heap to prevent OOM on 512MB Koyeb container
+    // Limit each worker to max 120MB heap to prevent OOM on 512MB Koyeb container (3 bots * 120MB = 360MB < 512MB)
     resourceLimits: {
-      maxOldGenerationSizeMb: 160,
-      maxYoungGenerationSizeMb: 32
+      maxOldGenerationSizeMb: 120,
+      maxYoungGenerationSizeMb: 24
     },
     env: {
       ...process.env,
@@ -1910,7 +1910,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_MODE: global.BOT_MODE || 'private',
       BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
       UV_THREADPOOL_SIZE: '2',
-      NODE_OPTIONS: '--max-old-space-size=160'
+      NODE_OPTIONS: '--max-old-space-size=120'
     }
   });
 
@@ -1941,17 +1941,15 @@ function startBotWorker(phone, isManual = false) {
       }).catch(() => {});
     }
 
-    // Detect WhatsApp ban or permanent logout — stop restart loop immediately
-    if (chunkStr.includes('WhatsApp account banned') || chunkStr.includes('Session logged out') || chunkStr.includes('logged out. Recreate session')) {
-      const isBanned = chunkStr.includes('banned');
-      const reason = isBanned ? 'banned' : 'logged_out';
-      console.log(`🛑 [+${cleanPhone}] WhatsApp account detected as ${reason.toUpperCase()}! Halting worker and disabling restart.`);
+    // Detect WhatsApp permanent account ban only — stop restart loop immediately
+    if (chunkStr.includes('WhatsApp account banned') || chunkStr.includes('account has been banned')) {
+      console.log(`🛑 [+${cleanPhone}] WhatsApp account detected as BANNED! Halting worker and disabling restart.`);
       stoppedWorkers.add(cleanPhone);
       botInfo.connected = false;
       fetch(`https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?phone_number=eq.${cleanPhone}`, {
         method: 'PATCH',
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: reason, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ status: 'banned', updated_at: new Date().toISOString() })
       }).catch(() => {});
       try { rmSync(`./sessions/session_${cleanPhone}`, { recursive: true, force: true }); } catch (_) {}
       try { w.terminate(); } catch (_) {}
@@ -2078,8 +2076,8 @@ async function restoreAllSessions() {
           cleanP = '212' + cleanP.slice(4);
         }
         if (cleanP.length < 10 || seenPhones.has(cleanP)) continue;
-        if (r.status === 'banned' || r.status === 'logged_out' || stoppedWorkers.has(cleanP)) {
-          console.log(`🛑 Skipping banned/logged_out bot +${cleanP} from session restore.`);
+        if (r.status === 'banned' || stoppedWorkers.has(cleanP)) {
+          console.log(`🛑 Skipping banned bot +${cleanP} from session restore.`);
           continue;
         }
         seenPhones.add(cleanP);
@@ -2457,7 +2455,7 @@ function startAntiCrashWatchdog() {
   setInterval(async () => {
     try {
       const res = await fetch(
-        `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=phone_number,status&status=eq.connected&limit=30`,
+        `https://tpchjgdnovfbtvlhhszq.supabase.co/rest/v1/whatsapp_auth?select=phone_number,status,session_data&status=eq.connected&limit=30`,
         { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } }
       );
       if (!res.ok) return;
@@ -2472,6 +2470,18 @@ function startAntiCrashWatchdog() {
         const currentWorker = workersMap.get(cleanP);
         if (!currentWorker || !currentWorker.worker) {
           console.log(`🛡️ [Watchdog] Detected offline / missing connected bot +${cleanP}. Auto-resurrecting...`);
+          // Ensure session file exists on disk BEFORE spawning worker!
+          const targetDb = getBotDbPath(cleanP);
+          if (!existsSync(targetDb) && r.session_data) {
+            try {
+              const buffer = Buffer.from(r.session_data, 'base64');
+              if (buffer.length > 1000) {
+                mkdirSync(getBotSessionDir(cleanP), { recursive: true });
+                writeFileSync(targetDb, buffer);
+                console.log(`✅ [Watchdog] Restored session files before resurrecting +${cleanP}`);
+              }
+            } catch (_) {}
+          }
           startBotWorker(cleanP);
         }
       }
@@ -2521,11 +2531,11 @@ function startServerHeartbeat() {
 async function init() {
   await forceClaimMasterLock();
   startServerHeartbeat();
-  startAntiCrashWatchdog();
   await initGlobalConfigs();
   await initStats();
+  await restoreAllSessions(); // Always restore and launch all connected sessions from Supabase first!
+  startAntiCrashWatchdog();   // Only start watchdog after sessions are safely written to disk!
   startBackupWatcher();
-  await restoreAllSessions(); // Always restore and launch all connected sessions from Supabase!
 }
 
 init();
