@@ -230,6 +230,15 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'protein': 'تتبع كمية البروتين اليومية للحفاظ على العضلات والصحة',
       'protin': 'تتبع استهلاك البروتين اليومي وحساب الاحتياج',
       'nutrition': 'كتالوغ الأغذية الغنية بالبروتين وإحصائيات التغذية',
+      'numinfo': 'كشف هوية ومعلومات أي رقم والمشغل والتحقق من الواتساب',
+      'searchimg': 'البحث العكسي عن أي صورة واستخراج مصدرها وشبيهاتها عبر Google Lens',
+      'resume': 'تلخيص الدروس والفقرات لجميع المستويات الدراسية بالذكاء الاصطناعي',
+      'pricepic': 'صيفط تصويرة ديال أي منتج ونجبدو ليك سميتو وثمنو فالمغرب جديد ومستعمل',
+      'book': 'تلخيص تنفيذي شامل لأي كتاب مع أهم 5 دروس عملية واقتباسات',
+      'voice': 'تحويل أي نص إلى بصمة صوتية فويس بصوت بنت أو ولد',
+      'alien': 'تحويل صوتك أو أي أوديو إلى صوت كائن فضائي غريب ومضحك',
+      'aicall': 'مكالمة ومحادثة صوتية حية مع الذكاء الاصطناعي كأنك تتكلم في الهاتف',
+      'doroos': 'دروس وفروض وامتحانات المغرب لجميع المستويات وتحميل PDF مباشر',
 
       // Downloader & Music
       'play': 'البحث وتحميل مقاطع صوتية MP3',
@@ -771,6 +780,15 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'protein': 'تتبع كمية البروتين اليومية للحفاظ على العضلات والصحة',
       'protin': 'تتبع استهلاك البروتين اليومي وحساب الاحتياج',
       'nutrition': 'دليل الأطعمة الغنية بالبروتين وإحصائيات التغذية',
+      'numinfo': 'كشف هوية ومعلومات أي رقم هاتف والمشغل والتحقق من حساب واتساب',
+      'searchimg': 'البحث العكسي عن أي صورة واستخراج مصدرها وشبيهاتها عبر Google Lens',
+      'resume': 'تلخيص الدروس والمقررات لجميع المستويات التعليمية بالذكاء الاصطناعي',
+      'pricepic': 'إرسال صورة منتج لمعرفة اسمه وموديله وسعره بالمغرب جديد ومستعمل',
+      'book': 'تلخيص تنفيذي شامل لأي كتاب أو رواية مع أهم 5 خلاصات واقتباسات',
+      'voice': 'تحويل أي نص إلى رسالة صوتية واقعية بصوت أنثوي أو ذكوري',
+      'alien': 'تحويل صوتك أو أي مقطع صوتي إلى صوت كائن فضائي',
+      'aicall': 'مكالمة صوتية تفاعلية مع الذكاء الاصطناعي بالصوت المباشر',
+      'doroos': 'دروس وفروض وامتحانات المغرب لجميع المستويات وتحميلها مباشرة PDF',
 
       // Downloader & Music
       'play': 'البحث وتحميل الصوت من يوتيوب MP3',
@@ -1165,6 +1183,15 @@ const handler = async (m, { conn, usedPrefix: _p, command, isOwner, args }) => {
       'protein': 'Daily protein & nutrition tracker for muscle maintenance',
       'protin': 'Track daily protein intake & nutrition stats',
       'nutrition': 'Nutrition guide & high-protein food catalog',
+      'numinfo': 'Lookup phone number info, carrier operator & WhatsApp status',
+      'searchimg': 'Reverse image search via Google Lens & find visual matches',
+      'resume': 'AI lesson & course summarizer for all school levels',
+      'pricepic': 'Send product image to find its name, model & market price',
+      'book': 'Executive AI book summary with core thesis & 5 actionable takeaways',
+      'voice': 'Convert text into natural voice note with female or male voice',
+      'alien': 'Transform voice note into strange sci-fi alien voice filter',
+      'aicall': 'Real-time conversational voice call with AI assistant',
+      'doroos': 'Browse Moroccan school courses, exams & download direct PDF',
 
       // Downloader
       'play': 'Search & download MP3 audio from YouTube',

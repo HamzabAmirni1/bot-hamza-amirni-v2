@@ -225,7 +225,7 @@ function _layout(name, data, extra) {
 }
 
 function richEnabled() {
-    try { return global.db.data.settings.doroosRich !== false } catch { return true }
+    try { return global.db?.data?.settings?.doroosRich === true } catch { return false }
 }
 
 async function sendRichResults(conn, m, usedPrefix, query, top, total) {
@@ -433,8 +433,8 @@ async function presentResults(conn, m, usedPrefix, query, top, total) {
         top.map((el, i) => `${i + 1}. ${el.title}`).join('\n') +
         `\n\n📥 *للتحميل:* اضغط زر «تحميل درس» واختار، أو رد برقم الدرس.`
     const mkRow = (el, i) => ({
-        title: el.title.slice(0, 24),
-        description: '📄 PDF — اضغط للتحميل',
+        title: el.title.slice(0, 48),
+        description: el.title.slice(48, 110) || '📄 اضغط للتحميل المباشر PDF',
         id: `${usedPrefix}doroosdl ${i + 1}`,
     })
     const sections = [{ title: 'اختر الدرس للتحميل (1-10)', rows: top.slice(0, 10).map(mkRow) }]
