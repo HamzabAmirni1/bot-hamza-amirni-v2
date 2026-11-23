@@ -73,11 +73,12 @@ async function ytmp3Ytconvert(url) {
 async function ytmp3Mever(url) {
 	const id = (url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
 	if (!id) throw new Error('Invalid YouTube URL');
-	const r = await axios.get(
-		`https://mever.zeabur.app/api/youtube?url=https://www.youtube.com/watch?v=${id}&type=mp3`,
-		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 20000 }
-	);
-	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.data.title || 'Audio' };
+	const r = await axios.get('https://mever.zeabur.app/api/youtube', {
+		params: { url: `https://www.youtube.com/watch?v=${id}`, type: 'audio', quality: '128kbps' },
+		headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' },
+		timeout: 15000
+	});
+	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.title || r.data.data.title || 'Audio' };
 	throw new Error('Mever mp3 failed');
 }
 
@@ -256,14 +257,15 @@ async function ytmp4Savetube(url, quality = '720') {
 	throw new Error('Savetube no URL');
 }
 
-async function ytmp4Mever(url) {
+async function ytmp4Mever(url, quality = '360p') {
 	const id = (url.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/) || [])[1];
 	if (!id) throw new Error('Invalid YouTube URL');
-	const r = await axios.get(
-		`https://mever.zeabur.app/api/youtube?url=https://www.youtube.com/watch?v=${id}&type=mp4`,
-		{ headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' }, timeout: 20000 }
-	);
-	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.data.title || 'Video' };
+	const r = await axios.get('https://mever.zeabur.app/api/youtube', {
+		params: { url: `https://www.youtube.com/watch?v=${id}`, type: 'video', quality },
+		headers: { 'X-Package-Name': 'com.dapascript.mever', 'User-Agent': 'okhttp/4.11.0' },
+		timeout: 20000
+	});
+	if (r?.data?.status && r?.data?.data?.url) return { download: r.data.data.url, title: r.data.title || r.data.data.title || 'Video' };
 	throw new Error('Mever mp4 failed');
 }
 
@@ -343,8 +345,8 @@ const handler = async (m, { conn, text, command }) => {
 		// Inline fallbacks if primary fails
 		if (!audioData?.download) {
 			for (const [fn, name] of [
-				[ytmp3Convert1s, 'Convert1s'],
 				[ytmp3Mever, 'Mever'],
+				[ytmp3Convert1s, 'Convert1s'],
 				[ytmp3Savetube, 'SaveTube'],
 				[ytmp3Y2mate, 'y2mate'],
 				[ytmp3Yupra, 'Yupra'],
@@ -380,7 +382,13 @@ const handler = async (m, { conn, text, command }) => {
 
 		if (!audioData?.download) {
 			await m.react('❌');
-			return m.reply('❌ فشل تحميل الصوت من جميع المصادر. حاول مرة أخرى لاحقاً.');
+			const fallbackAudioUrl = videoUrl.startsWith('http') ? videoUrl : `https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`;
+			const fallbackATitle = videoTitle || text || 'الصوت';
+			return m.reply(
+				lang === 'english'
+					? `🎵 *${fallbackATitle}*\n\n⚠️ Could not download the audio (YouTube restriction).\n\n🔗 *Listen/download here:*\n${fallbackAudioUrl}`
+					: `🎵 *${fallbackATitle}*\n\n⚠️ ماقدرناش نحملو الصوت (قيود يوتيوب).\n\n🔗 *الرابط المباشر:*\n${fallbackAudioUrl}\n\n⚡ *bot amirni hamza*`
+			);
 		}
 
 		const audioTitle = audioData.title || videoTitle || 'audio';
@@ -494,17 +502,22 @@ const handler = async (m, { conn, text, command }) => {
 			}
 		} catch (_) {}
 
-		// Try video downloaders in fallback order
+		// Try video downloaders in fallback order — with 45s max timeout to avoid handler freeze
 		let videoData = null;
+		const videoDownloadTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('VIDEO_DL_TIMEOUT')), 45000));
 		try {
-			const res = await downloadYouTube(videoUrl, 'mp4');
+			const res = await Promise.race([downloadYouTube(videoUrl, 'mp4'), videoDownloadTimeout]);
 			if (res?.download) videoData = res;
 		} catch (e) {
-			console.log('[ytsplay/video] downloadYouTube failed:', e.message);
+			if (e.message === 'VIDEO_DL_TIMEOUT') {
+				console.log('[ytsplay/video] downloadYouTube timed out after 45s');
+			} else {
+				console.log('[ytsplay/video] downloadYouTube failed:', e.message);
+			}
 		}
 
 		if (!videoData?.download) {
-			for (const fn of [ytmp4Convert1s, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s, ytmp4Mever]) {
+			for (const fn of [ytmp4Mever, ytmp4Convert1s, ytmp4Ytconvert, ytmp4Savetube, ytmp4Yupra, ytmp4Yt1s]) {
 				try {
 					videoData = await fn(videoUrl);
 					if (videoData?.download) break;
@@ -515,12 +528,14 @@ const handler = async (m, { conn, text, command }) => {
 		}
 
 		if (!videoData?.download) {
-			await m.react('❌');
+			await m.react('⚠️');
+			const fallbackVideoUrl = videoUrl.startsWith('http') ? videoUrl : `https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`;
+			const fallbackTitle = videoTitle || text || 'الفيديو';
 			const failVideoMsg = lang === 'english'
-				? '❌ Failed to download video from all sources. Please try again later.'
+				? `🎬 *${fallbackTitle}*\n\n⚠️ Could not download the video directly (YouTube restriction or server limit).\n\n🔗 *Watch or download it here:*\n${fallbackVideoUrl}`
 				: lang === 'arabic'
-				? '❌ فشل تحميل الفيديو من جميع المصادر. حاول مرة أخرى.'
-				: '❌ فشل تحميل الفيديو من جميع المصادر. حاول مرة أخرى.';
+				? `🎬 *${fallbackTitle}*\n\n⚠️ تعذر تحميل الفيديو مباشرة (قيود يوتيوب أو حجم كبير).\n\n🔗 *شاهده أو حمله من هنا:*\n${fallbackVideoUrl}`
+				: `🎬 *${fallbackTitle}*\n\n⚠️ ماقدرناش نحملو الفيديو مباشرة (قيود يوتيوب).\n\n🔗 *مشاهدة أو تحميل من هنا:*\n${fallbackVideoUrl}\n\n⚡ *bot amirni hamza*`;
 			return m.reply(failVideoMsg);
 		}
 

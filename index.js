@@ -2076,8 +2076,8 @@ async function restoreAllSessions() {
           cleanP = '212' + cleanP.slice(4);
         }
         if (cleanP.length < 10 || seenPhones.has(cleanP)) continue;
-        if (r.status === 'banned' || stoppedWorkers.has(cleanP)) {
-          console.log(`🛑 Skipping banned bot +${cleanP} from session restore.`);
+        if (r.status !== 'connected' || stoppedWorkers.has(cleanP)) {
+          console.log(`🛑 Skipping non-connected bot +${cleanP} (status: ${r.status}) from session restore.`);
           continue;
         }
         seenPhones.add(cleanP);
