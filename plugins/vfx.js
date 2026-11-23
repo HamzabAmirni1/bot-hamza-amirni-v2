@@ -33,10 +33,11 @@ const EFFECTS = {
     slow:     { ar: 'بطيء 🐢',    needs: ['atempo'], chain: () => 'atempo=0.68' },
     fast:     { ar: 'سريع 🐇',    needs: ['atempo'], chain: () => 'atempo=1.6' },
     reverse:  { ar: 'معكوس 🔄',   needs: ['areverse'], chain: () => 'areverse' },
+    alien:    { ar: 'فضائي 👽',   needs: ['vibrato', 'aecho'], chain: sr => `asetrate=${Math.round(sr * 1.22)},aresample=${sr},vibrato=f=18:d=0.9,aecho=0.8:0.7:60|120:0.35|0.2` },
 }
 const ALIASES = {
     عميق: 'deep', سنجاب: 'chipmunk', روبوت: 'robot', راديو: 'radio',
-    صدى: 'echo', كهف: 'cave', بطيء: 'slow', سريع: 'fast', معكوس: 'reverse',
+    صدى: 'echo', كهف: 'cave', بطيء: 'slow', سريع: 'fast', معكوس: 'reverse', فضائي: 'alien',
     pitch: 'deep', old: 'radio', walkie: 'radio',
 }
 
