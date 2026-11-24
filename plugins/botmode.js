@@ -93,13 +93,25 @@ let handler = async (m, { command, text, conn }) => {
 	// ─── .addadmin ───────────────────────────────────────────
 	if (/^addadmin$/i.test(command)) {
 		let target = '';
+		let targetLid = '';
 
 		if (m.mentionedJid && m.mentionedJid.length > 0) {
 			target = m.mentionedJid[0];
 		} else if (m.quoted) {
 			target = m.quoted.sender || m.quoted.participant || '';
+			if (target.endsWith('@lid')) {
+				targetLid = target;
+				try {
+					const pn = await conn.signalRepository?.lidMapping?.getPNForLID?.(target);
+					if (pn && !pn.endsWith('@lid')) target = pn;
+				} catch (_) {}
+			}
 		} else if (text) {
-			target = text.trim().replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+			let raw = text.trim().replace(/[^0-9]/g, '');
+			if (raw.startsWith('06') && raw.length === 10) raw = '2126' + raw.slice(2);
+			else if (raw.startsWith('07') && raw.length === 10) raw = '2127' + raw.slice(2);
+			else if (raw.startsWith('05') && raw.length === 10) raw = '2125' + raw.slice(2);
+			target = raw + '@s.whatsapp.net';
 		}
 
 		if (!target) {
@@ -111,7 +123,17 @@ let handler = async (m, { command, text, conn }) => {
 		}
 
 		const targetNum = target.replace(/[^0-9]/g, '');
-		const alreadyAdmin = settings.botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === targetNum);
+		const _matchPhone = (a, b) => {
+			if (!a || !b) return false;
+			const na = String(a).replace(/[^0-9]/g, '');
+			const nb = String(b).replace(/[^0-9]/g, '');
+			if (!na || !nb) return false;
+			if (na === nb) return true;
+			if (na.length >= 9 && nb.length >= 9 && na.slice(-9) === nb.slice(-9)) return true;
+			return false;
+		};
+
+		const alreadyAdmin = settings.botAdmins.some(a => _matchPhone(a, targetNum) || (targetLid && a === targetLid));
 		if (alreadyAdmin) {
 			return m.reply(t(
 				`⚠️ @${targetNum} is already a bot admin!`,
@@ -121,7 +143,15 @@ let handler = async (m, { command, text, conn }) => {
 		}
 
 		settings.botAdmins.push(target);
+		if (targetLid && !settings.botAdmins.includes(targetLid)) {
+			settings.botAdmins.push(targetLid);
+		}
 		await saveToSupabase('bot_admins', settings.botAdmins);
+		if (global.__modeNotifyCache) {
+			global.__modeNotifyCache.delete(m.chat);
+			global.__modeNotifyCache.delete(target);
+			if (targetLid) global.__modeNotifyCache.delete(targetLid);
+		}
 		await m.react('✅');
 		return conn.sendMessage(m.chat, {
 			text: t(
@@ -136,13 +166,25 @@ let handler = async (m, { command, text, conn }) => {
 	// ─── .deladmin ───────────────────────────────────────────
 	if (/^deladmin$/i.test(command)) {
 		let target = '';
+		let targetLid = '';
 
 		if (m.mentionedJid && m.mentionedJid.length > 0) {
 			target = m.mentionedJid[0];
 		} else if (m.quoted) {
 			target = m.quoted.sender || m.quoted.participant || '';
+			if (target.endsWith('@lid')) {
+				targetLid = target;
+				try {
+					const pn = await conn.signalRepository?.lidMapping?.getPNForLID?.(target);
+					if (pn && !pn.endsWith('@lid')) target = pn;
+				} catch (_) {}
+			}
 		} else if (text) {
-			target = text.trim().replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+			let raw = text.trim().replace(/[^0-9]/g, '');
+			if (raw.startsWith('06') && raw.length === 10) raw = '2126' + raw.slice(2);
+			else if (raw.startsWith('07') && raw.length === 10) raw = '2127' + raw.slice(2);
+			else if (raw.startsWith('05') && raw.length === 10) raw = '2125' + raw.slice(2);
+			target = raw + '@s.whatsapp.net';
 		}
 
 		if (!target) {
@@ -154,7 +196,17 @@ let handler = async (m, { command, text, conn }) => {
 		}
 
 		const targetNum = target.replace(/[^0-9]/g, '');
-		const idx = settings.botAdmins.findIndex(a => String(a).replace(/[^0-9]/g, '') === targetNum);
+		const _matchPhone = (a, b) => {
+			if (!a || !b) return false;
+			const na = String(a).replace(/[^0-9]/g, '');
+			const nb = String(b).replace(/[^0-9]/g, '');
+			if (!na || !nb) return false;
+			if (na === nb) return true;
+			if (na.length >= 9 && nb.length >= 9 && na.slice(-9) === nb.slice(-9)) return true;
+			return false;
+		};
+
+		const idx = settings.botAdmins.findIndex(a => _matchPhone(a, targetNum) || a === target || (targetLid && a === targetLid));
 		if (idx === -1) {
 			return m.reply(t(
 				`⚠️ @${targetNum} is not a bot admin.`,
@@ -163,8 +215,13 @@ let handler = async (m, { command, text, conn }) => {
 			));
 		}
 
-		settings.botAdmins.splice(idx, 1);
+		settings.botAdmins = settings.botAdmins.filter(a => !_matchPhone(a, targetNum) && a !== target && a !== targetLid);
 		await saveToSupabase('bot_admins', settings.botAdmins);
+		if (global.__modeNotifyCache) {
+			global.__modeNotifyCache.delete(m.chat);
+			global.__modeNotifyCache.delete(target);
+			if (targetLid) global.__modeNotifyCache.delete(targetLid);
+		}
 		await m.react('✅');
 		return conn.sendMessage(m.chat, {
 			text: t(

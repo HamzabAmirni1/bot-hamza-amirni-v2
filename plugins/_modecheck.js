@@ -53,18 +53,42 @@ async function syncSettingsFromSupabase() {
 
 const _cleanPhoneNum = (j) => String(j || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
 
+const _matchPhone = (a, b) => {
+	if (!a || !b) return false;
+	const na = String(a).replace(/[^0-9]/g, '');
+	const nb = String(b).replace(/[^0-9]/g, '');
+	if (!na || !nb) return false;
+	if (na === nb) return true;
+	if (na.length >= 9 && nb.length >= 9 && na.slice(-9) === nb.slice(-9)) return true;
+	return false;
+};
+
 export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {}) {
 	await syncSettingsFromSupabase();
 
 	const senderNum = _cleanPhoneNum(m.sender);
+	let resolvedPhone = senderNum;
+	if (m.sender && m.sender.endsWith('@lid')) {
+		try {
+			let pn = null;
+			if (this.signalRepository?.lidMapping?.getPNForLID) {
+				pn = await this.signalRepository.lidMapping.getPNForLID(m.sender);
+			}
+			if ((!pn || pn.endsWith('@lid')) && typeof this.getJid === 'function') {
+				const mapped = this.getJid(m.sender);
+				if (mapped && !mapped.endsWith('@lid')) pn = mapped;
+			}
+			if (pn && !pn.endsWith('@lid')) resolvedPhone = _cleanPhoneNum(pn);
+		} catch (_) {}
+	}
 
 	// Developer / Owner checks (never blocked anywhere)
 	const isOwnerUser = m.fromMe || isOwner || isROwner || (global.owner || []).some(o => {
 		const num = Array.isArray(o) ? o[0] : o;
-		return _cleanPhoneNum(num) === senderNum;
+		return _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
 	}) || (global.botOwners || []).some(o => {
 		const num = Array.isArray(o) ? o[0] : o;
-		return _cleanPhoneNum(num) === senderNum;
+		return _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
 	});
 	if (isOwnerUser) return false;
 
@@ -77,7 +101,7 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 
 	const isGroup        = m.chat?.endsWith('@g.us') || m.isGroup;
 	const isPrivate      = !isGroup;
-	const isBotAdminUser = admins.some(a => _cleanPhoneNum(a) === senderNum) || isBotAdmin;
+	const isBotAdminUser = admins.some(a => _matchPhone(a, senderNum) || _matchPhone(a, resolvedPhone)) || isBotAdmin;
 
 	// Bot admins are NEVER blocked anywhere
 	if (isBotAdminUser) return false;

@@ -867,14 +867,51 @@ export async function handler(chatUpdate) {
 		                 (_currentBotPhone && global[`BOT_MODE_${_currentBotPhone}`]) || 
 		                 _settings.botMode || global.BOT_MODE || 'private';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
-		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
+		const _matchPhone = (a, b) => {
+			if (!a || !b) return false;
+			const na = String(a).replace(/[^0-9]/g, '');
+			const nb = String(b).replace(/[^0-9]/g, '');
+			if (!na || !nb) return false;
+			if (na === nb) return true;
+			if (na.length >= 9 && nb.length >= 9 && na.slice(-9) === nb.slice(-9)) return true;
+			return false;
+		};
 
-		const _isOwnerUser = isOwner || isROwner || _allOwners.includes(_senderNum);
-		const _isBotAdminUser = _botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === _senderNum);
+		const _senderNum = _cleanPhoneNum(m.sender);
+		let _resolvedPhone = _senderNum;
+		if (m.sender && m.sender.endsWith('@lid')) {
+			try {
+				let pn = null;
+				if (this.signalRepository?.lidMapping?.getPNForLID) {
+					pn = await this.signalRepository.lidMapping.getPNForLID(m.sender);
+				}
+				if ((!pn || pn.endsWith('@lid')) && typeof this.getJid === 'function') {
+					const mapped = this.getJid(m.sender);
+					if (mapped && !mapped.endsWith('@lid')) pn = mapped;
+				}
+				if ((!pn || pn.endsWith('@lid')) && this.chats) {
+					for (const chat of Object.values(this.chats)) {
+						const p = chat?.metadata?.participants?.find(p => p.lid === m.sender || p.id === m.sender);
+						if (p) {
+							const phone = p.phoneNumber || p.jid || p.id;
+							if (phone && !phone.endsWith('@lid')) {
+								pn = phone;
+								break;
+							}
+						}
+					}
+				}
+				if (pn && !pn.endsWith('@lid')) _resolvedPhone = _cleanPhoneNum(pn);
+			} catch (_) {}
+		}
+
+		const _isOwnerUser = isOwner || isROwner || _allOwners.some(o => _matchPhone(o, _senderNum) || _matchPhone(o, _resolvedPhone));
+		const _isBotAdminUser = _botAdmins.some(a => _matchPhone(a, _senderNum) || _matchPhone(a, _resolvedPhone));
 
 		// Owners and Bot Admins are always recognized as admins everywhere
 		if (_isOwnerUser || _isBotAdminUser) {
 			isAdmin = true;
+			if (global.__modeNotifyCache && m.chat) global.__modeNotifyCache.delete(m.chat);
 		}
 
 		m.isAdmin = isAdmin;
