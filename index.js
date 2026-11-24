@@ -2286,9 +2286,9 @@ async function initGlobalConfigs() {
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
-      if (!cfg.bot_mode || cfg.bot_mode === 'group') {
-        global.BOT_MODE = 'private';
-        await saveConfigToSupabase('bot_mode', 'private');
+      if (!cfg.bot_mode) {
+        global.BOT_MODE = 'public';
+        await saveConfigToSupabase('bot_mode', 'public');
       } else {
         global.BOT_MODE = cfg.bot_mode;
       }

@@ -37,7 +37,7 @@ function getGlobalSettings() {
 	const s = global.db.data.settings;
 	if (!Array.isArray(s.botAdmins)) s.botAdmins = [];
 	if (!Array.isArray(global.botOwners)) global.botOwners = [];
-	if (!s.botMode) s.botMode = 'private'; // Default to private (DMs only)
+	if (!s.botMode) s.botMode = 'public'; // Default to public (everyone can use)
 	return s;
 }
 

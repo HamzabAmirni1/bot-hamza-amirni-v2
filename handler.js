@@ -807,21 +807,71 @@ export async function handler(chatUpdate) {
 		// (Language defaults to darija, user can change with .lang command anytime)
 
 
-		const groupMetadata = (m.isGroup ? (conn.chats[m.chat] || {}).metadata || (await this.groupMetadata(m.chat).catch((_) => null)) : {}) || {};
-		const participants = (m.isGroup ? groupMetadata.participants : []) || [];
-		const user = (m.isGroup ? participants.find((u) => conn.getJid(u.id) === m.sender) : {}) || {}; // User Data
-		const bot = (m.isGroup ? participants.find((u) => conn.getJid(u.id) == (this.user?.jid || this.user?.id || '')) : {}) || {}; // Your Data
-		const isRAdmin = user?.admin == 'superadmin' || false;
-		const isAdmin = isRAdmin || user?.admin == 'admin' || false; // Is User Admin?
-		const isBotAdmin = bot?.admin || false; // Are you Admin?
+		const _cleanPhoneNum = (j) => String(j || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+		const _senderPhone = _cleanPhoneNum(m.sender);
+		const _botPhone = _cleanPhoneNum(this.user?.jid || this.user?.id);
+
+		let groupMetadata = (m.isGroup ? (conn.chats[m.chat] || {}).metadata || (await this.groupMetadata(m.chat).catch((_) => null)) : {}) || {};
+		let participants = (m.isGroup ? groupMetadata.participants : []) || [];
+
+		let user = (m.isGroup ? participants.find((u) => {
+			const uNum = _cleanPhoneNum(u.id || u.jid);
+			return (uNum && uNum === _senderPhone) || (u.id === m.sender);
+		}) : {}) || {};
+
+		let bot = (m.isGroup ? participants.find((u) => {
+			const uNum = _cleanPhoneNum(u.id || u.jid);
+			return (uNum && uNum === _botPhone) || (u.id === this.user?.jid);
+		}) : {}) || {};
+
+		let isRAdmin = user?.admin == 'superadmin' || false;
+		let isAdmin = isRAdmin || user?.admin == 'admin' || false; // Is User Admin?
+		let isBotAdmin = bot?.admin || false; // Are you Admin?
+
+		// ─── Auto-Refresh Group Metadata on Cache Miss ───
+		// If cached metadata indicates not admin, refresh from WhatsApp directly to catch recent promotions
+		if (m.isGroup && (!isAdmin || !isBotAdmin)) {
+			try {
+				const freshMeta = await this.groupMetadata(m.chat).catch(() => null);
+				if (freshMeta?.participants) {
+					groupMetadata = freshMeta;
+					participants = freshMeta.participants;
+					if (conn.chats[m.chat]) conn.chats[m.chat].metadata = freshMeta;
+
+					user = participants.find((u) => {
+						const uNum = _cleanPhoneNum(u.id || u.jid);
+						return (uNum && uNum === _senderPhone) || (u.id === m.sender);
+					}) || {};
+
+					bot = participants.find((u) => {
+						const uNum = _cleanPhoneNum(u.id || u.jid);
+						return (uNum && uNum === _botPhone) || (u.id === this.user?.jid);
+					}) || {};
+
+					isRAdmin = user?.admin == 'superadmin' || false;
+					isAdmin = isRAdmin || user?.admin == 'admin' || false;
+					isBotAdmin = bot?.admin || false;
+				}
+			} catch (_) {}
+		}
 
 		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || global.BOT_MODE || 'private';
+		const _botMode = _settings.botMode || global.BOT_MODE || 'public';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
 		const _isOwnerUser = isOwner || isROwner || _allOwners.includes(_senderNum);
+		const _isBotAdminUser = _botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === _senderNum);
+
+		// Owners and Bot Admins are always recognized as admins everywhere
+		if (_isOwnerUser || _isBotAdminUser) {
+			isAdmin = true;
+		}
+
+		m.isAdmin = isAdmin;
+		m.isBotAdmin = isBotAdmin;
+		m.isOwner = _isOwnerUser;
 
 		// ─── Per-Bot Deactivation / Standby Mode Enforcement ───
 		const _currentBotPhone = (this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
@@ -843,15 +893,14 @@ export async function handler(chatUpdate) {
 			}
 		}
 
-		const _isBotAdminUser = _botAdmins.some(a => String(a).replace(/[^0-9]/g, '') === _senderNum);
 		const _isDevCmd = m.text && /^[.!#/\\]?(msgtodev|mstodev|contactdev|msgdev|contact|owner|مطور|رسالة_للمطور)(\s|$)/i.test(m.text.trim());
 
-		if (!_isOwnerUser && !m.fromMe && !_isDevCmd) {
+		if (!_isOwnerUser && !_isBotAdminUser && !m.fromMe && !_isDevCmd) {
 			let blockedReason = null;
 
-			if ((_botMode === 'admin' || _botMode === 'self' || _botMode === 'owner') && !_isBotAdminUser) {
+			if ((_botMode === 'admin' || _botMode === 'self' || _botMode === 'owner' || _botMode === 'vu') && !_isBotAdminUser) {
 				blockedReason = 'admin';
-			} else if ((_botMode === 'private' || _botMode === 'pm') && m.isGroup) {
+			} else if ((_botMode === 'private' || _botMode === 'pm') && m.isGroup && !isAdmin) {
 				blockedReason = 'private';
 			} else if ((_botMode === 'group' || _botMode === 'gc') && !m.isGroup) {
 				blockedReason = 'group';
@@ -1064,13 +1113,43 @@ export async function handler(chatUpdate) {
 					fail('group', m, this);
 					continue;
 				} else if (plugin.botAdmin && !isBotAdmin) {
-					// You Admin
-					fail('botAdmin', m, this);
-					continue;
+					// Bot Admin check (with fresh lookup on failure)
+					if (m.isGroup) {
+						try {
+							const freshMeta = await this.groupMetadata(m.chat).catch(() => null);
+							if (freshMeta?.participants) {
+								const _b = freshMeta.participants.find((u) => {
+									const uNum = _cleanPhoneNum(u.id || u.jid);
+									return (uNum && uNum === _botPhone) || (u.id === this.user?.jid);
+								});
+								if (_b?.admin) isBotAdmin = true;
+							}
+						} catch (_) {}
+					}
+					if (!isBotAdmin) {
+						fail('botAdmin', m, this);
+						continue;
+					}
 				} else if (plugin.admin && !isAdmin) {
-					// User Admin
-					fail('admin', m, this);
-					continue;
+					// User Admin check (with fresh lookup on failure)
+					if (m.isGroup) {
+						try {
+							const freshMeta = await this.groupMetadata(m.chat).catch(() => null);
+							if (freshMeta?.participants) {
+								const _u = freshMeta.participants.find((u) => {
+									const uNum = _cleanPhoneNum(u.id || u.jid);
+									return (uNum && uNum === _senderPhone) || (u.id === m.sender);
+								});
+								if (_u?.admin === 'admin' || _u?.admin === 'superadmin') {
+									isAdmin = true;
+								}
+							}
+						} catch (_) {}
+					}
+					if (!isAdmin) {
+						fail('admin', m, this);
+						continue;
+					}
 				}
 				if (plugin.private && m.isGroup) {
 					// Private Chat Only
