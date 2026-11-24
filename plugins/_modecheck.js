@@ -79,28 +79,15 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 	const isDevCmd = m.text && /^[.!#/\\]?(msgtodev|mstodev|contactdev|msgdev|contact|owner|مطور|رسالة_للمطور)(\s|$)/i.test(m.text.trim());
 	if (isDevCmd) return false;
 
-	// Check if user is group admin
-	let isGroupAdmin = m.isAdmin || isAdmin;
-
-	// In private mode in a group, if cached admin was false, check fresh groupMetadata
-	if (isGroup && !isGroupAdmin && (mode === 'private' || mode === 'pm')) {
-		try {
-			const meta = await this.groupMetadata?.(m.chat).catch(() => null);
-			if (meta?.participants) {
-				const u = meta.participants.find(p => _cleanPhoneNum(p.id || p.jid) === senderNum);
-				if (u?.admin === 'admin' || u?.admin === 'superadmin') {
-					isGroupAdmin = true;
-					if (m) m.isAdmin = true;
-				}
-			}
-		} catch (_) {}
-	}
-
+	// Group rule:
+	// If mode is 'private' or 'pm', groups are BLOCKED for everyone (even group admins).
+	// Only bot owners and bot admins (checked above) bypass this.
+	// Groups ONLY work if mode is 'public' or 'group' / 'gc'.
 	switch (mode) {
 		case 'private':
 		case 'pm':
-			// In private mode: DMs allowed for everyone; Groups allowed for group admins & bot admins
-			if (isGroup && !isGroupAdmin) return true;
+			// In private mode: Groups are completely blocked; DMs are allowed for everyone
+			if (isGroup) return true;
 			return false;
 
 		case 'group':

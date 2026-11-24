@@ -900,7 +900,7 @@ export async function handler(chatUpdate) {
 
 			if ((_botMode === 'admin' || _botMode === 'self' || _botMode === 'owner' || _botMode === 'vu') && !_isBotAdminUser) {
 				blockedReason = 'admin';
-			} else if ((_botMode === 'private' || _botMode === 'pm') && m.isGroup && !isAdmin) {
+			} else if ((_botMode === 'private' || _botMode === 'pm') && m.isGroup) {
 				blockedReason = 'private';
 			} else if ((_botMode === 'group' || _botMode === 'gc') && !m.isGroup) {
 				blockedReason = 'group';
