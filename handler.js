@@ -906,7 +906,23 @@ export async function handler(chatUpdate) {
 		}
 
 		const _isOwnerUser = isOwner || isROwner || _allOwners.some(o => _matchPhone(o, _senderNum) || _matchPhone(o, _resolvedPhone));
-		const _isBotAdminUser = _botAdmins.some(a => _matchPhone(a, _senderNum) || _matchPhone(a, _resolvedPhone));
+		let _isBotAdminUser = _botAdmins.some(a => _matchPhone(a, _senderNum) || _matchPhone(a, _resolvedPhone));
+
+		// Reverse LID check: for any admin phone number, check if Baileys maps it to this sender's LID
+		if (!_isBotAdminUser && m.sender && m.sender.endsWith('@lid') && this.signalRepository?.lidMapping?.getLIDForPN) {
+			for (const adm of _botAdmins) {
+				try {
+					const cleanA = _cleanPhoneNum(adm);
+					if (cleanA) {
+						const lid = await this.signalRepository.lidMapping.getLIDForPN(cleanA + '@s.whatsapp.net');
+						if (lid && (_cleanPhoneNum(lid) === _senderNum || lid === m.sender)) {
+							_isBotAdminUser = true;
+							break;
+						}
+					}
+				} catch (_) {}
+			}
+		}
 
 		// Owners and Bot Admins are always recognized as admins everywhere
 		if (_isOwnerUser || _isBotAdminUser) {
@@ -970,11 +986,11 @@ export async function handler(chatUpdate) {
 						let modeNotice = '';
 						if (blockedReason === 'admin') {
 							modeNotice = t(
-								`🛡️ *Bot is in ADMIN MODE!*\n━━━━━━━━━━━━━━━━━━━━━\nSorry, the bot is currently restricted to *Bot Admins* only.\n\n👑 *Contact Owner / Developer (Hamza Amirni):*\n💬 *WhatsApp:* https://wa.me/${ownerNum}\n📸 *Instagram:* ${igLink}\n👤 *Facebook:* ${fbLink}\n\n✉️ *Or send a direct message using:* \n← .msgtodev your message here\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+								`🛡️ *Bot is in ADMIN MODE!*\n━━━━━━━━━━━━━━━━━━━━━\nSorry, the bot is currently restricted to *Bot Admins* only.\n\n🆔 *Your ID:* \`${_senderNum}\`\n\n👑 *Contact Owner / Developer (Hamza Amirni):*\n💬 *WhatsApp:* https://wa.me/${ownerNum}\n📸 *Instagram:* ${igLink}\n👤 *Facebook:* ${fbLink}\n\n✉️ *Or send a direct message using:* \n← .msgtodev your message here\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
 
-								`🛡️ *البوت في وضع المشرفين (Admin Mode)*\n━━━━━━━━━━━━━━━━━━━━━\nعذراً! البوت حالياً مخصص للمشرفين فقط (Admin Mode).\n\n👑 *إذا أردت التواصل مع المطور/المالك (Hamza Amirni):*\n💬 *واتساب:* https://wa.me/${ownerNum}\n📸 *إنستغرام:* ${igLink}\n👤 *فيسبوك:* ${fbLink}\n\n✉️ *أو يمكنك إرسال رسالة فورية عبر الأمر:*\n← .msgtodev رسالتك هنا\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
+								`🛡️ *البوت في وضع المشرفين (Admin Mode)*\n━━━━━━━━━━━━━━━━━━━━━\nعذراً! البوت حالياً مخصص للمشرفين فقط (Admin Mode).\n\n🆔 *معرفك (ID):* \`${_senderNum}\`\n\n👑 *إذا أردت التواصل مع المطور/المالك (Hamza Amirni):*\n💬 *واتساب:* https://wa.me/${ownerNum}\n📸 *إنستغرام:* ${igLink}\n👤 *فيسبوك:* ${fbLink}\n\n✉️ *أو يمكنك إرسال رسالة فورية عبر الأمر:*\n← .msgtodev رسالتك هنا\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`,
 
-								`🛡️ *البوت فـ وضع الأدمينات (Admin Mode)*\n━━━━━━━━━━━━━━━━━━━━━\nسمح لينا! البوت دابا خدام غير للأدمينات (Admin Mode) فقط.\n\n👑 *إلا بغيتي تتواصل مع المطور/الأونر (Hamza Amirni):*\n💬 *WhatsApp:* https://wa.me/${ownerNum}\n📸 *Instagram:* ${igLink}\n👤 *Facebook:* ${fbLink}\n\n✉️ *ولا تقدر تصيفط ليه ميساج بأمر:*\n← .msgtodev كتبت الرسالة ديالك هنا\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
+								`🛡️ *البوت فـ وضع الأدمينات (Admin Mode)*\n━━━━━━━━━━━━━━━━━━━━━\nسمح لينا! البوت دابا خدام غير للأدمينات (Admin Mode) فقط.\n\n🆔 *الآيدي ديالك (ID):* \`${_senderNum}\`\n\n👑 *إلا بغيتي تتواصل مع المطور/الأونر (Hamza Amirni):*\n💬 *WhatsApp:* https://wa.me/${ownerNum}\n📸 *Instagram:* ${igLink}\n👤 *Facebook:* ${fbLink}\n\n✉️ *ولا تقدر تصيفط ليه ميساج بأمر:*\n← .msgtodev كتبت الرسالة ديالك هنا\n━━━━━━━━━━━━━━━━━━━━━\n⚡ *bot amirni hamza*`
 							);
 						} else {
 							modeNotice = t(

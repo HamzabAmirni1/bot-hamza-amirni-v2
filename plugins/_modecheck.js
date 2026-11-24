@@ -101,7 +101,23 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 
 	const isGroup        = m.chat?.endsWith('@g.us') || m.isGroup;
 	const isPrivate      = !isGroup;
-	const isBotAdminUser = admins.some(a => _matchPhone(a, senderNum) || _matchPhone(a, resolvedPhone)) || isBotAdmin;
+	let isBotAdminUser = admins.some(a => _matchPhone(a, senderNum) || _matchPhone(a, resolvedPhone)) || isBotAdmin;
+
+	// Reverse LID check: for any admin phone number, check if Baileys maps it to this sender's LID
+	if (!isBotAdminUser && m.sender && m.sender.endsWith('@lid') && this.signalRepository?.lidMapping?.getLIDForPN) {
+		for (const adm of admins) {
+			try {
+				const cleanA = _cleanPhoneNum(adm);
+				if (cleanA) {
+					const lid = await this.signalRepository.lidMapping.getLIDForPN(cleanA + '@s.whatsapp.net');
+					if (lid && (_cleanPhoneNum(lid) === senderNum || lid === m.sender)) {
+						isBotAdminUser = true;
+						break;
+					}
+				}
+			} catch (_) {}
+		}
+	}
 
 	// Bot admins are NEVER blocked anywhere
 	if (isBotAdminUser) return false;
