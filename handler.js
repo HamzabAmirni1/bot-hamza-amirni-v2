@@ -74,12 +74,17 @@ if (parentPort && !global.__parentPortListenerAdded) {
 					}
 					console.log('⚙️ [Worker] Real-time Configs Updated via parentPort:', msg.settings);
 				} else if (msg.type === 'set_bot_mode') {
-					if (global.db?.data) {
-						if (!global.db.data.settings) global.db.data.settings = {};
-						global.db.data.settings.botMode = msg.mode;
+					const workerPhone = (process.env.PAIRING_NUMBER || '').replace(/[^0-9]/g, '');
+					if (!msg.phone || msg.phone === workerPhone) {
+						if (global.db?.data) {
+							if (!global.db.data.settings) global.db.data.settings = {};
+							global.db.data.settings.botMode = msg.mode;
+							if (msg.phone) global.db.data.settings[`botMode_${msg.phone}`] = msg.mode;
+						}
+						global.BOT_MODE = msg.mode;
+						if (msg.phone) global[`BOT_MODE_${msg.phone}`] = msg.mode;
+						console.log(`⚙️ [Worker +${workerPhone}] Bot mode updated to: ${msg.mode}`);
 					}
-					global.BOT_MODE = msg.mode;
-					console.log(`⚙️ [Worker] Bot mode updated to: ${msg.mode}`);
 				} else if (msg.type === 'add_bot_admin') {
 					if (global.db?.data) {
 						if (!global.db.data.settings) global.db.data.settings = {};
@@ -855,9 +860,12 @@ export async function handler(chatUpdate) {
 			} catch (_) {}
 		}
 
-		// ─── Global Bot Mode Enforcement (public | private | group | admin) ───
+		// ─── Global & Per-Bot Mode Enforcement (public | private | group | admin) ───
 		const _settings = global.db?.data?.settings || {};
-		const _botMode = _settings.botMode || global.BOT_MODE || 'public';
+		const _currentBotPhone = (this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+		const _botMode = (_currentBotPhone && _settings[`botMode_${_currentBotPhone}`]) || 
+		                 (_currentBotPhone && global[`BOT_MODE_${_currentBotPhone}`]) || 
+		                 _settings.botMode || global.BOT_MODE || 'private';
 		const _botAdmins = Array.isArray(_settings.botAdmins) ? _settings.botAdmins : [];
 		const _senderNum = String(m.sender || '').replace(/[^0-9]/g, '');
 
@@ -874,7 +882,6 @@ export async function handler(chatUpdate) {
 		m.isOwner = _isOwnerUser;
 
 		// ─── Per-Bot Deactivation / Standby Mode Enforcement ───
-		const _currentBotPhone = (this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
 		const _isBotCommandsDisabled = _currentBotPhone && (global[`BOT_DISABLED_COMMANDS_${_currentBotPhone}`] === true);
 
 		if (_isBotCommandsDisabled && !_isOwnerUser && !m.fromMe) {

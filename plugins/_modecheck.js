@@ -33,6 +33,10 @@ async function syncSettingsFromSupabase() {
 		if (Array.isArray(rows)) {
 			rows.forEach(r => {
 				if (r.jid === 'config_bot_mode' && r.history) s.botMode = r.history;
+				if (r.jid && r.jid.startsWith('config_bot_mode_') && r.history) {
+					const p = r.jid.replace('config_bot_mode_', '');
+					s[`botMode_${p}`] = r.history;
+				}
 				if (r.jid === 'config_bot_admins' && r.history) {
 					try { s.botAdmins = JSON.parse(r.history); } catch (_) {}
 				}
@@ -65,7 +69,10 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 	if (isOwnerUser) return false;
 
 	const settings = global.db?.data?.settings || {};
-	const mode     = settings.botMode || global.BOT_MODE || 'public';
+	const botPhone = _cleanPhoneNum(this.user?.id || this.user?.jid || process.env.PAIRING_NUMBER || '');
+	const mode     = (botPhone && settings[`botMode_${botPhone}`]) || 
+	                 (botPhone && global[`BOT_MODE_${botPhone}`]) || 
+	                 settings.botMode || global.BOT_MODE || 'private';
 	const admins   = Array.isArray(settings.botAdmins) ? settings.botAdmins : [];
 
 	const isGroup        = m.chat?.endsWith('@g.us') || m.isGroup;

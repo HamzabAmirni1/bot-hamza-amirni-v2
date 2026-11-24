@@ -1166,15 +1166,23 @@ ${reply_text}
         req.on('data', c => { body += c; });
         req.on('end', async () => {
           try {
-            const { mode } = JSON.parse(body);
+            const { mode, phone } = JSON.parse(body);
             const VALID = ['public', 'private', 'admin', 'group', 'vu'];
             if (!VALID.includes(mode)) throw new Error('Invalid mode');
 
-            await saveConfigToSupabase('bot_mode', mode);
-            global.BOT_MODE = mode;
-            // Broadcast mode update to all workers
-            for (const [_, info] of workersMap.entries()) {
-              if (info.worker) info.worker.postMessage({ type: 'set_bot_mode', mode });
+            if (phone) {
+              const cleanP = String(phone).replace(/[^0-9]/g, '');
+              await saveConfigToSupabase(`bot_mode_${cleanP}`, mode);
+              global[`BOT_MODE_${cleanP}`] = mode;
+              const info = workersMap.get(cleanP);
+              if (info && info.worker) info.worker.postMessage({ type: 'set_bot_mode', mode, phone: cleanP });
+            } else {
+              await saveConfigToSupabase('bot_mode', mode);
+              global.BOT_MODE = mode;
+              // Broadcast mode update to all workers
+              for (const [_, info] of workersMap.entries()) {
+                if (info.worker) info.worker.postMessage({ type: 'set_bot_mode', mode });
+              }
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1907,7 +1915,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_NAME: global.namebot || 'bot amirni hamza',
       BOT_AUTHOR: global.author || 'Hamza Amirni',
       BOT_SOURCE: global.source || 'https://whatsapp.com/channel/0029ValXRoHCnA7yKopcrn1p',
-      BOT_MODE: global.BOT_MODE || 'private',
+      BOT_MODE: global[`BOT_MODE_${cleanPhone}`] || global.BOT_MODE || 'private',
       BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
       UV_THREADPOOL_SIZE: '2',
       NODE_OPTIONS: '--max-old-space-size=120'
@@ -2280,18 +2288,17 @@ async function initGlobalConfigs() {
           const p = k.replace('anticall_block_', '');
           global[`ANTICALL_BLOCK_${p}`] = (v === 'true' || v === true);
         }
+        if (k.startsWith('bot_mode_')) {
+          const p = k.replace('bot_mode_', '');
+          global[`BOT_MODE_${p}`] = v;
+        }
       }
       global.SILENT_MODE = cfg.silent_mode !== undefined ? (cfg.silent_mode === 'true' || cfg.silent_mode === true) : false;
       global.AUTO_ONLINE = cfg.auto_online !== undefined ? (cfg.auto_online === 'true' || cfg.auto_online === true) : true;
       global.AUTO_AI = cfg.auto_ai !== undefined ? (cfg.auto_ai === 'true' || cfg.auto_ai === true) : true;
       global.DEFAULT_USER_LIMIT = cfg.default_user_limit !== undefined ? parseInt(cfg.default_user_limit) : -1;
       global.APK_DAILY_LIMIT = cfg.apk_daily_limit !== undefined ? parseInt(cfg.apk_daily_limit) : 5;
-      if (!cfg.bot_mode) {
-        global.BOT_MODE = 'public';
-        await saveConfigToSupabase('bot_mode', 'public');
-      } else {
-        global.BOT_MODE = cfg.bot_mode;
-      }
+      global.BOT_MODE = cfg.bot_mode || 'private';
       if (cfg.bot_name || cfg.namebot) {
         global.namebot = String(cfg.bot_name || cfg.namebot).trim();
         global.stickauth = global.namebot;

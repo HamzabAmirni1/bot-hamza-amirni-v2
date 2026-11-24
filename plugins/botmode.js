@@ -52,15 +52,21 @@ let handler = async (m, { command, text, conn }) => {
 	if (/^setmode$/i.test(command)) {
 		const VALID_MODES = ['public', 'private', 'admin', 'group', 'vu'];
 		const newMode = text?.trim().toLowerCase();
+		const botPhone = (conn.user?.id || conn.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+		const currentMode = (botPhone && settings[`botMode_${botPhone}`]) || settings.botMode || 'private';
 
 		if (!newMode || !VALID_MODES.includes(newMode)) {
 			return m.reply(t(
-				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🔒 *private* — DMs only (Default)\n🌍 *public* — Everyone can use the bot\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n👁️ *vu* — Bot admins only (all chats)\n\n📌 Current mode: *${settings.botMode || 'private'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة فقط (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n👁️ *vu* — للمشرفين فقط (في كل مكان)\n\n📌 الوضع الحالي: *${settings.botMode || 'private'}*`,
-				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة غير (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n👁️ *vu* — الأدمينات غير (فكلشي: گروبات + خاص)\n\n📌 الوضع دابا: *${settings.botMode || 'private'}*`
+				`❓ *Usage:*\n← .setmode <mode>\n\n📋 Available modes:\n🔒 *private* — DMs only (Default)\n🌍 *public* — Everyone can use the bot\n👥 *group* — Groups only\n🛡️ *admin* — Bot admins only\n👁️ *vu* — Bot admins only (all chats)\n\n📌 Current mode (+${botPhone}): *${currentMode}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة فقط (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — مجموعات فقط\n🛡️ *admin* — للمشرفين فقط\n👁️ *vu* — للمشرفين فقط (في كل مكان)\n\n📌 الوضع الحالي (+${botPhone}): *${currentMode}*`,
+				`❓ *الاستخدام:*\n← .setmode <mode>\n\n📋 الأوضاع:\n🔒 *private* — رسائل خاصة غير (الافتراضي)\n🌍 *public* — للجميع\n👥 *group* — الگروبات غير\n🛡️ *admin* — الأدمينات غير\n👁️ *vu* — الأدمينات غير (فكلشي: گروبات + خاص)\n\n📌 الوضع دابا (+${botPhone}): *${currentMode}*`
 			));
 		}
 
+		if (botPhone) {
+			settings[`botMode_${botPhone}`] = newMode;
+			await saveToSupabase(`bot_mode_${botPhone}`, newMode);
+		}
 		settings.botMode = newMode;
 		await saveToSupabase('bot_mode', newMode);
 
@@ -75,11 +81,11 @@ let handler = async (m, { command, text, conn }) => {
 
 		await m.react('✅');
 		return m.reply(
-			`${modeEmojis[newMode]} *Bot Mode Changed!*\n\n` +
+			`${modeEmojis[newMode]} *Bot Mode Changed (+${botPhone})!*\n\n` +
 			t(
-				`New mode: *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`,
-				`الوضع الجديد: *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`,
-				`الوضع الجديد: *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`
+				`New mode for +${botPhone}: *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`,
+				`الوضع الجديد للبوت (+${botPhone}): *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`,
+				`الوضع الجديد للبوت (+${botPhone}): *${newMode.toUpperCase()}*\n${modeLabels[newMode]}`
 			)
 		);
 	}
@@ -319,7 +325,8 @@ let handler = async (m, { command, text, conn }) => {
 		const rawOwner = Array.isArray(global.owner?.[0]) ? global.owner[0][0] : global.owner?.[0];
 		const rootOwnerNum = String(rawOwner || '212624855939').replace(/[^0-9]/g, '');
 		const dynamicOwners = (global.botOwners || []).map(o => String(Array.isArray(o) ? o[0] : o).replace(/[^0-9]/g, '')).filter(n => n && n !== rootOwnerNum);
-		const currentMode = settings.botMode || 'private';
+		const botPhone = (conn.user?.id || conn.user?.jid || process.env.PAIRING_NUMBER || '').split(':')[0].split('@')[0].replace(/[^0-9]/g, '');
+		const currentMode = (botPhone && settings[`botMode_${botPhone}`]) || settings.botMode || 'private';
 		const modeEmojis = { public: '🌍', private: '🔒', group: '👥', admin: '🛡️', vu: '👁️' };
 
 		let msg = t(
