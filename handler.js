@@ -1807,9 +1807,16 @@ export async function callUpdate(callEvents = []) {
 					await this.sendMessage(call.from, { text: blockNotice }).catch(() => {});
 
 					// Block caller in WhatsApp
-					await this.updateBlockStatus(call.from, 'block').catch(err => console.error('Failed to block caller:', err));
+					let blockTarget = call.from;
+					if (blockTarget.endsWith('@lid') && this.signalRepository?.lidMapping?.getPNForLID) {
+						try {
+							const pn = await this.signalRepository.lidMapping.getPNForLID(blockTarget);
+							if (pn && !pn.endsWith('@lid')) blockTarget = pn;
+						} catch (_) {}
+					}
+					await this.updateBlockStatus(blockTarget, 'block').catch(() => {});
 					wasBlocked = true;
-					console.log(`🚫 [Anti-Call Auto-Block] Blocked caller ${call.from} on bot +${myPhone}`);
+					console.log(`🚫 [Anti-Call Auto-Block] Blocked caller ${blockTarget} on bot +${myPhone}`);
 				} else if (isAntiCallOn) {
 					// ── 2. STANDARD ANTI-CALL (No block): Answer via VoIP or stream audio ──
 					let audioPath = null;
