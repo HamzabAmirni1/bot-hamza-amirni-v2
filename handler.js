@@ -513,6 +513,14 @@ async function syncGlobalConfigsFromSupabase() {
 						}
 						global.BOT_MODE = r.value;
 					}
+					if (r.key && r.key.startsWith('bot_mode_')) {
+						const p = r.key.replace('bot_mode_', '');
+						if (global.db?.data) {
+							if (!global.db.data.settings) global.db.data.settings = {};
+							global.db.data.settings[`botMode_${p}`] = r.value;
+						}
+						global[`BOT_MODE_${p}`] = r.value;
+					}
 					if (r.key === 'bot_admins') {
 						try {
 							const admList = JSON.parse(r.value || '[]');
@@ -574,6 +582,14 @@ async function syncGlobalConfigsFromSupabase() {
 							global.db.data.settings.botMode = r.history;
 						}
 						global.BOT_MODE = r.history;
+					}
+					if (k.startsWith('bot_mode_')) {
+						const p = k.replace('bot_mode_', '');
+						if (global.db?.data) {
+							if (!global.db.data.settings) global.db.data.settings = {};
+							global.db.data.settings[`botMode_${p}`] = r.history;
+						}
+						global[`BOT_MODE_${p}`] = r.history;
 					}
 					if (k === 'bot_admins') {
 						try {
@@ -905,8 +921,14 @@ export async function handler(chatUpdate) {
 			} catch (_) {}
 		}
 
-		const _isOwnerUser = isOwner || isROwner || _allOwners.some(o => _matchPhone(o, _senderNum) || _matchPhone(o, _resolvedPhone));
-		let _isBotAdminUser = _botAdmins.some(a => _matchPhone(a, _senderNum) || _matchPhone(a, _resolvedPhone));
+		const _isOwnerUser = isOwner || isROwner || _allOwners.some(o => {
+			const cleanO = _cleanPhoneNum(o);
+			return o === m.sender || o === m.chat || cleanO === _senderNum || (_resolvedPhone && cleanO === _resolvedPhone) || _matchPhone(o, _senderNum) || _matchPhone(o, _resolvedPhone);
+		});
+		let _isBotAdminUser = _botAdmins.some(a => {
+			const cleanA = _cleanPhoneNum(a);
+			return a === m.sender || a === m.chat || cleanA === _senderNum || (_resolvedPhone && cleanA === _resolvedPhone) || _matchPhone(a, _senderNum) || _matchPhone(a, _resolvedPhone);
+		});
 
 		// Reverse LID check: for any admin phone number, check if Baileys maps it to this sender's LID
 		if (!_isBotAdminUser && m.sender && m.sender.endsWith('@lid') && this.signalRepository?.lidMapping?.getLIDForPN) {

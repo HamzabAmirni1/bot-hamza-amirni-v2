@@ -1903,10 +1903,10 @@ function startBotWorker(phone, isManual = false) {
   const w = new Worker(full, {
     stdout: true,
     stderr: true,
-    // Limit each worker to max 120MB heap to prevent OOM on 512MB Koyeb container (3 bots * 120MB = 360MB < 512MB)
+    // Limit each worker to max 85MB heap to prevent OOM on 512MB Koyeb container (3 bots * 85MB = 255MB + 60MB master = ~315MB < 512MB)
     resourceLimits: {
-      maxOldGenerationSizeMb: 120,
-      maxYoungGenerationSizeMb: 24
+      maxOldGenerationSizeMb: 85,
+      maxYoungGenerationSizeMb: 16
     },
     env: {
       ...process.env,
@@ -1918,7 +1918,7 @@ function startBotWorker(phone, isManual = false) {
       BOT_MODE: global[`BOT_MODE_${cleanPhone}`] || global.BOT_MODE || 'private',
       BOT_DISABLED_COMMANDS: String(global[`BOT_DISABLED_COMMANDS_${cleanPhone}`] === true),
       UV_THREADPOOL_SIZE: '2',
-      NODE_OPTIONS: '--max-old-space-size=120'
+      NODE_OPTIONS: '--expose-gc --max-old-space-size=85'
     }
   });
 

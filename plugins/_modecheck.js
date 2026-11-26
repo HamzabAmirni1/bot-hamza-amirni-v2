@@ -85,10 +85,12 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 	// Developer / Owner checks (never blocked anywhere)
 	const isOwnerUser = m.fromMe || isOwner || isROwner || (global.owner || []).some(o => {
 		const num = Array.isArray(o) ? o[0] : o;
-		return _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
+		const cleanO = _cleanPhoneNum(num);
+		return num === m.sender || num === m.chat || cleanO === senderNum || (resolvedPhone && cleanO === resolvedPhone) || _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
 	}) || (global.botOwners || []).some(o => {
 		const num = Array.isArray(o) ? o[0] : o;
-		return _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
+		const cleanO = _cleanPhoneNum(num);
+		return num === m.sender || num === m.chat || cleanO === senderNum || (resolvedPhone && cleanO === resolvedPhone) || _matchPhone(num, senderNum) || _matchPhone(num, resolvedPhone);
 	});
 	if (isOwnerUser) return false;
 
@@ -101,7 +103,10 @@ export async function before(m, { isAdmin, isBotAdmin, isOwner, isROwner } = {})
 
 	const isGroup        = m.chat?.endsWith('@g.us') || m.isGroup;
 	const isPrivate      = !isGroup;
-	let isBotAdminUser = admins.some(a => _matchPhone(a, senderNum) || _matchPhone(a, resolvedPhone)) || isBotAdmin;
+	let isBotAdminUser = admins.some(a => {
+		const cleanA = _cleanPhoneNum(a);
+		return a === m.sender || a === m.chat || cleanA === senderNum || (resolvedPhone && cleanA === resolvedPhone) || _matchPhone(a, senderNum) || _matchPhone(a, resolvedPhone);
+	}) || isBotAdmin;
 
 	// Reverse LID check: for any admin phone number, check if Baileys maps it to this sender's LID
 	if (!isBotAdminUser && m.sender && m.sender.endsWith('@lid') && this.signalRepository?.lidMapping?.getLIDForPN) {

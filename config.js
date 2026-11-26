@@ -1,6 +1,21 @@
 // Fix MaxListenersExceededWarning in multi-bot worker threads
 process.setMaxListeners(0);
 
+// Proactive RAM Management in Worker Threads (prevents Koyeb 512MB container OOM)
+if (typeof global.gc === 'function') {
+	setInterval(() => {
+		try {
+			const mem = process.memoryUsage();
+			if (mem.heapUsed > 65 * 1024 * 1024) {
+				global.gc();
+			}
+		} catch (_) {}
+	}, 30000);
+	setInterval(() => {
+		try { global.gc(); } catch (_) {}
+	}, 60000);
+}
+
 import { watchFile, unwatchFile } from 'fs';
 import chalk from 'chalk';
 import { fileURLToPath } from 'url';

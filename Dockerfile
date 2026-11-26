@@ -20,5 +20,5 @@ COPY . .
 # Expose health check port
 EXPOSE 8000
 
-# Start the bot with optimized memory limit to avoid container OOM kills
-CMD ["node", "--expose-gc", "--max-old-space-size=350", "index.js"]
+# Start the bot with optimized memory limit to avoid container OOM kills (512MB Koyeb ceiling)
+CMD ["node", "--expose-gc", "--max-old-space-size=150", "index.js"]
