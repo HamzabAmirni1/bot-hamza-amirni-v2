@@ -1968,16 +1968,16 @@ function startBotWorker(phone, isManual = false) {
     if (silencePatterns.some(p => chunkStr.includes(p))) return;
 
     const isConnectEvent = chunkStr.includes('Tersambung') ||
-                           chunkStr.includes('🟢 الحالة: نشط') ||
                            chunkStr.includes('متصل ✅') ||
-                           chunkStr.includes('في انتظار الرسائل');
+                           chunkStr.includes('في انتظار الرسائل') ||
+                           chunkStr.includes('Menunggu Pesan Baru');
 
     if (isConnectEvent) {
       botInfo.connected = true;
-      // Instantly backup session on every connection event — keep it always fresh
-      backupSessionForPhone(cleanPhone, true);
+      // Backup session on real connection event with throttle (avoids OOM from repeated Base64 dumps)
+      backupSessionForPhone(cleanPhone, false);
       // Also backup after 30s in case creds file updated after handshake
-      setTimeout(() => backupSessionForPhone(cleanPhone, true), 30000);
+      setTimeout(() => backupSessionForPhone(cleanPhone, false), 30000);
     }
 
     const translated = chunkStr
@@ -2008,8 +2008,10 @@ function startBotWorker(phone, isManual = false) {
     const s = chunk.toString();
     if (s.includes('Stream Errored (conflict)')) {
       global._workerConflicts[cleanPhone] = Date.now();
-      console.log(`⚠️ [+${cleanPhone}] Stream conflict detected on WhatsApp socket. Reconnecting in 8s...`);
-      try { w.terminate(); } catch (_) {}
+      console.log(`⚠️ [+${cleanPhone}] Stream conflict detected on WhatsApp socket. Allowing graceful disconnect before retry...`);
+      setTimeout(() => {
+        try { w.terminate(); } catch (_) {}
+      }, 4000);
     }
   });
 
