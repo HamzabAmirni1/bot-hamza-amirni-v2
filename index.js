@@ -1927,7 +1927,12 @@ function startBotWorker(phone, isManual = false) {
     phone: cleanPhone,
     connected: false,
     pairingCode: null,
-    lastActivity: Date.now()
+    spawnTime: Date.now(),
+    lastActivity: Date.now(),
+    lastPong: null,
+    lastHealthyWs: null,
+    wsReady: 0,
+    isConn: false
   };
   workersMap.set(cleanPhone, botInfo);
 
@@ -2019,6 +2024,12 @@ function startBotWorker(phone, isManual = false) {
     botInfo.lastActivity = Date.now();
     if (msg?.type === 'pong') {
       botInfo.lastPong = Date.now();
+      botInfo.wsReady = (typeof msg.wsReady === 'number') ? msg.wsReady : botInfo.wsReady;
+      botInfo.isConn = (typeof msg.isConnected === 'boolean') ? msg.isConnected : botInfo.isConn;
+      if (msg.wsReady === 1 || msg.isConnected) {
+        botInfo.lastHealthyWs = Date.now();
+        botInfo.connected = true;
+      }
     }
   });
 
@@ -2432,7 +2443,7 @@ async function pingServerHeartbeat() {
 function startAntiCrashWatchdog() {
   console.log('🛡️ [Watchdog] Initializing 24/7 Anti-Crash & Anti-Freeze Guardian...');
 
-  // ── 1. Worker Freeze & Deadlock Watchdog (Every 45 seconds) ──
+  // ── 1. Worker Freeze & Deadlock Watchdog (Every 30 seconds) ──
   setInterval(() => {
     const now = Date.now();
     for (const [phone, info] of workersMap.entries()) {
@@ -2443,13 +2454,20 @@ function startAntiCrashWatchdog() {
         info.worker.postMessage({ type: 'ping', timestamp: now });
       } catch (_) {}
 
-      // Check for genuine worker deadlock: only auto-recover if event-loop stops responding to ping for > 10 minutes
-      const pongLag = info.lastPong ? (now - info.lastPong) : 0;
-      const inactiveMs = now - (info.lastActivity || now);
-      const isDeadlocked = info.lastPong ? (pongLag > 10 * 60 * 1000) : (!info.connected && inactiveMs > 10 * 60 * 1000);
+      // 1. Thread Event-Loop freeze (no reply to ping for > 90s)
+      const pongLag = info.lastPong ? (now - info.lastPong) : (now - (info.spawnTime || now));
+      const isEventLoopDead = (info.lastPong || (now - (info.spawnTime || now) > 60000)) && (pongLag > 90 * 1000);
 
-      if (isDeadlocked) {
-        console.log(`⚠️ [Watchdog] Bot +${phone} is genuinely frozen / deadlocked (pong lag: ${Math.round(pongLag/1000)}s, idle: ${Math.round(inactiveMs/1000)}s). Auto-recovering worker...`);
+      // 2. WhatsApp WebSocket Zombie detection:
+      // If the bot was previously connected, but the socket is NOT in OPEN state (readyState !== 1)
+      // for more than 75 seconds, Baileys has hung in a zombie state and failed to reconnect!
+      const isWsZombie = info.connected && info.lastHealthyWs && (now - info.lastHealthyWs > 75 * 1000) && (info.wsReady !== 1);
+
+      if (isEventLoopDead || isWsZombie) {
+        const reason = isEventLoopDead 
+          ? `Thread event-loop deadlock (pong lag: ${Math.round(pongLag/1000)}s)`
+          : `WhatsApp socket zombie / silent drop for ${Math.round((now - info.lastHealthyWs)/1000)}s (wsReady: ${info.wsReady})`;
+        console.log(`⚠️ [Watchdog] Bot +${phone} is frozen (${reason}). Auto-recovering worker...`);
         try { info.worker.terminate(); } catch (_) {}
         workersMap.delete(phone);
         setTimeout(() => {
@@ -2458,7 +2476,7 @@ function startAntiCrashWatchdog() {
         }, 3000);
       }
     }
-  }, 45 * 1000);
+  }, 30 * 1000);
 
   // ── 2. Missing & Dropped Bots Resurrector (Every 5 minutes) — reduced poll frequency to save CPU
   setInterval(async () => {

@@ -144,9 +144,18 @@ if (parentPort && !global.__parentPortListenerAdded) {
 						}
 					}
 				} else if (msg.type === 'ping') {
-					// Heartbeat Watchdog response: confirms worker event loop is alive & healthy
+					// Heartbeat Watchdog response: reports real WhatsApp connection state
 					if (parentPort) {
-						parentPort.postMessage({ type: 'pong', timestamp: Date.now() });
+						const sock = global.conn;
+						const wsReady = sock?.ws?.readyState;
+						const isConn = !!(sock?.user?.id || sock?.user?.jid);
+						parentPort.postMessage({
+							type: 'pong',
+							timestamp: Date.now(),
+							wsReady: (typeof wsReady === 'number') ? wsReady : (global.__wsConnected ? 1 : 0),
+							isConnected: isConn || global.__wsConnected || false,
+							lastActivity: global.__lastMsgReceived || Date.now()
+						});
 					}
 				}
 			}
